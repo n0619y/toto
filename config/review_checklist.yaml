@@ -1,0 +1,65 @@
+# =============================================================================
+# review_checklist.yaml
+# 監修チェック項目マスタ（toto先生が自由に編集できます）
+#
+# ここに項目を追加・削除すると、生成される監修Excelの「Sheet3: 必須チェック項目」に
+# 自動的に反映されます。
+#   - id:        項目を識別するためのID（重複しないように）
+#   - text:      チェック内容
+#   - priority:  「必須」または「推奨」
+# =============================================================================
+
+categories:
+  - name: 安全性
+    items:
+      - id: SAFE01
+        text: 診断・処方を促す表現がないか
+        priority: 必須
+      - id: SAFE02
+        text: 受診目安が明示されているか（救急／当日／翌日以降）
+        priority: 必須
+      - id: SAFE03
+        text: 緊急症状（けいれん・意識障害・呼吸困難・脱水・3か月未満の発熱等）の警告が冒頭にあるか
+        priority: 必須
+      - id: SAFE04
+        text: 商品名・薬剤商品名が含まれていないか（一般名のみか）
+        priority: 必須
+
+  - name: 医学的正確性
+    items:
+      - id: ACC01
+        text: 出典が最新ガイドラインと整合しているか
+        priority: 必須
+      - id: ACC02
+        text: 出典が3年以内 or 最新ガイドラインか
+        priority: 必須
+      - id: ACC03
+        text: 年齢区分（新生児／乳児／幼児／学童）が適切か
+        priority: 必須
+      - id: ACC04
+        text: 月齢・年齢別の用量記載がないか
+        priority: 必須
+      - id: ACC05
+        text: ワクチンは最新の定期/任意接種スケジュールと整合しているか
+        priority: 必須
+      - id: ACC06
+        text: 民間療法・エビデンス不十分な記載がないか
+        priority: 必須
+
+  - name: 配慮
+    items:
+      - id: CARE01
+        text: アレルギー・既往歴への配慮文があるか
+        priority: 推奨
+      - id: CARE02
+        text: 画像・図表に誤りや誤解を招く表現がないか
+        priority: 推奨
+      - id: CARE03
+        text: YMYL配慮の文末免責文があるか
+        priority: 必須
+
+  - name: 監修者表記
+    items:
+      - id: CRED01
+        text: 全成果物に「toto先生（小児科医）」表記があるか
+        priority: 必須

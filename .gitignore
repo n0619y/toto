@@ -1,0 +1,29 @@
+# APIキーなどの秘密情報
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# ログ
+logs/*.log
+
+# 生成された成果物（サンプルを残したい場合はコメントアウト）
+output/themes/*.json
+output/research/*
+output/scripts/*
+output/articles/*
+output/slides/*
+output/review/*
+
+# .gitkeep は残す
+!output/**/.gitkeep
+!logs/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db

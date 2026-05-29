@@ -1,0 +1,53 @@
+# =============================================================================
+# settings.yaml
+# 小児科コンテンツ自動生成システム 全体設定
+#
+# 監修者情報を変更したい場合は、下の「reviewer」セクションを編集してください。
+# ここを書き換えるだけで、全成果物（記事・スライド・Excel・HTML）の監修者表記が
+# 自動的に切り替わります。
+# =============================================================================
+
+# --- 監修者情報（全成果物に自動挿入されます） ------------------------------
+reviewer:
+  name: "toto先生"            # 監修者のお名前
+  title: "小児科医"            # 肩書き
+  display: "監修: toto先生（小児科医）"  # 実際に表示される文字列
+
+# --- コンテンツの方向性 ------------------------------------------------------
+content:
+  target_audience: "未就学児〜小学生の保護者"
+  tone: "やさしく、専門用語には注釈、断定を避けつつ実用的"
+
+# --- デザイン（スライド・HTMLの配色） ---------------------------------------
+design:
+  primary_color: "#4FB3D9"     # メインカラー（見出し・タイトル）
+  secondary_color: "#F4F9FC"   # 背景色
+  accent_color: "#FF8A65"      # アクセント（強調・装飾ボックス）
+  font_main: "Noto Sans JP"
+
+# --- 出力文字数のルール ------------------------------------------------------
+output:
+  article_min_chars: 2500
+  article_max_chars: 4000
+  youtube_min_chars: 1500
+  youtube_max_chars: 2500
+  shorts_min_chars: 200
+  shorts_max_chars: 350
+
+# --- Claude API 設定 ---------------------------------------------------------
+# モデルは依頼仕様に従い claude-opus-4-7 をメインに使用します。
+# APIキーは .env の ANTHROPIC_API_KEY に設定してください（このファイルには書かない）。
+claude:
+  model: "claude-opus-4-7"
+  max_tokens: 8000
+  temperature: 0.5
+  max_retries: 3              # API失敗時のリトライ回数
+
+# --- 検索設定 ----------------------------------------------------------------
+# Tavily API（TAVILY_API_KEY）が設定されていれば優先利用します。
+# 未設定の場合は requests + beautifulsoup4 のフォールバック検索に切り替わります。
+search:
+  results_per_query: 6
+  request_interval_sec: 1.0    # スクレイピング時のアクセス間隔（robots.txt配慮）
+  user_agent: "PediatricContentBot/1.0 (+educational; respects robots.txt)"
+  timeout_sec: 20

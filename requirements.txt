@@ -1,0 +1,13 @@
+# 小児科コンテンツ自動生成システム 依存パッケージ
+# インストール: pip install -r requirements.txt
+
+anthropic>=0.40.0        # Claude API クライアント
+python-dotenv>=1.0.0     # .env からのAPIキー読み込み
+PyYAML>=6.0              # 設定ファイル(settings.yaml)の読み込み
+requests>=2.31.0         # Web検索・スクレイピング
+beautifulsoup4>=4.12.0   # HTMLパース（検索フォールバック）
+pytrends>=4.9.2          # Googleトレンド取得
+python-pptx>=0.6.23      # PowerPointスライド生成
+openpyxl>=3.1.2          # 監修チェックリストExcel生成
+markdown>=3.5            # Markdown→HTML変換
+Jinja2>=3.1.2            # HTMLテンプレート描画
