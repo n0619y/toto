@@ -110,8 +110,12 @@ def _to_html(markdown_text: str, title: str) -> str:
 """
 
 
-def build_article(theme: str, article_script_path: str) -> dict:
-    """記事のMarkdown/HTML/アイキャッチプロンプトを生成・保存する。"""
+def build_article(theme: str, article_script_path: str, offline: bool = False) -> dict:
+    """記事のMarkdown/HTML/アイキャッチプロンプトを生成・保存する。
+
+    offline=True のときは関連テーマ・アイキャッチのClaude呼び出しを行わず、
+    静的なフォールバック内容を使う（APIキー不要のデモ・検証用）。
+    """
     logger.info("=== ステップ4a: 記事生成開始（テーマ: %s）===", theme)
     client = ClaudeClient()
 
@@ -122,14 +126,22 @@ def build_article(theme: str, article_script_path: str) -> dict:
     title = title_match.group(1).strip() if title_match else theme
 
     # 監修者ブロックと関連テーマ提案を末尾に付与
-    related = _suggest_related_themes(theme, client)
+    if offline:
+        related = (f"- {theme}に関するよくある質問\n- 子供の体調変化のホームケア\n"
+                   "- 受診の目安まとめ\n- 予防接種のスケジュール\n- 季節ごとの感染症対策")
+        eyecatch = (f"A gentle flat illustration about '{theme}' for parents, "
+                    "soft pastel colors, reassuring mood. ／ "
+                    f"「{theme}」の保護者向けアイキャッチ。やさしいパステル調のフラットイラスト。")
+    else:
+        related = _suggest_related_themes(theme, client)
+        eyecatch = _eyecatch_prompt(theme, client)
+
     full_md = script
     if reviewer_name() not in full_md:
         full_md += _reviewer_block_md()
     full_md += f"\n\n## 関連テーマ\n{related}\n"
 
     html = _to_html(full_md, title)
-    eyecatch = _eyecatch_prompt(theme, client)
 
     slug = slugify(theme)
     base = ensure_dir(OUTPUT_DIR / "articles")

@@ -11,6 +11,7 @@
   python main.py --step 2 --input <file>  # 特定ステップだけ実行
   python main.py --review-only "乳児の便秘" # 監修パッケージのみ再生成
   python main.py --revise <review.xlsx>    # 監修Excelの修正指示を成果物へ自動反映
+  python main.py --demo                    # APIキー不要のオフラインデモ
   python main.py --auto                    # テーマ自動選択（デフォルト挙動）
 """
 
@@ -123,6 +124,64 @@ def run_single_step(step: int, theme: str | None, input_path: str | None) -> Non
         logger.error("ステップ %s は単独実行に対応していません（1〜4）。", step)
 
 
+def run_demo() -> None:
+    """APIキー無しで動くオフラインデモ。
+
+    組み込みのサンプル台本・リサーチ・出典から、記事・スライド・監修パッケージを
+    実際に生成して、システム全体の挙動を確認できる。
+    """
+    from src import (
+        demo_content,
+        step4_article_builder,
+        step4_slide_builder,
+        step5_review_kit_builder,
+    )
+    from src.utils.citation_tracker import CitationTracker
+    from src.utils.common import OUTPUT_DIR, ensure_dir, slugify, today_str
+
+    theme = demo_content.DEMO_THEME
+    slug = slugify(theme)
+    stamp = today_str()
+    logger.info("=== オフラインデモ開始（テーマ: %s・APIキー不要）===", theme)
+
+    # 1) リサーチ本文・出典を書き出し（C-IDが一貫）
+    research_dir = ensure_dir(OUTPUT_DIR / "research")
+    (research_dir / f"{slug}_{stamp}.md").write_text(
+        demo_content.DEMO_RESEARCH_MD, encoding="utf-8")
+    tracker = CitationTracker()
+    for rec in demo_content.DEMO_CITATIONS:
+        tracker.add(claim=rec["claim"], url=rec["url"], org=rec["org"],
+                    confidence=rec["confidence"], guideline_year=rec["guideline_year"],
+                    claim_id=rec["claim_id"])
+    cit_path = research_dir / f"{slug}_{stamp}_citations.json"
+    tracker.save(cit_path)
+
+    # 2) 台本を書き出し
+    scripts_dir = ensure_dir(OUTPUT_DIR / "scripts")
+    art_script = scripts_dir / f"{slug}_{stamp}_article.md"
+    yt_script = scripts_dir / f"{slug}_{stamp}_youtube.md"
+    sh_script = scripts_dir / f"{slug}_{stamp}_shorts.md"
+    art_script.write_text(demo_content.DEMO_ARTICLE_SCRIPT, encoding="utf-8")
+    yt_script.write_text(demo_content.DEMO_YOUTUBE_SCRIPT, encoding="utf-8")
+    sh_script.write_text(demo_content.DEMO_SHORTS_SCRIPT, encoding="utf-8")
+
+    artifacts: dict = {
+        "citations_path": str(cit_path),
+        "youtube_script": str(yt_script),
+        "shorts_script": str(sh_script),
+    }
+
+    # 3) 記事（offline=ClaudeなしでHTML/MD生成）
+    artifacts.update(step4_article_builder.build_article(theme, str(art_script), offline=True))
+    # 4) スライド
+    artifacts.update(step4_slide_builder.build_slides(theme, str(yt_script), str(sh_script)))
+    # 5) 監修パッケージ（offline=機械的リスク判定）
+    review = step5_review_kit_builder.build_review_kit(theme, artifacts, offline=True)
+
+    _print_summary(theme, artifacts, review)
+    print("（これは --demo によるオフライン生成です。実運用では .env にAPIキーを設定してください）")
+
+
 def run_review_only(theme: str) -> None:
     """既存成果物から監修パッケージのみ再生成する。
 
@@ -163,10 +222,14 @@ def main() -> None:
                         help="既存成果物から監修パッケージのみ再生成")
     parser.add_argument("--revise", type=str, metavar="REVIEW_XLSX",
                         help="監修Excelの修正指示を成果物へ自動反映")
+    parser.add_argument("--demo", action="store_true",
+                        help="APIキー無しで動くオフラインデモ（セットアップ確認用）")
     args = parser.parse_args()
 
     try:
-        if args.revise:
+        if args.demo:
+            run_demo()
+        elif args.revise:
             from src import step6_reviser
             step6_reviser.revise(args.revise)
         elif args.review_only:

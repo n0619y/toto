@@ -71,7 +71,11 @@ def _collect_sources(queries: List[str]) -> List[SearchResult]:
 
 
 def _build_citation_tracker(sources: List[SearchResult]) -> CitationTracker:
-    """収集ソースから初期 CitationTracker を作る（後でClaudeが主張に紐付け）。"""
+    """収集ソースから CitationTracker を作る（各ソースに C01, C02... を割り当て）。
+
+    ここで割り当てた C-ID を Claude に渡し、リサーチ本文・台本・監修Excel まで
+    一貫した出典IDとして使い回す。
+    """
     tracker = CitationTracker()
     for s in sources:
         org, rank = classify_source(s.url)
@@ -81,27 +85,37 @@ def _build_citation_tracker(sources: List[SearchResult]) -> CitationTracker:
     return tracker
 
 
-def _build_source_digest(sources: List[SearchResult]) -> str:
-    """Claudeに渡す出典ダイジェスト文字列を作る。"""
+def _build_source_digest(tracker: CitationTracker, sources: List[SearchResult]) -> str:
+    """Claudeに渡す出典ダイジェスト文字列を作る（C-ID付き）。"""
+    # claim_id -> SearchResult の対応（URLで突き合わせ）
+    url_to_source = {s.url: s for s in sources}
     lines = []
-    for i, s in enumerate(sources, 1):
-        org, rank = classify_source(s.url)
-        body = (s.content or s.snippet or "")[:1200]
+    for c in tracker.items:
+        src = url_to_source.get(c.url)
+        body = (src.content or src.snippet or c.claim if src else c.claim)[:1200]
+        title = src.title if src else c.claim[:60]
         lines.append(
-            f"[S{i:02d}] 機関={org} 信頼度={rank}\nURL: {s.url}\nタイトル: {s.title}\n抜粋: {body}\n"
+            f"[{c.claim_id}] 機関={c.org} 信頼度={c.confidence}\n"
+            f"URL: {c.url}\nタイトル: {title}\n抜粋: {body}\n"
         )
     return "\n".join(lines)
 
 
 def _generate_research_markdown(
-    theme: str, sources: List[SearchResult], client: ClaudeClient
+    theme: str, tracker: CitationTracker, sources: List[SearchResult],
+    client: ClaudeClient,
 ) -> str:
-    """規定フォーマットのリサーチMarkdownを生成する。"""
-    digest = _build_source_digest(sources)
+    """規定フォーマットのリサーチMarkdownを生成する。
+
+    本文中の出典参照は [C01] のように citations.json と同一のIDを用いる。
+    これにより step3 の台本 [ref:C01] や step5 のExcel Sheet2 と対応が取れる。
+    """
+    digest = _build_source_digest(tracker, sources)
     accessed = today_iso()
     prompt = f"""テーマ「{theme}」について、以下の出典資料【のみ】を根拠に、保護者向けの
 医学リサーチをMarkdownで作成してください。出典のない記述は絶対に書かないでください。
-各主張には対応する出典番号（例: [S01]）を本文中に添えてください。
+各主張には、対応する出典のID（例: [C01]）を本文中に必ず添えてください。
+ID は下記資料の角括弧内のもの（C01, C02...）をそのまま使ってください。新しい番号を作らないこと。
 
 # 出典資料
 {digest}
@@ -115,7 +129,7 @@ def _generate_research_markdown(
 ## 家庭でのケア
 ## ガイドライン参照状況（最新版年度を明記。年度が不明なものは「年度不明」と書く）
 ## 出典一覧
-（各出典を「- [S01] 機関名 / URL / 信頼度A-C / アクセス日 {accessed}」の形式で列挙）
+（各出典を「- [C01] 機関名 / URL / 信頼度A-C / アクセス日 {accessed}」の形式で列挙）
 
 # 注意
 - 緊急症状に該当しうる内容は「受診の目安」より前に警告を置く。
@@ -139,7 +153,7 @@ def research(theme: str) -> dict:
         logger.warning("検索結果がゼロ件でした。Claudeの一般知識ベースで概要を作成します（出典は限定的）。")
 
     tracker = _build_citation_tracker(sources)
-    markdown = _generate_research_markdown(theme, sources, client)
+    markdown = _generate_research_markdown(theme, tracker, sources, client)
 
     slug = slugify(theme)
     base = ensure_dir(OUTPUT_DIR / "research")

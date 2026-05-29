@@ -54,12 +54,51 @@ def _fetch_trends() -> List[str]:
     return related
 
 
-def _fetch_faq_titles() -> List[str]:
-    """Q&Aサイトの小児カテゴリーからよくある質問タイトルを収集する。
+# Q&Aサイトの小児・育児カテゴリーのページ（robots.txt遵守の上で巡回）
+QA_CATEGORY_URLS = [
+    # Yahoo!知恵袋 「子育ての悩み」「子供の病気」関連カテゴリー
+    "https://chiebukuro.yahoo.co.jp/category/2078297745/question/list",
+    "https://chiebukuro.yahoo.co.jp/category/2079420109/question/list",
+    # 教えて!goo 「子育て・育児・新生児」関連
+    "https://oshiete.goo.ne.jp/category/674/",
+    "https://oshiete.goo.ne.jp/category/210/",
+]
 
-    サイト構造変更に強くするため、検索ツール経由で「子供 病気 知恵袋」等を引き、
-    タイトルを収集する簡易実装。失敗時は空リスト。
+
+def _scrape_qa_sites() -> List[str]:
+    """Q&Aサイトの小児カテゴリーを直接スクレイピングして質問タイトルを収集する。
+
+    robots.txt遵守・UA設定・1秒間隔は SearchTools 側で担保。
+    サイト構造変更で取得できない場合は空リストを返し、呼び出し側で検索フォールバックする。
     """
+    titles: List[str] = []
+    try:
+        from bs4 import BeautifulSoup
+
+        from .utils.search_tools import SearchTools
+
+        tools = SearchTools()
+        for url in QA_CATEGORY_URLS:
+            html_text = tools.fetch_raw_html(url)
+            if not html_text:
+                continue
+            soup = BeautifulSoup(html_text, "html.parser")
+            # 質問タイトルらしきリンクを広めに拾う（サイト構造差異に頑健に）
+            for a in soup.find_all("a"):
+                text = a.get_text(strip=True)
+                href = a.get("href", "")
+                if text and 8 <= len(text) <= 60 and (
+                    "question" in href or "/qa/" in href or text.endswith(("？", "?"))
+                ):
+                    titles.append(text)
+        logger.info("Q&Aサイト直接スクレイピングで %d 件のタイトルを取得", len(titles))
+    except Exception as exc:
+        logger.debug("Q&A直接スクレイピング失敗: %s", exc)
+    return titles
+
+
+def _search_faq_titles() -> List[str]:
+    """検索経由でQ&Aのよくある質問タイトルを収集するフォールバック。"""
     titles: List[str] = []
     try:
         from .utils.search_tools import SearchTools
@@ -70,7 +109,19 @@ def _fetch_faq_titles() -> List[str]:
                 if r.title:
                     titles.append(r.title)
     except Exception as exc:
-        logger.debug("FAQタイトル収集失敗: %s", exc)
+        logger.debug("FAQ検索フォールバック失敗: %s", exc)
+    return titles
+
+
+def _fetch_faq_titles() -> List[str]:
+    """Q&Aサイトのよくある質問タイトルを収集する。
+
+    まず直接スクレイピングを試み、取得できなければ検索フォールバックに切り替える。
+    """
+    titles = _scrape_qa_sites()
+    if len(titles) < 5:  # 直接取得が不十分なら検索で補う
+        logger.info("直接スクレイピングが不十分のため検索フォールバックを併用")
+        titles.extend(_search_faq_titles())
     return titles
 
 

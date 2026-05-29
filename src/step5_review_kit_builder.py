@@ -57,9 +57,11 @@ EMERGENCY_WORDS = [
 
 
 def _read(path: str) -> str:
-    """ファイルを安全に読み込む（無ければ空文字）。"""
+    """ファイルを安全に読み込む（未指定・無し・ディレクトリなら空文字）。"""
+    if not path:
+        return ""
     p = Path(path)
-    return p.read_text(encoding="utf-8") if p.exists() else ""
+    return p.read_text(encoding="utf-8") if p.is_file() else ""
 
 
 def run_auto_checks(article_md: str, youtube_md: str, shorts_md: str) -> Dict:
@@ -93,8 +95,30 @@ def run_auto_checks(article_md: str, youtube_md: str, shorts_md: str) -> Dict:
     }
 
 
-def _claude_risk_assessment(theme: str, article_md: str, checks: Dict) -> Dict:
-    """Claudeにリスク判定と要注意箇所TOP5抽出を依頼する。失敗時はフォールバック。"""
+def _fallback_risk(checks: Dict) -> Dict:
+    """API無し（または失敗時）の機械的なリスク判定。"""
+    level = "高" if (checks["product_hits"] or not checks["has_disclaimer"]) else (
+        "中" if checks["emergency_hits"] and not checks["has_consult"] else "低"
+    )
+    notes = []
+    if checks["product_hits"]:
+        notes.append("商品名が検出されました（一般名に要修正）")
+    if not checks["has_disclaimer"]:
+        notes.append("免責文が見当たりません")
+    if checks["emergency_hits"] and not checks["has_consult"]:
+        notes.append("緊急症状ワードがあるのに受診目安セクションが不足")
+    reason = "（自動判定）" + ("／".join(notes) if notes else "重大な自動検出はありませんでした。")
+    return {"risk_level": level, "risk_reason": reason, "top5": []}
+
+
+def _claude_risk_assessment(theme: str, article_md: str, checks: Dict,
+                            offline: bool = False) -> Dict:
+    """Claudeにリスク判定と要注意箇所TOP5抽出を依頼する。失敗時はフォールバック。
+
+    offline=True のときはAPIを呼ばず、機械的フォールバック判定のみを返す。
+    """
+    if offline:
+        return _fallback_risk(checks)
     client = ClaudeClient()
     prompt = f"""あなたは小児科医の監修を補助するアシスタントです。
 以下の記事ドラフトを医療安全の観点でチェックし、医師の確認が必須と思われる箇所を抽出してください。
@@ -130,15 +154,7 @@ top5 は最大5件。"""
         return json.loads(raw[s : e + 1])
     except Exception as exc:
         logger.warning("Claudeリスク判定に失敗: %s — フォールバック判定を使用", exc)
-        # 機械的フォールバック
-        level = "高" if (checks["product_hits"] or not checks["has_disclaimer"]) else (
-            "中" if checks["emergency_hits"] and not checks["has_consult"] else "低"
-        )
-        return {
-            "risk_level": level,
-            "risk_reason": "自動判定（Claude応答が得られませんでした）。",
-            "top5": [],
-        }
+        return _fallback_risk(checks)
 
 
 # === Excel 生成 =============================================================
@@ -423,10 +439,11 @@ def _extract_article_sections(article_md: str) -> List:
     return sections
 
 
-def build_review_kit(theme: str, artifacts: Dict) -> Dict:
+def build_review_kit(theme: str, artifacts: Dict, offline: bool = False) -> Dict:
     """監修パッケージ一式を生成する。
 
     artifacts には step2〜4 の出力パス・スライドオブジェクトが入る。
+    offline=True のときはClaudeを呼ばず機械的なリスク判定のみで生成する。
     """
     logger.info("=== ステップ5: 監修パッケージ生成開始（テーマ: %s）===", theme)
 
@@ -438,8 +455,8 @@ def build_review_kit(theme: str, artifacts: Dict) -> Dict:
 
     # 自動チェック
     checks = run_auto_checks(article_md, youtube_md, shorts_md)
-    # Claudeリスク判定
-    risk = _claude_risk_assessment(theme, article_md, checks)
+    # リスク判定（offline時はClaude非使用）
+    risk = _claude_risk_assessment(theme, article_md, checks, offline=offline)
 
     # 成果物メタ情報
     products = {

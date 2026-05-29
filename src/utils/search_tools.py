@@ -124,6 +124,25 @@ class SearchTools:
             r.content = self._fetch_page_text(r.url)
         return results
 
+    def fetch_raw_html(self, url: str) -> str:
+        """robots.txt を遵守してページの生HTMLを取得する（スクレイピング用）。
+
+        取得不可・失敗時は空文字を返す。アクセス間隔(1秒)とUAを守る。
+        """
+        if not url or not self._can_fetch(url):
+            logger.debug("robots.txt によりスキップ: %s", url)
+            return ""
+        try:
+            import requests
+
+            headers = {"User-Agent": self.user_agent}
+            resp = requests.get(url, headers=headers, timeout=self.timeout)
+            time.sleep(self.interval)
+            return resp.text if resp.status_code == 200 else ""
+        except Exception as exc:
+            logger.debug("HTML取得失敗 (%s): %s", url, exc)
+            return ""
+
     def _can_fetch(self, url: str) -> bool:
         """robots.txt を確認して取得可否を返す。取得不能時は安全側で True。"""
         try:
