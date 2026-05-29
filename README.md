@@ -123,6 +123,7 @@ python main.py --theme "子供の発熱対応"   # テーマを指定して実�
 python main.py --step 2 --theme "乳児の便秘"          # リサーチだけ実行
 python main.py --step 3 --theme "乳児の便秘" --input output/research/乳児の便秘_20260529.md
 python main.py --review-only "乳児の便秘"  # 監修パッケージだけ作り直す
+python main.py --revise output/review/乳児の便秘_20260529/review_checklist.xlsx  # 監修指示を自動反映
 ```
 
 ---
@@ -140,7 +141,22 @@ python main.py --review-only "乳児の便秘"  # 監修パッケージだけ作
 4. `review_summary.md` で自動チェック結果（商品名・緊急ワード・免責文・監修者表記の有無）を確認
 5. `review_package.html` をブラウザで開くと、左にチェック項目・右に記事本文を並べて確認できます
 
-> 修正指示を書いたExcelは、将来 `python main.py --revise <ファイル>` で反映する土台として保存されます。
+### 🔁 修正指示の自動反映（`--revise`）
+
+監修Excelに修正指示を記入したら、次のコマンドで成果物へ**自動反映**できます。
+
+```bash
+python main.py --revise output/review/<テーマ>_<日付>/review_checklist.xlsx
+```
+
+- 反映元として読むシート:
+  - **主張×出典**: 監修判定が「要修正/削除」の主張（削除指示は本文から除去）
+  - **必須チェック項目**: コメント記入のある項目
+  - **成果物別レビュー**: 「修正」マークの付いた行＋コメント
+  - **修正指示記入欄**: 表形式の指示＋フリーフォーマット欄
+- 記事・本編台本・Shorts台本を改訂版（`..._rev1.md` など）として保存し直し、
+  スライドと監修パッケージも作り直します（元ファイルは残ります）。
+- 監修者表記・免責文・引用元IDは維持されます。
 
 ---
 

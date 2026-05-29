@@ -10,6 +10,7 @@
   python main.py --theme "子供の発熱対応"   # テーマを指定して実行
   python main.py --step 2 --input <file>  # 特定ステップだけ実行
   python main.py --review-only "乳児の便秘" # 監修パッケージのみ再生成
+  python main.py --revise <review.xlsx>    # 監修Excelの修正指示を成果物へ自動反映
   python main.py --auto                    # テーマ自動選択（デフォルト挙動）
 """
 
@@ -160,10 +161,15 @@ def main() -> None:
     parser.add_argument("--input", type=str, help="ステップ単独実行時の入力ファイル")
     parser.add_argument("--review-only", type=str, metavar="THEME",
                         help="既存成果物から監修パッケージのみ再生成")
+    parser.add_argument("--revise", type=str, metavar="REVIEW_XLSX",
+                        help="監修Excelの修正指示を成果物へ自動反映")
     args = parser.parse_args()
 
     try:
-        if args.review_only:
+        if args.revise:
+            from src import step6_reviser
+            step6_reviser.revise(args.revise)
+        elif args.review_only:
             run_review_only(args.review_only)
         elif args.step:
             run_single_step(args.step, args.theme, args.input)
