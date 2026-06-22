@@ -100,6 +100,26 @@ def metrics(eq_series, dates, label):
     print(f"  {label:<22} 最終${final:>6.0f} CAGR{cagr*100:+6.1f}% 最大DD{dd*100:6.1f}% Sharpe(日次){sharpe:+.2f}")
     return dr
 
+def weight_scan(e1,e2,d):
+    """配分w(=GoldVBO比率)を0〜1でスキャンし、合成のCAGR/DD/Sharpeを出す。"""
+    s1=pd.Series(e1,index=d).resample("1D").last().dropna().pct_change()
+    s2=pd.Series(e2,index=d).resample("1D").last().dropna().pct_change()
+    j=pd.concat([s1.rename("a"),s2.rename("b")],axis=1).dropna()
+    yrs=(d[-1]-d[0]).days/365.25
+    print(f"  {'VBO:Tentei':<12}{'CAGR':>8}{'最大DD':>9}{'Sharpe':>9}")
+    best=None
+    for w in [0.0,0.3,0.5,0.6,0.7,0.8,0.9,1.0]:
+        p=w*j["a"]+(1-w)*j["b"]; eqp=(1+p).cumprod()
+        cagr=eqp.iloc[-1]**(1/yrs)-1; dd=(eqp/eqp.cummax()-1).min()
+        sh=p.mean()/p.std()*np.sqrt(252) if p.std()>0 else 0
+        mark=""
+        if best is None or sh>best[1]: best=(w,sh)
+        print(f"  {int(w*100):>3}:{int((1-w)*100):<3}    {cagr*100:>+7.1f}%{dd*100:>8.1f}%{sh:>+9.2f}")
+    # リスクパリティ(各戦略の日次ボラ逆数で配分)
+    v1=j["a"].std(); v2=j["b"].std()
+    wrp=(1/v1)/((1/v1)+(1/v2))
+    print(f"  → Sharpe最大配分: VBO {int(best[0]*100)}%  / リスクパリティ配分: VBO {wrp*100:.0f}%")
+
 for tag,seg in [("全期間",h),("OOS(2018-2022)",h.iloc[int(len(h)*0.6):].reset_index(drop=True))]:
     print("="*78);print(f"■ {tag}");print("="*78)
     e1=eq_vbo(seg); e2=eq_tentei(seg)
@@ -117,4 +137,6 @@ for tag,seg in [("全期間",h),("OOS(2018-2022)",h.iloc[int(len(h)*0.6):].reset
     ddp=(eqp/eqp.cummax()-1).min(); shp=port.mean()/port.std()*np.sqrt(252) if port.std()>0 else 0
     print(f"  {'→ 50/50 合成':<22} 最終${eqp.iloc[-1]:>6.0f} CAGR{cagrp*100:+6.1f}% 最大DD{ddp*100:6.1f}% Sharpe(日次){shp:+.2f}")
     print(f"  ★ 日次リターン相関: {corr:+.3f}  (低い/負ほど分散効果が大きい)")
+    print("  --- 配分スキャン ---")
+    weight_scan(e1,e2,pd.DatetimeIndex(d))
     print()
