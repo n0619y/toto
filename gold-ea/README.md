@@ -21,11 +21,16 @@ gold-ea/
 ## ステータス
 
 - [x] Phase 0: 要件定義（→ `docs/REQUIREMENTS.md`）
-- [ ] Phase 1: EA骨格 + 資金/リスク管理
-- [ ] Phase 2: 戦略MVP実装
-- [ ] Phase 3: バックテスト & 最適化
+- [x] Phase 1: EA骨格 + 資金/リスク管理（→ `include/`）
+- [x] Phase 2: 戦略MVP実装（EMAクロス・トレンドフォロー → `experts/GoldTrendEA.mq4`）
+- [ ] Phase 3: バックテスト & 最適化（手順 → `docs/BACKTEST_GUIDE.md`）
 - [ ] Phase 4: フォワードテスト（デモ）
 - [ ] Phase 5: 少額リアル運用
+
+## クイックスタート
+
+XMTRADING の MT4 への導入とバックテストは [`docs/BACKTEST_GUIDE.md`](docs/BACKTEST_GUIDE.md) を参照。
+ゴールド銘柄名は `GOLD`。EA を `GOLD` の H1 チャートに適用して使う。
 
 ## 注意
 
