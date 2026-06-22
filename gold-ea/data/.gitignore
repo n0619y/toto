@@ -1,0 +1,5 @@
+*.csv
+!**/strategy_screen.csv
+!**/design_results.csv
+!**/h1_results.csv
+!**/hourly_profile.csv
