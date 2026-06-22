@@ -23,28 +23,36 @@ gold-ea/
 - [x] Phase 0: 要件定義（→ `docs/REQUIREMENTS.md`）
 - [x] Phase 1: EA骨格 + 資金/リスク管理（→ `include/`）
 - [x] Phase 2: 戦略MVP（EMAクロス → `experts/GoldTrendEA.mq4`。※ベンチマーク用）
-- [x] データ分析 & 本命戦略の設計・OOS検証（→ `docs/ANALYSIS_FINDINGS.md`）
-- [x] **本命EA: GoldVBO（ボラブレイク）実装**（→ `experts/GoldVBO.mq4`）
+- [x] データ分析 & 戦略設計・OOS検証（→ `docs/ANALYSIS_FINDINGS.md`）
+- [x] **EA①: GoldVBO（ボラブレイク）**（→ `experts/GoldVBO.mq4`）
+- [x] **EA②: GoldTentei（天底ロジック/押し目）**（→ `experts/GoldTentei.mq4`）
+- [x] **2戦略ポートフォリオ検証**（低相関+0.04, 合成でDD縮小 → `docs/PORTFOLIO_GUIDE.md`）
 - [ ] Phase 3: **XM実データでMT4バックテスト**（データ出力 → `docs/DATA_EXPORT_GUIDE.md`）
-- [ ] Phase 4: フォワードテスト（デモ）
+- [ ] Phase 4: フォワードテスト（デモ・2戦略同時）
 - [ ] Phase 5: 少額リアル運用
 
-## 本命EA: GoldVBO
+## 本命: 2戦略ポートフォリオ
 
-データ分析（XAUUSD 2012-2022 H1）とアウトオブサンプル検証に基づく
-ボラティリティ・ブレイクアウトEA。設計と検証結果は
-[`docs/ANALYSIS_FINDINGS.md`](docs/ANALYSIS_FINDINGS.md) を参照。
+性質の異なる（ほぼ無相関の）2EAを同口座で併用し、DDを抑えつつ資金を増やす。
 
-- OOS実績（公開データ・コスト$0.5/往復）: PF 1.27 / CAGR +17% / 最大DD -12.7%
-- **時刻に非依存**な設計（タイムゾーン不明問題を回避）
-- ⚠ 公開データの参考値。**XM実データでの再検証が前提**。
+| EA | 性質 | OOS実績(コスト$0.5) |
+|----|------|---------------------|
+| `GoldVBO` | ブレイク=強さを買う | PF1.27 / CAGR+19% / DD-12% |
+| `GoldTentei` | 押し目=弱さを買う | PF1.16 / CAGR+2% / DD-11% |
+| **合成(推奨70/30)** | 低相関で分散 | **DD縮小・Sharpe維持** |
+
+設計・検証は [`docs/ANALYSIS_FINDINGS.md`](docs/ANALYSIS_FINDINGS.md)、
+併用運用は [`docs/PORTFOLIO_GUIDE.md`](docs/PORTFOLIO_GUIDE.md) を参照。
+⚠ 公開データ(2012-2022)の参考値。**XM実データでの再検証が前提**。
 
 ## クイックスタート
 
 1. 導入・バックテスト手順: [`docs/BACKTEST_GUIDE.md`](docs/BACKTEST_GUIDE.md)
 2. XM実データの出力: [`docs/DATA_EXPORT_GUIDE.md`](docs/DATA_EXPORT_GUIDE.md)
+3. 2戦略の併用運用: [`docs/PORTFOLIO_GUIDE.md`](docs/PORTFOLIO_GUIDE.md)
 
 ゴールド銘柄名は `GOLD`。EA を `GOLD` の H1 チャートに適用。
+2EAはマジックナンバーが別なので同チャート/同口座で併用可。
 
 ## 注意
 
