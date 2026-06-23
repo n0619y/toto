@@ -1,0 +1,22 @@
+; GoldVBO 設定プリセット — H4チャート用 (multi_tf.py で最適化)
+; MT4: EA設定ダイアログの[読込]からこのファイルを選択
+; ※H1と別マジックナンバー。H1とH4を同口座で同時運用=時間足分散(相関0.14)
+MagicNumber=20260624
+Slippage=30
+MaxSpreadPoints=50
+RiskPercent=0.4
+MaxDailyLossPct=5.0
+MaxDrawdownPct=20.0
+BreakoutBars=24
+TrendEmaPeriod=200
+UseTrendFilter=true
+AtrPeriod=14
+VolMedianBars=200
+UseVolGate=true
+UseEfficiencyFilter=true
+ErPeriod=20
+ErThreshold=0.30
+AllowShort=true
+SL_AtrMult=2.0
+Trail_AtrMult=3.0
+MaxHoldBars=60

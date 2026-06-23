@@ -7,12 +7,14 @@
 //|   - ★逆指値ストップ注文をブレイク水準に置いて『水準で即約定』★    |
 //|     (次足成行では優位性が消えるため必須。entry_parity.pyで検証)   |
 //|   - EMAトレンドフィルタで『逆らわない』(OOSでPF/DD改善を確認)     |
-//|   - ATRボラゲート: 変動拡大時のみ参加(ボラ・クラスタリングを利用) |
+//|   - ATRボラゲート + ★効率比フィルタ★で揉み合いのだましブレイク除外|
 //|   - ATRハード損切り + ATRチャンデリア・トレーリング + 時間切れ    |
 //|   - リスク%でロット自動計算 + 最大DD/日次損失の安全装置          |
 //|                                                                  |
-//|  OOS(2018-2022)実績(コスト$0.5/往復): PF1.27, CAGR+17%, DD-12%   |
-//|  ※公開データでの参考値。XM実データでの再検証が前提。            |
+//|  時間足別に最適化(multi_tf.py): H1→BreakoutBars=12 / H4→=24      |
+//|  OOS実績(ER0.3,コスト$0.5): H1 PF2.28/Sh2.40, H4 PF2.32/Sh1.44   |
+//|  XM実データ2023-25でも存続(H1 PF2.36, H4 PF2.13)。詳細TIMEFRAME_GUIDE|
+//|  ※参考値。XM実データの全ティック再検証が前提。                 |
 //+------------------------------------------------------------------+
 #property copyright "FX GOLD EA Project"
 #property version   "1.0"
@@ -39,6 +41,9 @@ input bool   UseTrendFilter      = true;    // トレンドに逆らわない
 input int    AtrPeriod           = 14;      // ATR期間
 input int    VolMedianBars       = 200;     // ボラゲート基準(ATR中央値)の本数
 input bool   UseVolGate          = true;    // ボラ拡大時のみ参加
+input bool   UseEfficiencyFilter  = true;    // ★効率比フィルタ:揉み合いのだましブレイクを除外
+input int    ErPeriod            = 20;      // カウフマン効率比の期間
+input double ErThreshold         = 0.30;    // この値以上(効率的トレンド)のみ参加
 input bool   AllowShort          = true;    // 売りも行う
 
 input string Sec_Exit         = "==== エグジット(検証済) ====";
@@ -74,6 +79,20 @@ bool SpreadOK()
 {
    double sp=(MarketInfo(Symbol(),MODE_ASK)-MarketInfo(Symbol(),MODE_BID))/Point;
    return(sp<=MaxSpreadPoints);
+}
+
+//+------------------------------------------------------------------+
+//| カウフマン効率比 = |ErPeriod本の純変化| / Σ|1本ごとの変化|       |
+//|  1に近い=効率的トレンド / 0に近い=揉み合い(だましが多い)         |
+//+------------------------------------------------------------------+
+double EfficiencyRatio()
+{
+   int n=ErPeriod;
+   double net=MathAbs(Close[1]-Close[1+n]);
+   double vol=0.0;
+   for(int j=1;j<=n;j++) vol+=MathAbs(Close[j]-Close[j+1]);
+   if(vol<=0.0) return(0.0);
+   return(net/vol);
 }
 
 int CountMine()   // 成行ポジ(約定済み)の数
@@ -169,6 +188,8 @@ void OnTick()
 
    // ボラゲート: 現ATRが中央値超(変動拡大)
    if(UseVolGate && atr<=MedianATR()) return;
+   // 効率比フィルタ: 揉み合い(だましブレイク多発)局面を除外
+   if(UseEfficiencyFilter && EfficiencyRatio()<ErThreshold) return;
 
    // ローリング・ブレイク基準(直近 BreakoutBars 本の確定足 = shift 1..BreakoutBars)
    double rollHigh=High[iHighest(Symbol(),0,MODE_HIGH,BreakoutBars,1)];

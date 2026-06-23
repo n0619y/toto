@@ -28,6 +28,7 @@ gold-ea/
 - [x] **EA②: GoldTentei（天底ロジック/押し目）**（→ `experts/GoldTentei.mq4`）
 - [x] **2戦略ポートフォリオ検証**（低相関+0.04, 合成でDD縮小 → `docs/PORTFOLIO_GUIDE.md`）
 - [x] **XM実データ(2023-2025)で確定パラメータを再検証 → 優位性存続**（→ `docs/XM_VALIDATION.md`）
+- [x] **効率比フィルタ追加＋時間足別最適化(H1/H4)**（→ `docs/TIMEFRAME_GUIDE.md`）
 - [ ] Phase 3: **MT4ストラテジーテスター（全ティック）で実約定を確認**
 - [ ] Phase 4: フォワードテスト（デモ・2戦略同時）
 - [ ] Phase 5: 少額リアル運用
@@ -51,7 +52,9 @@ gold-ea/
 1. 導入・バックテスト手順: [`docs/BACKTEST_GUIDE.md`](docs/BACKTEST_GUIDE.md)
 2. XM実データの出力: [`docs/DATA_EXPORT_GUIDE.md`](docs/DATA_EXPORT_GUIDE.md)
 3. 2戦略の併用運用: [`docs/PORTFOLIO_GUIDE.md`](docs/PORTFOLIO_GUIDE.md)
-4. PCなしで回す（スマホ↔VPS）: [`docs/MOBILE_VPS_WORKFLOW.md`](docs/MOBILE_VPS_WORKFLOW.md)
+4. 時間足分散(H1/H4): [`docs/TIMEFRAME_GUIDE.md`](docs/TIMEFRAME_GUIDE.md)
+5. XM実データ検証結果: [`docs/XM_VALIDATION.md`](docs/XM_VALIDATION.md)
+6. PCなしで回す（スマホ↔VPS）: [`docs/MOBILE_VPS_WORKFLOW.md`](docs/MOBILE_VPS_WORKFLOW.md)
 
 ゴールド銘柄名は `GOLD`。EA を `GOLD` の H1 チャートに適用。
 2EAはマジックナンバーが別なので同チャート/同口座で併用可。

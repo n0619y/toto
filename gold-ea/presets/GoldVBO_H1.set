@@ -1,0 +1,21 @@
+; GoldVBO 設定プリセット — H1チャート用 (multi_tf.py で最適化)
+; MT4: EA設定ダイアログの[読込]からこのファイルを選択
+MagicNumber=20260622
+Slippage=30
+MaxSpreadPoints=50
+RiskPercent=0.6
+MaxDailyLossPct=5.0
+MaxDrawdownPct=20.0
+BreakoutBars=12
+TrendEmaPeriod=200
+UseTrendFilter=true
+AtrPeriod=14
+VolMedianBars=200
+UseVolGate=true
+UseEfficiencyFilter=true
+ErPeriod=20
+ErThreshold=0.30
+AllowShort=true
+SL_AtrMult=2.0
+Trail_AtrMult=3.0
+MaxHoldBars=72
