@@ -13,6 +13,14 @@ h["ema200"]=h.close.ewm(span=200,adjust=False).mean()
 h["ema_f"]=h.close.ewm(span=20,adjust=False).mean()
 tr=pd.concat([(h.high-h.low),(h.high-h.close.shift()).abs(),(h.low-h.close.shift()).abs()],axis=1).max(axis=1)
 h["atr"]=tr.rolling(14).mean(); h["atr_med"]=h.atr.rolling(200).median()
+# 上位足H4のEMA(100)を確定済みバー基準でH1にas-of結合(天底MTFフィルタ用)
+h4=pd.read_csv("/tmp/xau_h4.csv"); h4["Date"]=pd.to_datetime(h4["Date"])
+for c in ["open","high","low","close"]: h4[c]=h4[c]/100.0
+h4=h4.sort_values("Date").reset_index(drop=True)
+h4["h4_ema"]=h4.close.ewm(span=100,adjust=False).mean()
+h4["avail"]=h4["Date"]+pd.Timedelta(hours=4)
+h=pd.merge_asof(h.sort_values("Date"), h4[["avail","h4_ema"]].dropna().sort_values("avail"),
+                left_on="Date", right_on="avail", direction="backward").drop(columns="avail")
 INIT=1000.0; RISK=0.01; SPREAD=0.50
 
 # ---------- 戦略1: GoldVBO (ブレイク) ----------
@@ -54,9 +62,10 @@ def find_pivots(high,low,k):
             if (p[2]=='H' and p[1]>clean[-1][1]) or (p[2]=='L' and p[1]<clean[-1][1]): clean[-1]=p
         else: clean.append(p)
     return clean
-def eq_tentei(df,k=4,fib_lo=.382,fib_hi=.618,Nt=1.618,slb=.5,rev=3,maxhold=120):
+def eq_tentei(df,k=3,fib_lo=.382,fib_hi=.618,Nt=1.618,slb=.5,rev=3,maxhold=120,use_mtf=True):
     o=df.open.values;hi=df.high.values;lo=df.low.values;cl=df.close.values
     ema=df.ema200.values;emaf=df.ema_f.values;atr=df.atr.values;n=len(df)
+    h4e=df.h4_ema.values
     piv=find_pivots(hi,lo,k);conf={}
     for (idx,pr,t) in piv: conf.setdefault(idx+k,[]).append((idx,pr,t))
     known=[];eq=INIT;pos=0;entry=stop=tp=lots=0.0;hold=0;armL=None;out=np.empty(n)
@@ -81,7 +90,8 @@ def eq_tentei(df,k=4,fib_lo=.382,fib_hi=.618,Nt=1.618,slb=.5,rev=3,maxhold=120):
             else:
                 if lo[i]<=armL['zhi']: armL['touched']=True
                 brk=cl[i]>hi[max(i-rev,0):i].max() if i>0 else False
-                if armL['touched'] and cl[i]>ema[i] and cl[i]>emaf[i] and brk:
+                mtf=(not use_mtf) or (not np.isnan(h4e[i]) and cl[i]>h4e[i])
+                if armL['touched'] and cl[i]>ema[i] and cl[i]>emaf[i] and brk and mtf:
                     Lp=lo[max(i-rev,0):i+1].min();sd=cl[i]-(Lp-slb*atr[i])
                     if sd>0:
                         lc=max(round(eq*RISK/(sd*100),2),0.0)
@@ -125,7 +135,7 @@ for tag,seg in [("全期間",h),("OOS(2018-2022)",h.iloc[int(len(h)*0.6):].reset
     e1=eq_vbo(seg); e2=eq_tentei(seg)
     d=seg.Date.values.astype("datetime64[ns]")
     r1=metrics(e1,pd.DatetimeIndex(d),"GoldVBO(ブレイク)")
-    r2=metrics(e2,pd.DatetimeIndex(d),"天底v2(押し目)")
+    r2=metrics(e2,pd.DatetimeIndex(d),"天底v3(押し目+MTF)")
     # 50/50合成(日次リバランス)
     df1=pd.Series(e1,index=pd.DatetimeIndex(d)).resample("1D").last().dropna().pct_change()
     df2=pd.Series(e2,index=pd.DatetimeIndex(d)).resample("1D").last().dropna().pct_change()

@@ -38,8 +38,8 @@ gold-ea/
 | EA | 性質 | OOS実績(コスト$0.5) |
 |----|------|---------------------|
 | `GoldVBO` | ブレイク=強さを買う | PF1.27 / CAGR+19% / DD-12% |
-| `GoldTentei` | 押し目=弱さを買う | PF1.16 / CAGR+2% / DD-11% |
-| **合成(推奨70/30)** | 低相関で分散 | **DD縮小・Sharpe維持** |
+| `GoldTentei` | 押し目=弱さを買う(H4トレンドMTF) | PF1.42 / CAGR+4% / DD-6.5% |
+| **合成(推奨60/40)** | 低相関で分散 | **CAGR+13% / DD-8.5% / Sharpe1.23** |
 
 設計・検証は [`docs/ANALYSIS_FINDINGS.md`](docs/ANALYSIS_FINDINGS.md)、
 併用運用は [`docs/PORTFOLIO_GUIDE.md`](docs/PORTFOLIO_GUIDE.md) を参照。

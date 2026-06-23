@@ -2,8 +2,9 @@
 //|                                                   GoldTentei.mq4   |
 //|  天底ロジック(機械化v2) 押し目買い/戻り売り スイングEA            |
 //|                                                                  |
-//|  ★資料(天底ロジック)の客観化＋OOS検証(PF1.16,DD-9.4%)に基づく★   |
+//|  ★資料(天底ロジック)の客観化＋OOS検証(MTF版:PF1.42,DD-6.2%)に基づく★|
 //|   - ダウ構造(スイング検出)でトレンドと押し安値/戻り高値を判定     |
+//|   - 上位足H4のEMA位置で大局トレンドを一致確認(MTFフィルタ)        |
 //|   - 直近インパルスのフィボ38.2-61.8へ押したら『反転の事実』を待つ |
 //|     (直近高値ブレイク + EMA整合) = 落ちるナイフを掴まない         |
 //|   - TP = N波動(FE: 押し安値 + インパルス値幅×倍率)               |
@@ -31,7 +32,7 @@ input double MaxDailyLossPct  = 5.0;
 input double MaxDrawdownPct   = 20.0;
 
 input string Sec_Strategy  = "==== 天底ロジック(検証済) ====";
-input int    PivotK          = 4;          // スイング検出の片側バー数
+input int    PivotK          = 3;          // スイング検出の片側バー数(OOS最良=3)
 input int    MaxScanBars      = 300;        // ピボット探索の遡及本数
 input double FibLo            = 0.382;      // 押し目ゾーン上限(浅い側)
 input double FibHi            = 0.618;      // 押し目ゾーン下限(深い側)
@@ -43,6 +44,12 @@ input int    FastEmaPeriod     = 20;         // 反転確認EMA(短)
 input bool   UseTrendEma       = true;
 input bool   AllowShort        = false;      // 既定ロングのみ(ショートは検証で弱い)
 input int    MaxHoldBars       = 120;
+
+input string Sec_Mtf       = "==== 上位足トレンドフィルタ(MTF) ====";
+input bool   UseMtfFilter      = true;       // H4トレンド一致時のみエントリー(OOSでPF1.16→1.42)
+input ENUM_TIMEFRAMES MtfTimeframe = PERIOD_H4; // 上位足
+input int    MtfEmaPeriod      = 100;        // 上位足EMA(位置で大局判定, OOS最良=100)
+input bool   MtfNeedSlope      = false;      // EMA傾きも要求(検証では位置のみが頑健)
 
 datetime g_lastBar=0;
 
@@ -104,6 +111,12 @@ void OnTick()
    double emaL=iMA(Symbol(),0,TrendEmaPeriod,0,MODE_EMA,PRICE_CLOSE,1);
    double emaF=iMA(Symbol(),0,FastEmaPeriod,0,MODE_EMA,PRICE_CLOSE,1);
 
+   // ===== 上位足(H4)トレンドフィルタ: 確定済みH4バーのEMA位置(+任意で傾き) =====
+   double mtfEma   = iMA(Symbol(),MtfTimeframe,MtfEmaPeriod,0,MODE_EMA,PRICE_CLOSE,1);
+   double mtfEmaPv = iMA(Symbol(),MtfTimeframe,MtfEmaPeriod,0,MODE_EMA,PRICE_CLOSE,2);
+   bool mtfLongOK  = (!UseMtfFilter) || (Close[1]>mtfEma && (!MtfNeedSlope || mtfEma>mtfEmaPv));
+   bool mtfShortOK = (!UseMtfFilter) || (Close[1]<mtfEma && (!MtfNeedSlope || mtfEma<mtfEmaPv));
+
    int hs[],ls[]; double hp[],lp[];
    CollectPivots(hs,hp,ls,lp);
    if(ArraySize(hp)<2 || ArraySize(lp)<2) return;
@@ -130,7 +143,7 @@ void OnTick()
          bool ema=(!UseTrendEma)||(Close[1]>emaL);
          bool emaf=Close[1]>emaF;
          bool struct_ok=Close[1]>L0;
-         if(touched && brk && ema && emaf && struct_ok)
+         if(touched && brk && ema && emaf && struct_ok && mtfLongOK)
          {
             double slPrice=pullLow-SL_BufferAtr*atr;
             double ask=MarketInfo(Symbol(),MODE_ASK);
@@ -165,7 +178,7 @@ void OnTick()
          bool ema=(!UseTrendEma)||(Close[1]<emaL);
          bool emaf=Close[1]<emaF;
          bool struct_ok=Close[1]<H1;
-         if(touched && brk && ema && emaf && struct_ok)
+         if(touched && brk && ema && emaf && struct_ok && mtfShortOK)
          {
             double slPrice=pullHi+SL_BufferAtr*atr;
             double bid=MarketInfo(Symbol(),MODE_BID);
