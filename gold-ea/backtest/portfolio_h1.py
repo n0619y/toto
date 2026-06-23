@@ -130,7 +130,8 @@ def weight_scan(e1,e2,d):
     wrp=(1/v1)/((1/v1)+(1/v2))
     print(f"  → Sharpe最大配分: VBO {int(best[0]*100)}%  / リスクパリティ配分: VBO {wrp*100:.0f}%")
 
-for tag,seg in [("全期間",h),("OOS(2018-2022)",h.iloc[int(len(h)*0.6):].reset_index(drop=True))]:
+if __name__=="__main__":
+  for tag,seg in [("全期間",h),("OOS(2018-2022)",h.iloc[int(len(h)*0.6):].reset_index(drop=True))]:
     print("="*78);print(f"■ {tag}");print("="*78)
     e1=eq_vbo(seg); e2=eq_tentei(seg)
     d=seg.Date.values.astype("datetime64[ns]")
