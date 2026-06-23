@@ -1,0 +1,22 @@
+; GoldVBO 設定プリセット — M30チャート用 (xm_multi_tf.py で最適化)
+; ※XM実データOOSで PF2.23/DD-4.2%/コスト安定。ただし強気相場のみ1.8年=要全ティック検証
+; MT4: EA設定ダイアログの[読込]からこのファイルを選択。H1/H4と別マジック。
+MagicNumber=20260630
+Slippage=30
+MaxSpreadPoints=45
+RiskPercent=0.4
+MaxDailyLossPct=5.0
+MaxDrawdownPct=20.0
+BreakoutBars=32
+TrendEmaPeriod=200
+UseTrendFilter=true
+AtrPeriod=14
+VolMedianBars=200
+UseVolGate=true
+UseEfficiencyFilter=true
+ErPeriod=20
+ErThreshold=0.30
+AllowShort=true
+SL_AtrMult=2.0
+Trail_AtrMult=3.0
+MaxHoldBars=96

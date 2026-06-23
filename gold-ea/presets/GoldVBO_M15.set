@@ -1,0 +1,22 @@
+; GoldVBO 設定プリセット — M15チャート用 (xm_multi_tf.py で最適化)
+; ※XM実データOOSで PF1.86/DD-14.6%。取引多めでコスト/スリッページに敏感=慎重に。
+;   強気相場のみ2年。低時間足ほど実約定の劣化が大きい→必ず全ティック+実スリッページ検証。
+MagicNumber=20260631
+Slippage=30
+MaxSpreadPoints=40
+RiskPercent=0.3
+MaxDailyLossPct=5.0
+MaxDrawdownPct=20.0
+BreakoutBars=16
+TrendEmaPeriod=200
+UseTrendFilter=true
+AtrPeriod=14
+VolMedianBars=200
+UseVolGate=true
+UseEfficiencyFilter=true
+ErPeriod=20
+ErThreshold=0.30
+AllowShort=true
+SL_AtrMult=2.0
+Trail_AtrMult=3.0
+MaxHoldBars=96
