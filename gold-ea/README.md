@@ -50,6 +50,7 @@ gold-ea/
 1. 導入・バックテスト手順: [`docs/BACKTEST_GUIDE.md`](docs/BACKTEST_GUIDE.md)
 2. XM実データの出力: [`docs/DATA_EXPORT_GUIDE.md`](docs/DATA_EXPORT_GUIDE.md)
 3. 2戦略の併用運用: [`docs/PORTFOLIO_GUIDE.md`](docs/PORTFOLIO_GUIDE.md)
+4. PCなしで回す（スマホ↔VPS）: [`docs/MOBILE_VPS_WORKFLOW.md`](docs/MOBILE_VPS_WORKFLOW.md)
 
 ゴールド銘柄名は `GOLD`。EA を `GOLD` の H1 チャートに適用。
 2EAはマジックナンバーが別なので同チャート/同口座で併用可。
