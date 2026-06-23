@@ -185,7 +185,8 @@ void OnTick()
 
    int    digits=(int)MarketInfo(Symbol(),MODE_DIGITS);
    double stopLevel=MarketInfo(Symbol(),MODE_STOPLEVEL)*Point;
-   datetime expiry=Time[0]+2*PeriodSeconds();   // 約2バーで自動失効
+   // 有効期限は付けない(業者により拒否される)。新バー毎にDeleteMyPendingで置き直すため不要。
+   datetime expiry=0;
 
    // 買い: ブレイク水準(rollHigh)に逆指値ストップ。既に上抜け済みなら成行。
    if(trendLong)
