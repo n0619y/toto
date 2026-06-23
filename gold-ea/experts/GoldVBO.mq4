@@ -4,6 +4,8 @@
 //|                                                                  |
 //|  ★データ分析(2012-2022 H1)とOOS検証に基づく設計★                |
 //|   - ローリングNバーのレンジ・ブレイクで初動を取る(時刻に非依存)  |
+//|   - ★逆指値ストップ注文をブレイク水準に置いて『水準で即約定』★    |
+//|     (次足成行では優位性が消えるため必須。entry_parity.pyで検証)   |
 //|   - EMAトレンドフィルタで『逆らわない』(OOSでPF/DD改善を確認)     |
 //|   - ATRボラゲート: 変動拡大時のみ参加(ボラ・クラスタリングを利用) |
 //|   - ATRハード損切り + ATRチャンデリア・トレーリング + 時間切れ    |
@@ -74,7 +76,7 @@ bool SpreadOK()
    return(sp<=MaxSpreadPoints);
 }
 
-int CountMine()
+int CountMine()   // 成行ポジ(約定済み)の数
 {
    int c=0;
    for(int i=OrdersTotal()-1;i>=0;i--)
@@ -84,6 +86,22 @@ int CountMine()
          && (OrderType()==OP_BUY||OrderType()==OP_SELL)) c++;
    }
    return c;
+}
+
+//+------------------------------------------------------------------+
+//| 自分の未約定ペンディング注文を全削除(新バーで毎回置き直すため)   |
+//+------------------------------------------------------------------+
+void DeleteMyPending()
+{
+   for(int i=OrdersTotal()-1;i>=0;i--)
+   {
+      if(!OrderSelect(i,SELECT_BY_POS,MODE_TRADES)) continue;
+      if(OrderSymbol()!=Symbol()||OrderMagicNumber()!=MagicNumber) continue;
+      int t=OrderType();
+      if(t==OP_BUYSTOP||t==OP_SELLSTOP||t==OP_BUYLIMIT||t==OP_SELLLIMIT)
+         if(!OrderDelete(OrderTicket()))
+            Print("Pending削除失敗 err=",GetLastError());
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -97,6 +115,7 @@ void ManageOpen(double atr)
    {
       if(!OrderSelect(i,SELECT_BY_POS,MODE_TRADES)) continue;
       if(OrderSymbol()!=Symbol()||OrderMagicNumber()!=MagicNumber) continue;
+      if(OrderType()!=OP_BUY && OrderType()!=OP_SELL) continue;  // ペンディングは対象外
 
       int barsSince=iBarShift(Symbol(),0,OrderOpenTime());
       if(MaxHoldBars>0 && barsSince>=MaxHoldBars)
@@ -139,19 +158,23 @@ void OnTick()
    if(g_lastBar==Time[0]) return;
    g_lastBar=Time[0];
 
-   if(!RiskGuard_TradingAllowed(MaxDailyLossPct,MaxDrawdownPct)) return;
+   if(!RiskGuard_TradingAllowed(MaxDailyLossPct,MaxDrawdownPct)){ DeleteMyPending(); return; }
    if(atr<=0) return;
-   if(CountMine()>0) return;
+
+   // 新バーごとに古いペンディングは必ず置き直す(水準・条件を最新化)
+   bool havePos = (CountMine()>0);
+   DeleteMyPending();
+   if(havePos) return;                       // 約定済みポジ保有中は新規を置かない
    if(!SpreadOK()) return;
 
    // ボラゲート: 現ATRが中央値超(変動拡大)
    if(UseVolGate && atr<=MedianATR()) return;
 
-   // ローリング・ブレイク基準(直前バーを除く BreakoutBars 本)
-   double rollHigh=High[iHighest(Symbol(),0,MODE_HIGH,BreakoutBars,2)];
-   double rollLow =Low [iLowest (Symbol(),0,MODE_LOW ,BreakoutBars,2)];
+   // ローリング・ブレイク基準(直近 BreakoutBars 本の確定足 = shift 1..BreakoutBars)
+   double rollHigh=High[iHighest(Symbol(),0,MODE_HIGH,BreakoutBars,1)];
+   double rollLow =Low [iLowest (Symbol(),0,MODE_LOW ,BreakoutBars,1)];
 
-   // トレンドフィルタ
+   // トレンドフィルタ(直近確定足の終値)
    double ema=iMA(Symbol(),0,TrendEmaPeriod,0,MODE_EMA,PRICE_CLOSE,1);
    bool trendLong  = (!UseTrendFilter) || (Close[1]>ema);
    bool trendShort = (!UseTrendFilter) || (Close[1]<ema);
@@ -160,21 +183,45 @@ void OnTick()
    double lots=CalcLotByRisk(Symbol(),slDist,RiskPercent);
    if(lots<=0) return;
 
-   int digits=(int)MarketInfo(Symbol(),MODE_DIGITS);
-   // 直前バーがレンジ上抜け→買い / 下抜け→売り。成行で参加。
-   if(High[1]>=rollHigh && trendLong)
+   int    digits=(int)MarketInfo(Symbol(),MODE_DIGITS);
+   double stopLevel=MarketInfo(Symbol(),MODE_STOPLEVEL)*Point;
+   datetime expiry=Time[0]+2*PeriodSeconds();   // 約2バーで自動失効
+
+   // 買い: ブレイク水準(rollHigh)に逆指値ストップ。既に上抜け済みなら成行。
+   if(trendLong)
    {
       double ask=MarketInfo(Symbol(),MODE_ASK);
-      double sl=NormalizeDouble(ask-slDist,digits);
-      if(OrderSend(Symbol(),OP_BUY,lots,NormalizeDouble(ask,digits),Slippage,sl,0,"GoldVBO",MagicNumber,0,clrDodgerBlue)<0)
-         Print("Buy失敗 err=",GetLastError());
+      double entryPx=NormalizeDouble(rollHigh,digits);
+      if(rollHigh <= ask+stopLevel)   // 既に水準到達 → 成行(=次足始値ではなく即時)
+      {
+         double sl=NormalizeDouble(ask-slDist,digits);
+         if(OrderSend(Symbol(),OP_BUY,lots,NormalizeDouble(ask,digits),Slippage,sl,0,"GoldVBO",MagicNumber,0,clrDodgerBlue)<0)
+            Print("Buy(成行)失敗 err=",GetLastError());
+      }
+      else                            // 未到達 → 逆指値ストップで水準約定を狙う
+      {
+         double sl=NormalizeDouble(rollHigh-slDist,digits);
+         if(OrderSend(Symbol(),OP_BUYSTOP,lots,entryPx,Slippage,sl,0,"GoldVBO",MagicNumber,expiry,clrDodgerBlue)<0)
+            Print("BuyStop失敗 err=",GetLastError());
+      }
    }
-   else if(Low[1]<=rollLow && trendShort && AllowShort)
+   // 売り: ブレイク水準(rollLow)に逆指値ストップ。既に下抜け済みなら成行。
+   else if(trendShort && AllowShort)
    {
       double bid=MarketInfo(Symbol(),MODE_BID);
-      double sl=NormalizeDouble(bid+slDist,digits);
-      if(OrderSend(Symbol(),OP_SELL,lots,NormalizeDouble(bid,digits),Slippage,sl,0,"GoldVBO",MagicNumber,0,clrOrangeRed)<0)
-         Print("Sell失敗 err=",GetLastError());
+      double entryPx=NormalizeDouble(rollLow,digits);
+      if(rollLow >= bid-stopLevel)    // 既に水準到達 → 成行
+      {
+         double sl=NormalizeDouble(bid+slDist,digits);
+         if(OrderSend(Symbol(),OP_SELL,lots,NormalizeDouble(bid,digits),Slippage,sl,0,"GoldVBO",MagicNumber,0,clrOrangeRed)<0)
+            Print("Sell(成行)失敗 err=",GetLastError());
+      }
+      else                            // 未到達 → 逆指値ストップ
+      {
+         double sl=NormalizeDouble(rollLow+slDist,digits);
+         if(OrderSend(Symbol(),OP_SELLSTOP,lots,entryPx,Slippage,sl,0,"GoldVBO",MagicNumber,expiry,clrOrangeRed)<0)
+            Print("SellStop失敗 err=",GetLastError());
+      }
    }
 }
 //+------------------------------------------------------------------+

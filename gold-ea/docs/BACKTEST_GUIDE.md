@@ -1,6 +1,8 @@
 # インストール & バックテスト手順 (XMTRADING / MT4)
 
-EA `GoldTrendEA` を XMTRADING の MT4 に導入し、バックテストするまでの手順。
+本命EA `GoldVBO`（ブレイク）と `GoldTentei`（押し目）を XMTRADING の MT4 に導入し、
+バックテストするまでの手順。2つは無相関で**ポートフォリオ併用**が前提
+（配分は `PORTFOLIO_GUIDE.md`）。`GoldTrendEA` は旧プロトタイプ（参考）。
 
 ---
 
@@ -10,13 +12,14 @@ MT4 のメニュー **[ファイル] → [データフォルダを開く]** を�
 
 | このリポジトリのファイル | MT4データフォルダ内の配置先 |
 |--------------------------|------------------------------|
-| `gold-ea/experts/GoldTrendEA.mq4` | `MQL4/Experts/` |
+| `gold-ea/experts/GoldVBO.mq4` | `MQL4/Experts/` |
+| `gold-ea/experts/GoldTentei.mq4` | `MQL4/Experts/` |
 | `gold-ea/include/MoneyManagement.mqh` | `MQL4/Include/` |
 | `gold-ea/include/RiskGuard.mqh` | `MQL4/Include/` |
 | `gold-ea/include/TradeHelper.mqh` | `MQL4/Include/` |
 
-配置後、MT4の **MetaEditor** で `GoldTrendEA.mq4` を開き **[コンパイル]**。
-エラー0で `GoldTrendEA.ex4` が生成されれば成功。ナビゲータに EA が表示される。
+配置後、MT4の **MetaEditor** で各 `.mq4` を開き **[コンパイル]**。
+エラー0で `.ex4` が生成されれば成功。ナビゲータに EA が表示される。
 
 ---
 
@@ -38,28 +41,46 @@ MT4 のメニュー **[ファイル] → [データフォルダを開く]** を�
 
 1. **[表示] → [ストラテジーテスター]** を開く。
 2. 設定：
-   - エキスパートアドバイザ: `GoldTrendEA`
+   - エキスパートアドバイザ: `GoldVBO` または `GoldTentei`（個別に検証）
    - 通貨ペア: `GOLD`
-   - period(時間足): まずは **H1** を推奨
-   - モデル: **始値のみ**で素早く確認 → 良ければ **全ティック**で精査
+   - period(時間足): **H1**（両EAともH1設計）
+   - モデル: **必ず「全ティック」**を使う。
    - 期間: 上昇・下落・レンジを含む十分な期間（最低でも1〜2年）
 3. **[エキスパート設定]** でパラメータを調整（§4参照）。
 4. **[スタート]**。終了後 **[グラフ]** と **[レポート]** を確認。
+
+> ⚠ **GoldVBO は「全ティック」モデル必須**。GoldVBOはブレイク水準に置いた
+> **逆指値ストップ注文**で約定する設計で、これがバー内で正しく約定して初めて
+> 優位性が出る（`entry_parity.py`: 水準約定 CAGR+19% / 次足成行 CAGR-21%）。
+> 「始値のみ」モデルではバー内のストップ約定を再現できず**結果が無意味**になる。
+> GoldTentei は約定タイミングに鈍感だが、揃えて「全ティック」推奨。
 
 ---
 
 ## 4. 主要パラメータ（初期値）
 
+**GoldVBO（ブレイク）:**
 | パラメータ | 初期値 | 説明 |
 |-----------|--------|------|
-| RiskPercent | 1.0 | 1トレードのリスク(残高%) |
-| MaxDailyLossPct | 5.0 | 日次損失上限%(超で当日停止) |
-| MaxDrawdownPct | 20.0 | 最大DD%(超で停止) |
-| FastEmaPeriod / SlowEmaPeriod | 20 / 50 | EMAクロスの期間 |
-| AtrPeriod | 14 | ATR期間 |
-| SL_AtrMult | 2.0 | SL = ATR × 2.0 |
-| TP_RR | 1.5 | TP = SL × 1.5 |
+| RiskPercent | 1.0 | 1トレードのリスク(残高%)。併用時は0.6推奨 |
+| BreakoutBars | 12 | ローリング・ブレイク幅(本) |
+| TrendEmaPeriod | 200 | トレンドフィルタEMA(逆らわない) |
+| AtrPeriod / VolMedianBars | 14 / 200 | ATRとボラゲート基準 |
+| SL_AtrMult / Trail_AtrMult | 2.0 / 3.0 | 初期SL / チャンデリア・トレール |
+| MaxHoldBars | 72 | 時間切れ決済(本) |
 | MaxSpreadPoints | 50 | 許容スプレッド(ポイント) |
+
+**GoldTentei（押し目・MTF）:**
+| パラメータ | 初期値 | 説明 |
+|-----------|--------|------|
+| RiskPercent | 0.5 | 併用時は0.4推奨 |
+| PivotK | 3 | スイング検出の片側バー数(OOS最良) |
+| UseMtfFilter / MtfEmaPeriod | true / 100 | H4トレンド一致フィルタ |
+| FibLo / FibHi | 0.382 / 0.618 | 押し目ゾーン |
+| Ntarget | 1.618 | TP=N波動倍率 |
+| MagicNumber | 20260623 | **VBOと別番号**(干渉防止) |
+
+共通: `MaxDailyLossPct=5.0` / `MaxDrawdownPct=20.0`（安全装置・両EAに設定）。
 
 ---
 
