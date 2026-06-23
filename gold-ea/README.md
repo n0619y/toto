@@ -27,7 +27,8 @@ gold-ea/
 - [x] **EA①: GoldVBO（ボラブレイク）**（→ `experts/GoldVBO.mq4`）
 - [x] **EA②: GoldTentei（天底ロジック/押し目）**（→ `experts/GoldTentei.mq4`）
 - [x] **2戦略ポートフォリオ検証**（低相関+0.04, 合成でDD縮小 → `docs/PORTFOLIO_GUIDE.md`）
-- [ ] Phase 3: **XM実データでMT4バックテスト**（データ出力 → `docs/DATA_EXPORT_GUIDE.md`）
+- [x] **XM実データ(2023-2025)で確定パラメータを再検証 → 優位性存続**（→ `docs/XM_VALIDATION.md`）
+- [ ] Phase 3: **MT4ストラテジーテスター（全ティック）で実約定を確認**
 - [ ] Phase 4: フォワードテスト（デモ・2戦略同時）
 - [ ] Phase 5: 少額リアル運用
 
