@@ -29,6 +29,7 @@ gold-ea/
 - [x] **2戦略ポートフォリオ検証**（低相関+0.04, 合成でDD縮小 → `docs/PORTFOLIO_GUIDE.md`）
 - [x] **XM実データ(2023-2025)で確定パラメータを再検証 → 優位性存続**（→ `docs/XM_VALIDATION.md`）
 - [x] **効率比フィルタ追加＋時間足別最適化(H1/H4)**（→ `docs/TIMEFRAME_GUIDE.md`）
+- [x] **改善ラボ: 部分利確でDD半減・Sharpe大幅改善(GoldVBO v2)**（→ `docs/IMPROVEMENTS.md`）
 - [ ] Phase 3: **MT4ストラテジーテスター（全ティック）で実約定を確認**
 - [ ] Phase 4: フォワードテスト（デモ・2戦略同時）
 - [ ] Phase 5: 少額リアル運用

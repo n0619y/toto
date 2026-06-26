@@ -8,13 +8,13 @@
 //|     (次足成行では優位性が消えるため必須。entry_parity.pyで検証)   |
 //|   - EMAトレンドフィルタで『逆らわない』(OOSでPF/DD改善を確認)     |
 //|   - ATRボラゲート + ★効率比フィルタ★で揉み合いのだましブレイク除外|
-//|   - ATRハード損切り + ATRチャンデリア・トレーリング + 時間切れ    |
+//|   - ATRハード損切り + ★部分利確(+3ATRで半分)★ + チャンデリアtrail|
 //|   - リスク%でロット自動計算 + 最大DD/日次損失の安全装置          |
 //|                                                                  |
 //|  時間足別に最適化(multi_tf.py): H1→BreakoutBars=12 / H4→=24      |
-//|  OOS実績(ER0.3,コスト$0.5): H1 PF2.28/Sh2.40, H4 PF2.32/Sh1.44   |
-//|  XM実データ2023-25でも存続(H1 PF2.36, H4 PF2.13)。詳細TIMEFRAME_GUIDE|
-//|  ※参考値。XM実データの全ティック再検証が前提。                 |
+//|  部分利確で最大DD半減(2018チョップ年が黒字化)・Sharpe大幅改善     |
+//|  OOS実績(lab.py): 公開2012-22 Sh2.4→3.2/DD-10.5→-6.2%, XM Sh2.7→3.7|
+//|  ※参考値(理想約定)。XM実データの全ティック/デモ再検証が前提。  |
 //+------------------------------------------------------------------+
 #property copyright "FX GOLD EA Project"
 #property version   "1.0"
@@ -48,11 +48,18 @@ input bool   AllowShort          = true;    // 売りも行う
 
 input string Sec_Exit         = "==== エグジット(検証済) ====";
 input double SL_AtrMult          = 2.0;     // 初期SL = ATR×
-input double Trail_AtrMult        = 3.0;     // チャンデリア・トレール = ATR×
+input double Trail_AtrMult        = 2.5;     // チャンデリア・トレール = ATR×(検証で2.5が最良)
+input bool   UsePartialTP         = true;    // ★部分利確: 含み益で一部利確し残りを伸ばす(DD半減/Sharpe大幅改善)
+input double TP1_AtrMult          = 3.0;     // 第1利確 = ATR×(この含み益で)
+input double TP1_Fraction         = 0.5;     // その割合を利確し、残りは建値ストップ+トレール
 input int    MaxHoldBars          = 72;      // 時間切れ決済(本) 0=無効
 
 //=== 内部 ==========================================================
 datetime g_lastBar = 0;
+datetime g_part[];   // 部分利確済みポジの建玉時刻(分割でチケットが変わっても建玉時刻は不変=安定キー)
+
+bool IsPartialed(datetime t){ for(int i=ArraySize(g_part)-1;i>=0;i--) if(g_part[i]==t) return true; return false; }
+void MarkPartialed(datetime t){ int n=ArraySize(g_part); if(n>300){ArrayResize(g_part,0);n=0;} ArrayResize(g_part,n+1); g_part[n]=t; }
 
 int OnInit()
 {
@@ -144,6 +151,36 @@ void ManageOpen(double atr)
             Print("時間切れClose失敗 err=",GetLastError());
          continue;
       }
+
+      // --- 部分利確: +TP1_AtrMult*ATR の含み益で TP1_Fraction を利確し、残りは建値+トレール ---
+      if(UsePartialTP && !IsPartialed(OrderOpenTime()))
+      {
+         double entryPx=OrderOpenPrice();
+         double prof=(OrderType()==OP_BUY)?(MarketInfo(Symbol(),MODE_BID)-entryPx)
+                                          :(entryPx-MarketInfo(Symbol(),MODE_ASK));
+         if(prof>=TP1_AtrMult*atr)
+         {
+            double closeLots=NormalizeLot(Symbol(),OrderLots()*TP1_Fraction);
+            double cpx=(OrderType()==OP_BUY)?MarketInfo(Symbol(),MODE_BID):MarketInfo(Symbol(),MODE_ASK);
+            if(closeLots>0 && closeLots<OrderLots())
+            {
+               // 先に残りSLを建値へ(分割後の残玉に引き継がれる)
+               bool needBE=(OrderType()==OP_BUY)?(OrderStopLoss()<entryPx):(OrderStopLoss()>entryPx||OrderStopLoss()==0.0);
+               if(needBE)
+                  OrderModify(OrderTicket(),entryPx,NormalizeDouble(entryPx,digits),OrderTakeProfit(),0,clrNONE);
+               if(OrderClose(OrderTicket(),closeLots,NormalizeDouble(cpx,digits),Slippage,clrNONE))
+                  MarkPartialed(OrderOpenTime());
+               else
+                  Print("部分利確Close失敗 err=",GetLastError());
+               continue;   // 残玉は次tickでトレール
+            }
+            else
+            {
+               MarkPartialed(OrderOpenTime());   // 分割不能(最小ロット)→以後は通常トレールのみ
+            }
+         }
+      }
+
       int look=MathMax(barsSince+1,1);
       if(OrderType()==OP_BUY)
       {
