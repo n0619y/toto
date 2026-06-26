@@ -56,6 +56,7 @@ gold-ea/
 4. 時間足分散(H1/H4): [`docs/TIMEFRAME_GUIDE.md`](docs/TIMEFRAME_GUIDE.md)
 5. XM実データ検証結果: [`docs/XM_VALIDATION.md`](docs/XM_VALIDATION.md)
 6. リスク分析・ロット指針: [`docs/RISK_ANALYSIS.md`](docs/RISK_ANALYSIS.md)
+7. 多年99%全ティック検証(Tickstory): [`docs/TICKSTORY_GUIDE.md`](docs/TICKSTORY_GUIDE.md)
 7. PCなしで回す（スマホ↔VPS）: [`docs/MOBILE_VPS_WORKFLOW.md`](docs/MOBILE_VPS_WORKFLOW.md)
 
 ゴールド銘柄名は `GOLD`。EA を `GOLD` の H1 チャートに適用。
