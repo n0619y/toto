@@ -44,7 +44,8 @@ def add_er(d,n):
 def run(df,bo=12,sl_atr=2.0,trail=3.0,maxhold=72,er_th=0.30,er_n=20,
         ema_on=True,volgate=True,adx_th=0.0,buf_atr=0.0,
         be_trig=0.0,be_lock=0.0,trail_act=0.0,
-        tp1_atr=0.0,tp1_frac=0.0,SPREAD=0.50):
+        tp1_atr=0.0,tp1_frac=0.0,trail_after=0.0,
+        tp2_atr=0.0,tp2_frac=0.0,SPREAD=0.50):
     """戻り: (equity配列, trades配列[R/取引でなく$], dates)
     機能トグル:
       buf_atr   : ブレイク水準+buf*ATRでエントリー(だまし回避)
@@ -57,7 +58,7 @@ def run(df,bo=12,sl_atr=2.0,trail=3.0,maxhold=72,er_th=0.30,er_n=20,
     ema=df.ema200.values;atr=df.atr.values;am=df.atr_med.values;adx=df.adx.values
     er=add_er(df,er_n)
     rh=df.high.rolling(bo).max().shift(1).values; rl=df.low.rolling(bo).min().shift(1).values
-    eq=INIT;pos=0;entry=stop=lots=0.0;peak=0.0;hold=0;part=False;init_stop=0.0
+    eq=INIT;pos=0;entry=stop=lots=0.0;peak=0.0;hold=0;part=0.0;init_stop=0.0
     out=np.empty(len(df));tr=[]
     for i in range(len(df)):
         if np.isnan(ema[i]) or np.isnan(atr[i]) or np.isnan(am[i]) or np.isnan(rh[i]) or np.isnan(er[i]) or np.isnan(adx[i]):
@@ -65,30 +66,37 @@ def run(df,bo=12,sl_atr=2.0,trail=3.0,maxhold=72,er_th=0.30,er_n=20,
         if pos!=0:
             hold+=1; a=atr[i]
             move=(hi[i]-entry) if pos>0 else (entry-lo[i])   # その足での最大含み益方向
-            # 部分利確
-            if tp1_frac>0 and not part:
+            # 部分利確(第1段)
+            if tp1_frac>0 and part==0.0:
                 tp1=entry+pos*tp1_atr*a
                 if (pos>0 and hi[i]>=tp1) or (pos<0 and lo[i]<=tp1):
                     g=pos*(tp1-entry)*lots*tp1_frac*100 - SPREAD*100*lots*tp1_frac
-                    eq+=g;tr.append(g);part=True
+                    eq+=g;tr.append(g);part+=tp1_frac
                     if be_lock==0: stop=max(stop,entry) if pos>0 else min(stop,entry)  # 残りは建値以上
+            # 部分利確(第2段)
+            if tp2_frac>0 and 0.0<part<(tp1_frac+tp2_frac):
+                tp2=entry+pos*tp2_atr*a
+                if (pos>0 and hi[i]>=tp2) or (pos<0 and lo[i]<=tp2):
+                    g=pos*(tp2-entry)*lots*tp2_frac*100 - SPREAD*100*lots*tp2_frac
+                    eq+=g;tr.append(g);part+=tp2_frac
             # ブレイクイーブン
             if be_trig>0 and move>=be_trig*a:
                 bestop=entry+pos*be_lock*a
                 stop=max(stop,bestop) if pos>0 else min(stop,bestop)
-            # トレール(発動遅延あり)
+            # トレール(発動遅延あり)。部分利確後は trail_after(指定時)で残りを伸ばす
+            tmult=trail_after if (part>0.0 and trail_after>0.0) else trail
             if move>=trail_act*a:
-                if pos>0: peak=max(peak,hi[i]);stop=max(stop,peak-trail*a)
-                else: peak=min(peak,lo[i]);stop=min(stop,peak+trail*a)
+                if pos>0: peak=max(peak,hi[i]);stop=max(stop,peak-tmult*a)
+                else: peak=min(peak,lo[i]);stop=min(stop,peak+tmult*a)
             # 約定判定(残量)
-            rem=(1-tp1_frac) if (part and tp1_frac>0) else 1.0
+            rem=1.0-part
             exit_px=None
             if pos>0 and lo[i]<=stop: exit_px=stop
             elif pos<0 and hi[i]>=stop: exit_px=stop
             if exit_px is None and maxhold>0 and hold>=maxhold: exit_px=cl[i]
             if exit_px is not None:
                 g=pos*(exit_px-entry)*lots*rem*100 - SPREAD*100*lots*rem
-                eq+=g;tr.append(g);pos=0;hold=0;part=False
+                eq+=g;tr.append(g);pos=0;hold=0;part=0.0
         if pos==0:
             sd=sl_atr*atr[i];lc=max(eq*RISK/(sd*100),0.0) if sd>0 else 0
             gate=(atr[i]>am[i] or not volgate) and lc>0 and er[i]>=er_th and (adx[i]>=adx_th)
@@ -96,9 +104,9 @@ def run(df,bo=12,sl_atr=2.0,trail=3.0,maxhold=72,er_th=0.30,er_n=20,
                 lvlH=rh[i]+buf_atr*atr[i]; lvlL=rl[i]-buf_atr*atr[i]
                 tl=(cl[i]>ema[i]) or (not ema_on); ts=(cl[i]<ema[i]) or (not ema_on)
                 if hi[i]>=lvlH and tl:
-                    pos=1;entry=max(lvlH,o[i]);lots=lc;stop=entry-sd;init_stop=stop;peak=hi[i];hold=0;part=False
+                    pos=1;entry=max(lvlH,o[i]);lots=lc;stop=entry-sd;init_stop=stop;peak=hi[i];hold=0;part=0.0
                 elif lo[i]<=lvlL and ts:
-                    pos=-1;entry=min(lvlL,o[i]);lots=lc;stop=entry+sd;init_stop=stop;peak=lo[i];hold=0;part=False
+                    pos=-1;entry=min(lvlL,o[i]);lots=lc;stop=entry+sd;init_stop=stop;peak=lo[i];hold=0;part=0.0
         out[i]=eq
     return out,(np.array(tr) if tr else np.array([0.0])),pd.DatetimeIndex(df.Date.values)
 
