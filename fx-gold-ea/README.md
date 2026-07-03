@@ -35,7 +35,19 @@
 
 > **時間帯フィルターの注意**: `SessionStartHour/EndHour` は**ブローカーのサーバー時間**です。多くの海外ブローカーはGMT+2/+3(NY17時クローズ)なので、デフォルトの7〜21時はおおよそロンドン〜NY時間をカバーします。自分のブローカーのサーバー時間に合わせて調整してください。
 
-## バックテストの手順(必ず実施してください)
+## Pythonバックテスター (`backtest/`)
+
+EAと同一ロジックのバックテスターを同梱しています。MT4がない環境でも検証・パラメータ分析が可能です。
+
+```bash
+cd backtest && pip install pandas numpy matplotlib
+python3 gold_backtest.py --csv XAUUSD60.csv --preset balanced   # MT4エクスポートCSVで実データ検証
+python3 run_validation.py                                        # エンジン検証スイート
+```
+
+検証結果と主要な発見(**攻め設定はDDブレーカー頻発、リスク1〜1.5%の方が複利効率が高い**)は [backtest/REPORT.md](backtest/REPORT.md) を参照。この結果を受けて `presets/GoldTrendRider_balanced.set` を追加済み。
+
+## MT4でのバックテスト手順(必ず実施してください)
 
 1. ツール → History Center で XAUUSD の H1 と M1 データをダウンロード
 2. Strategy Tester (Ctrl+R) で:
