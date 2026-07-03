@@ -1,0 +1,36 @@
+=== A. セッションフィルター (H4) ===
+session 7-21 (現行)            | IS:    30.0% PF1.94  DD 14.7% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    93.4% PF3.22  DD 16.7%
+session なし                   | IS:    33.3% PF1.83  DD 17.3% | OOS:    46.6% PF8.08  DD 10.2% | FULL:   113.1% PF3.21  DD 19.2%
+
+=== B. リスク% (現行1.5) ===
+risk=1.5                     | IS:    30.0% PF1.94  DD 14.7% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    93.4% PF3.22  DD 16.7%
+risk=2.0                     | IS:    38.7% PF1.83  DD 19.9% | OOS:    50.3% PF7.18  DD 10.9% | FULL:   140.0% PF3.27  DD 22.3%
+risk=2.5                     | IS:    52.2% PF1.87  DD 22.8% | OOS:    67.1% PF7.82  DD 13.0% | FULL:   200.5% PF3.43  DD 25.8%
+
+=== C. 増し玉リスク逓減 (現行1.0=等倍) ===
+pyramid_scale=1.0            | IS:    30.0% PF1.94  DD 14.7% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    93.4% PF3.22  DD 16.7%
+pyramid_scale=0.7            | IS:    25.3% PF1.94  DD 12.1% | OOS:    30.5% PF7.84  DD  7.1% | FULL:    78.9% PF3.3   DD 13.5%
+pyramid_scale=0.5            | IS:    24.0% PF1.97  DD 10.9% | OOS:    29.4% PF7.59  DD  7.1% | FULL:    71.5% PF3.29  DD 12.2%
+
+=== D. ADXしきい値の頑健性 (現行20) ===
+adx>=15                      | IS:    21.3% PF1.59  DD 15.4% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    82.3% PF2.8   DD 17.3%
+adx>=20                      | IS:    30.0% PF1.94  DD 14.7% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    93.4% PF3.22  DD 16.7%
+adx>=25                      | IS:    31.0% PF2.42  DD 12.1% | OOS:    22.9% PF3.39  DD  8.6% | FULL:    74.2% PF2.98  DD 12.5%
+adx>=30                      | IS:    -0.3% PF0.98  DD 12.6% | OOS:     7.6% PF1.9   DD  9.8% | FULL:    13.6% PF1.43  DD 13.1%
+
+=== E. ドンチャン期間の頑健性 (現行20) ===
+donchian=15                  | IS:    25.6% PF1.73  DD 16.5% | OOS:    44.7% PF8.21  DD  8.5% | FULL:   100.3% PF3.11  DD 18.3%
+donchian=20                  | IS:    30.0% PF1.94  DD 14.7% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    93.4% PF3.22  DD 16.7%
+donchian=25                  | IS:    29.8% PF1.98  DD 13.7% | OOS:    28.0% PF6.25  DD  8.4% | FULL:    83.3% PF3.06  DD 15.7%
+donchian=30                  | IS:    26.3% PF1.88  DD 12.4% | OOS:    28.0% PF6.25  DD  8.4% | FULL:    75.1% PF2.87  DD 14.5%
+
+=== F. コスト感度 (現行スプレッド$0.35) ===
+spread=$0.35                 | IS:    30.0% PF1.94  DD 14.7% | OOS:    37.2% PF7.42  DD  8.6% | FULL:    93.4% PF3.22  DD 16.7%
+spread=$0.5                  | IS:    29.8% PF1.93  DD 14.8% | OOS:    37.2% PF7.41  DD  8.6% | FULL:    93.1% PF3.21  DD 16.8%
+spread=$0.7                  | IS:    29.5% PF1.91  DD 14.9% | OOS:    37.1% PF7.4   DD  8.6% | FULL:    92.6% PF3.19  DD 16.9%
+spread=$1.0                  | IS:    27.9% PF1.86  DD 15.7% | OOS:    37.0% PF7.39  DD  8.6% | FULL:    90.8% PF3.14  DD 17.7%
+
+=== G. モンテカルロDD分析 (FULL, トレード順序10000回リシャッフル) ===
+  実測DD: 16.7%
+  モンテカルロDD分布: 中央値 8.5% / 90%タイル 12.4% / 99%タイル 16.7%
+  (同じトレード群でも並び順次第でここまでのDDは覚悟が必要)

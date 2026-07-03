@@ -46,6 +46,7 @@ class Params:
     risk_percent: float = 3.0
     long_only: bool = False    # ゴールドの構造的ロングバイアス活用 (売りシグナルは決済のみに使用)
     max_pyramids: int = 3
+    pyramid_risk_scale: float = 1.0  # 増し玉のリスク逓減率 (2段目=リスクxこの値, 3段目=x2乗...)
     # --- v1.2 改善フィルター ---
     use_mtf: bool = False          # D1トレンド整合フィルター (前日までの日足EMAで判定)
     mtf_fast: int = 50
@@ -91,6 +92,11 @@ PRESETS = {
     "v12_h4_long": dict(risk_percent=1.5, max_pyramids=2, trail_atr_mult=4.0,
                         max_daily_loss_pct=5.0, max_dd_pct=30.0, long_only=True,
                         use_atr_expansion=True, atr_exp_ratio=0.95),
+    # v1.3 攻め版: v12と同一ロジックでリスクのみ2.0% (全期間+140%/DD22.3%)
+    # リスク2.5%は+200%/DD25.8%だがブレーカー30%との余白が薄い
+    "v12_h4_long_attack": dict(risk_percent=2.0, max_pyramids=2, trail_atr_mult=4.0,
+                               max_daily_loss_pct=6.0, max_dd_pct=30.0, long_only=True,
+                               use_atr_expansion=True, atr_exp_ratio=0.95),
 }
 
 # ============================================================
@@ -204,6 +210,10 @@ class Backtester:
         sl = entry - direction * sl_dist
         tp = entry + direction * p.tp_atr_mult * atr if p.use_tp else 0.0
         lots = self._calc_lots(sl_dist, self._equity(exit_ref))
+        # 増し玉はリスクを逓減 (1段目=等倍)
+        n_same = sum(1 for x in self.positions if x.direction == direction)
+        if n_same > 0 and p.pyramid_risk_scale != 1.0:
+            lots = max(p.min_lot, np.floor(lots * p.pyramid_risk_scale ** n_same / p.lot_step) * p.lot_step)
         if lots <= 0:
             return
         self.positions.append(Position(direction, lots, entry, sl, tp, t, atr0=atr))

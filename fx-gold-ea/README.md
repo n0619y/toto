@@ -29,7 +29,8 @@
 2. MetaEditor でコンパイル(F7)— エラー0を確認
 3. XAUUSD の **H4チャート** にアタッチ(実データ検証での推奨時間足)
 4. `presets/` の .set ファイルをパラメータ画面で読み込み
-   - `GoldTrendRider_v12_h4_long.set` … **推奨(v1.2)**。買い専用+ATR拡大フィルター(実データH4: +93%/PF3.22/DD16.7%/シャープ1.40)
+   - `GoldTrendRider_v12_h4_long.set` … **標準推奨(v1.2)**。買い専用+ATR拡大フィルター(実データH4: +93%/PF3.22/DD16.7%/シャープ1.40)
+   - `GoldTrendRider_v12_h4_long_attack.set` … **攻め版**。同ロジックでリスク2.0%(H4: +140%/PF3.27/DD22.3%)
    - `GoldTrendRider_balanced_long.set` … v1.1推奨だった構成(H4: +73%/PF2.13/DD23%)
    - `GoldTrendRider_balanced.set` … 売買両方向のバランス型
    - `GoldTrendRider_aggressive.set` … 攻め設定(リスク3%×3段)。**実データ検証ではDDブレーカー発動で非推奨**

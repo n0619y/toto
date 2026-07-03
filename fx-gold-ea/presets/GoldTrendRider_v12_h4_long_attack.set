@@ -1,0 +1,39 @@
+; GoldTrendRider v1.2 攻め版プリセット — H4チャート専用・買い専用
+; ロジックはv12_h4_longと同一、リスクのみ2.0%に引き上げ
+; 実データ検証 (2022-2025): +140.0% / PF 3.27 / 最大DD 22.3%
+; 注意: DDブレーカー(30%)との余白は約8pt。リスク2.5%(+200%/DD25.8%)は
+;       ブレーカー接触の現実的リスクがあるため既定にしない
+EmaFastPeriod=50
+EmaSlowPeriod=200
+DonchianPeriod=20
+UseAdxFilter=1
+AdxPeriod=14
+AdxThreshold=20.0
+UseAtrExpansion=1
+AtrExpFastPeriod=14
+AtrExpSlowPeriod=100
+AtrExpRatio=0.95
+UseMtfFilter=0
+MtfFastPeriod=50
+MtfSlowPeriod=200
+UseBreakeven=0
+BeTriggerAtr=1.0
+AtrPeriod=14
+SlAtrMult=2.0
+TrailAtrMult=4.0
+TrailLookback=22
+UseTakeProfit=0
+TpAtrMult=6.0
+LongOnly=1
+RiskPercent=2.0
+MaxPyramids=2
+PyramidSpacingATR=1.0
+MaxDailyLossPct=6.0
+MaxDrawdownPct=30.0
+MaxSpreadPoints=60
+SlippagePoints=30
+UseSessionFilter=1
+SessionStartHour=7
+SessionEndHour=21
+MagicNumber=20260703
+TradeComment=GoldTrendRider
