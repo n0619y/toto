@@ -16,7 +16,7 @@
 //|   - 最大ドローダウン到達で全決済+完全停止                         |
 //+------------------------------------------------------------------+
 #property copyright "toto project"
-#property version   "1.00"
+#property version   "1.10"
 #property strict
 
 //=== エントリーロジック ===
@@ -36,6 +36,7 @@ input bool   UseTakeProfit     = false;     // 固定TPを使う(falseならト�
 input double TpAtrMult         = 6.0;       // TP幅 = ATR x この倍率
 
 //=== 資金管理(攻め設定) ===
+input bool   LongOnly          = false;     // 買い専用モード(実データ検証で売りは全時間足マイナスだった)
 input double RiskPercent       = 3.0;       // 1エントリーあたりのリスク(口座残高%)
 input int    MaxPyramids       = 3;         // 同方向の最大ポジション数(増し玉含む)
 input double PyramidSpacingATR = 1.0;       // 増し玉の間隔 = ATR x この倍率
@@ -259,8 +260,8 @@ void CheckSignalsAndTrade()
       }
    }
 
-   //--- 売り: 下降トレンド + 下抜けブレイク
-   if(bearTrend && adxOk && buys == 0)
+   //--- 売り: 下降トレンド + 下抜けブレイク (LongOnly時は新規売りなし。買いの決済は上のドテン処理で行う)
+   if(bearTrend && adxOk && buys == 0 && !LongOnly)
    {
       if(sells == 0 && sellBreak)
          OpenPosition(OP_SELL, atr);

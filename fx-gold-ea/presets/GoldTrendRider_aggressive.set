@@ -11,6 +11,7 @@ TrailAtrMult=3.0
 TrailLookback=22
 UseTakeProfit=0
 TpAtrMult=6.0
+LongOnly=0
 RiskPercent=3.0
 MaxPyramids=3
 PyramidSpacingATR=1.0

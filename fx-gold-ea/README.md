@@ -27,9 +27,11 @@
 
 1. `GoldTrendRider.mq4` を MT4 の `MQL4/Experts/` にコピー
 2. MetaEditor でコンパイル(F7)— エラー0を確認
-3. XAUUSD の **H1チャート** にアタッチ(推奨時間足)
+3. XAUUSD の **H4チャート** にアタッチ(実データ検証での推奨時間足)
 4. `presets/` の .set ファイルをパラメータ画面で読み込み
-   - `GoldTrendRider_aggressive.set` … 攻め設定(リスク3%/回、ピラミッド3段)
+   - `GoldTrendRider_balanced_long.set` … **推奨**。買い専用・リスク1.5%×2段(実データ検証で最良: H4で+73%/PF2.13/DD23%)
+   - `GoldTrendRider_balanced.set` … 売買両方向のバランス型
+   - `GoldTrendRider_aggressive.set` … 攻め設定(リスク3%×3段)。**実データ検証ではDDブレーカー発動で非推奨**
    - `GoldTrendRider_conservative.set` … 検証・フォワードテスト用の堅実設定
 5. 自動売買を有効化(ツールバーの「自動売買」ボタン)
 

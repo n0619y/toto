@@ -44,6 +44,7 @@ class Params:
     use_tp: bool = False
     tp_atr_mult: float = 6.0
     risk_percent: float = 3.0
+    long_only: bool = False    # ゴールドの構造的ロングバイアス活用 (売りシグナルは決済のみに使用)
     max_pyramids: int = 3
     pyramid_spacing_atr: float = 1.0
     max_daily_loss_pct: float = 8.0
@@ -72,6 +73,9 @@ PRESETS = {
     # 複利を長く効かせる (実データでの検証が必要)
     "balanced": dict(risk_percent=1.5, max_pyramids=2, trail_atr_mult=4.0,
                      max_daily_loss_pct=5.0, max_dd_pct=30.0),
+    # 実データ検証で売りが全時間足で負けていた知見を反映したロング専用版
+    "balanced_long": dict(risk_percent=1.5, max_pyramids=2, trail_atr_mult=4.0,
+                          max_daily_loss_pct=5.0, max_dd_pct=30.0, long_only=True),
 }
 
 # ============================================================
@@ -307,7 +311,7 @@ class Backtester:
                         if c[i - 1] >= last_e + p.pyramid_spacing_atr * atr1:
                             self._open(+1, o[i], atr1, t)
 
-                if bear and adx_ok and not buys:
+                if bear and adx_ok and not buys and not p.long_only:
                     if not sells and sell_break:
                         self._open(-1, o[i], atr1, t)
                     elif sells and len(sells) < p.max_pyramids:
@@ -460,6 +464,11 @@ def main():
     ap.add_argument("--risk", type=float, default=None, help="RiskPercent上書き")
     ap.add_argument("--sweep", action="store_true", help="パラメータ感度チェックを実行")
     ap.add_argument("--outdir", default="results")
+    ap.add_argument("--start", help="この日時以降のみ使用 (例: 2024-01-01)")
+    ap.add_argument("--end", help="この日時以前のみ使用 (例: 2025-01-01)")
+    ap.add_argument("--no-session", action="store_true",
+                    help="セッションフィルター無効 (D1など日足以上では必須)")
+    ap.add_argument("--tag", default="", help="出力ファイル名に付けるタグ")
     args = ap.parse_args()
 
     if args.csv:
@@ -470,6 +479,11 @@ def main():
         src = f"合成データ ({args.years}年, seed={args.seed}) ※エンジン検証用"
     else:
         ap.error("--csv か --synthetic を指定してください")
+
+    if args.start:
+        df = df[df.index >= pd.Timestamp(args.start)]
+    if args.end:
+        df = df[df.index < pd.Timestamp(args.end)]
 
     os.makedirs(args.outdir, exist_ok=True)
     print(f"データ: {src}\n期間: {df.index[0]} 〜 {df.index[-1]} ({len(df)}本)\n")
@@ -482,6 +496,8 @@ def main():
                     p = build_params(args.preset, risk_percent=risk)
                     p.donchian = dc
                     p.trail_atr_mult = trail
+                    if args.no_session:
+                        p.use_session = False
                     s = summarize(Backtester(df, p).run())
                     rows.append({"Donchian": dc, "Trail": trail, "Risk%": risk,
                                  "リターン%": s["リターン(%)"], "PF": s["プロフィットファクター"],
@@ -489,22 +505,26 @@ def main():
                                  "勝率%": s["勝率(%)"], "DD停止": s["DD停止発動"]})
         table = pd.DataFrame(rows)
         print(table.to_string(index=False))
-        table.to_csv(os.path.join(args.outdir, "sweep.csv"), index=False)
+        table.to_csv(os.path.join(args.outdir,
+                                  f"sweep{'_' + args.tag if args.tag else ''}.csv"), index=False)
         return
 
     p = build_params(args.preset, risk_percent=args.risk)
+    if args.no_session:
+        p.use_session = False
     bt = Backtester(df, p).run()
     stats = summarize(bt)
     print(f"=== プリセット: {args.preset} ===")
     for k, v in stats.items():
         print(f"  {k}: {v}")
-    png = os.path.join(args.outdir, f"equity_{args.preset}.png")
+    suffix = f"{args.preset}{'_' + args.tag if args.tag else ''}"
+    png = os.path.join(args.outdir, f"equity_{suffix}.png")
     # プロットタイトルはフォント都合でASCIIのみ
     src_ascii = os.path.basename(args.csv) if args.csv else f"synthetic {args.years}y seed={args.seed} (validation only)"
     plot_equity(bt, png, f"GoldTrendRider [{args.preset}] {src_ascii}")
     pd.DataFrame([dataclasses.asdict(t) for t in bt.trades]).to_csv(
-        os.path.join(args.outdir, f"trades_{args.preset}.csv"), index=False)
-    print(f"\n出力: {png}, trades_{args.preset}.csv")
+        os.path.join(args.outdir, f"trades_{suffix}.csv"), index=False)
+    print(f"\n出力: {png}, trades_{suffix}.csv")
 
 if __name__ == "__main__":
     main()
