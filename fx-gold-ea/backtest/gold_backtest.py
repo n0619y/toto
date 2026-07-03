@@ -46,6 +46,16 @@ class Params:
     risk_percent: float = 3.0
     long_only: bool = False    # ゴールドの構造的ロングバイアス活用 (売りシグナルは決済のみに使用)
     max_pyramids: int = 3
+    # --- v1.2 改善フィルター ---
+    use_mtf: bool = False          # D1トレンド整合フィルター (前日までの日足EMAで判定)
+    mtf_fast: int = 50
+    mtf_slow: int = 200
+    use_atr_expansion: bool = False  # ボラ拡大時のみエントリー
+    atr_exp_fast: int = 14
+    atr_exp_slow: int = 100
+    atr_exp_ratio: float = 1.0       # ATR(fast) > ATR(slow) x この比率
+    use_breakeven: bool = False      # +N ATR順行でSLを建値へ
+    be_trigger_atr: float = 1.0
     pyramid_spacing_atr: float = 1.0
     max_daily_loss_pct: float = 8.0
     max_dd_pct: float = 35.0
@@ -76,6 +86,11 @@ PRESETS = {
     # 実データ検証で売りが全時間足で負けていた知見を反映したロング専用版
     "balanced_long": dict(risk_percent=1.5, max_pyramids=2, trail_atr_mult=4.0,
                           max_daily_loss_pct=5.0, max_dd_pct=30.0, long_only=True),
+    # v1.2 推奨 (H4向け): balanced_long + ATR拡大フィルター
+    # 根拠: IS(2022-24)が+11%->+30%, PF1.23->1.94, 全期間PF3.22/シャープ1.40 (REPORT.md)
+    "v12_h4_long": dict(risk_percent=1.5, max_pyramids=2, trail_atr_mult=4.0,
+                        max_daily_loss_pct=5.0, max_dd_pct=30.0, long_only=True,
+                        use_atr_expansion=True, atr_exp_ratio=0.95),
 }
 
 # ============================================================
@@ -124,6 +139,8 @@ class Position:
     sl: float
     tp: float
     entry_time: pd.Timestamp
+    atr0: float = 0.0       # エントリー時ATR (ブレイクイーブン判定用)
+    be_done: bool = False
 
 @dataclasses.dataclass
 class Trade:
@@ -189,7 +206,7 @@ class Backtester:
         lots = self._calc_lots(sl_dist, self._equity(exit_ref))
         if lots <= 0:
             return
-        self.positions.append(Position(direction, lots, entry, sl, tp, t))
+        self.positions.append(Position(direction, lots, entry, sl, tp, t, atr0=atr))
 
     # ---- メインループ ----
     def run(self):
@@ -208,6 +225,29 @@ class Backtester:
         # トレーリング基準: 直近N本(確定足まで)の高安
         tr_hi = df["high"].rolling(p.trail_lookback).max().shift(1).values
         tr_lo = df["low"].rolling(p.trail_lookback).min().shift(1).values
+
+        # --- v1.2: D1トレンド整合フィルター (前日までの確定日足のみ使用) ---
+        if p.use_mtf:
+            daily_close = df["close"].resample("1D").last().dropna()
+            d_ema_f = ema(daily_close, p.mtf_fast)
+            d_ema_s = ema(daily_close, p.mtf_slow)
+            # shift(1)で「前日までの確定値」にし、当日バーへ前方補完 (ルックアヘッド防止)
+            bull_daily = (d_ema_f > d_ema_s).shift(1)
+            bear_daily = (d_ema_f < d_ema_s).shift(1)
+            dates = df.index.normalize()
+            mtf_bull = bull_daily.reindex(dates, method="ffill").fillna(False).values
+            mtf_bear = bear_daily.reindex(dates, method="ffill").fillna(False).values
+        else:
+            mtf_bull = np.ones(len(df), dtype=bool)
+            mtf_bear = np.ones(len(df), dtype=bool)
+
+        # --- v1.2: ATR拡大フィルター ---
+        if p.use_atr_expansion:
+            atr_f = atr_mt4(df, p.atr_exp_fast)
+            atr_s = atr_mt4(df, p.atr_exp_slow)
+            atrexp_ok = (atr_f > atr_s * p.atr_exp_ratio).shift(1).fillna(False).values
+        else:
+            atrexp_ok = np.ones(len(df), dtype=bool)
 
         warmup = max(p.ema_slow, p.donchian + 2, p.trail_lookback + 1,
                      p.atr_period + 1, p.adx_period * 3) + 5
@@ -254,6 +294,18 @@ class Backtester:
                         pos.sl = buy_trail
                     elif pos.direction < 0 and sell_trail < pos.sl:
                         pos.sl = sell_trail
+
+            # --- v1.2: ブレイクイーブン移動 (確定足基準) ---
+            if p.use_breakeven:
+                for pos in self.positions:
+                    if pos.be_done or pos.atr0 <= 0:
+                        continue
+                    if pos.direction > 0 and c[i - 1] >= pos.entry + p.be_trigger_atr * pos.atr0:
+                        pos.sl = max(pos.sl, pos.entry)
+                        pos.be_done = True
+                    elif pos.direction < 0 and c[i - 1] <= pos.entry - p.be_trigger_atr * pos.atr0:
+                        pos.sl = min(pos.sl, pos.entry)
+                        pos.be_done = True
 
             # --- バー内のSL/TPヒット判定 (Bid=データ価格とみなす) ---
             for pos in list(self.positions):
@@ -303,7 +355,7 @@ class Backtester:
                         self._close(pos, o[i] + p.spread_usd, t, "ドテン")
                     sells = []
 
-                if bull and adx_ok and not sells:
+                if bull and adx_ok and mtf_bull[i] and atrexp_ok[i] and not sells:
                     if not buys and buy_break:
                         self._open(+1, o[i], atr1, t)
                     elif buys and len(buys) < p.max_pyramids:
@@ -311,7 +363,7 @@ class Backtester:
                         if c[i - 1] >= last_e + p.pyramid_spacing_atr * atr1:
                             self._open(+1, o[i], atr1, t)
 
-                if bear and adx_ok and not buys and not p.long_only:
+                if bear and adx_ok and mtf_bear[i] and atrexp_ok[i] and not buys and not p.long_only:
                     if not sells and sell_break:
                         self._open(-1, o[i], atr1, t)
                     elif sells and len(sells) < p.max_pyramids:

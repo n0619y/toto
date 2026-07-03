@@ -1,13 +1,16 @@
-; GoldTrendRider バランス型プリセット (XAUUSD H1想定)
-; エンジン検証の感度分析から導いた仮説設定: リスクを抑えてトレールを広げ、
-; DDブレーカーに当たらず複利を長く効かせる狙い。実データでの検証必須。
+; GoldTrendRider v1.2 推奨プリセット — H4チャート専用・買い専用
+; balanced_long + ATR拡大フィルター (短期ATR14 > 長期ATR100 x 0.95 の時のみエントリー)
+; 実データ検証 (backtest/REPORT.md):
+;   全期間(2022-2025): +93.4% / PF 3.22 / 最大DD 16.7% / シャープ 1.40
+;   IS(2022-24): +30.0% / PF 1.94 / DD 14.7%  <- フィルターなしの+11%から大幅改善
+;   OOS(2025):   +37.2% / PF 7.42 / DD 8.6%
 EmaFastPeriod=50
 EmaSlowPeriod=200
 DonchianPeriod=20
 UseAdxFilter=1
 AdxPeriod=14
 AdxThreshold=20.0
-UseAtrExpansion=0
+UseAtrExpansion=1
 AtrExpFastPeriod=14
 AtrExpSlowPeriod=100
 AtrExpRatio=0.95
@@ -22,7 +25,7 @@ TrailAtrMult=4.0
 TrailLookback=22
 UseTakeProfit=0
 TpAtrMult=6.0
-LongOnly=0
+LongOnly=1
 RiskPercent=1.5
 MaxPyramids=2
 PyramidSpacingATR=1.0

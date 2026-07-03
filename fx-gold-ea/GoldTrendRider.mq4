@@ -16,7 +16,7 @@
 //|   - 最大ドローダウン到達で全決済+完全停止                         |
 //+------------------------------------------------------------------+
 #property copyright "toto project"
-#property version   "1.10"
+#property version   "1.20"
 #property strict
 
 //=== エントリーロジック ===
@@ -26,6 +26,17 @@ input int    DonchianPeriod    = 20;        // ドンチャンチャネル期間
 input bool   UseAdxFilter      = true;      // ADXフィルターを使う
 input int    AdxPeriod         = 14;        // ADX期間
 input double AdxThreshold      = 20.0;      // ADXしきい値(これ未満はレンジとみなし見送り)
+
+//=== v1.2 追加フィルター ===
+input bool   UseAtrExpansion   = false;     // ATR拡大フィルター(ボラ立ち上がり時のみエントリー) H4検証で採用
+input int    AtrExpFastPeriod  = 14;        // 短期ATR期間
+input int    AtrExpSlowPeriod  = 100;       // 長期ATR期間
+input double AtrExpRatio       = 0.95;      // 短期ATR > 長期ATR x この比率 でエントリー許可
+input bool   UseMtfFilter      = false;     // D1トレンド整合フィルター(検証では効果薄、オプション)
+input int    MtfFastPeriod     = 50;        // D1短期EMA
+input int    MtfSlowPeriod     = 200;       // D1長期EMA
+input bool   UseBreakeven      = false;     // ブレイクイーブン移動(検証では利益低下、オプション)
+input double BeTriggerAtr      = 1.0;       // 建値移動の発動幅 = ATR x この倍率
 
 //=== 損切り・利食い ===
 input int    AtrPeriod         = 14;        // ATR期間
@@ -221,6 +232,24 @@ void CheckSignalsAndTrade()
    if(UseAdxFilter)
       adxOk = (iADX(NULL, 0, AdxPeriod, PRICE_CLOSE, MODE_MAIN, 1) >= AdxThreshold);
 
+   // v1.2: ATR拡大フィルター(ボラティリティが立ち上がっている時だけ取引)
+   bool atrExpOk = true;
+   if(UseAtrExpansion)
+   {
+      double atrSlow = iATR(NULL, 0, AtrExpSlowPeriod, 1);
+      atrExpOk = (atrSlow > 0 && iATR(NULL, 0, AtrExpFastPeriod, 1) > atrSlow * AtrExpRatio);
+   }
+
+   // v1.2: D1トレンド整合フィルター(前日までの確定日足で判定)
+   bool mtfBull = true, mtfBear = true;
+   if(UseMtfFilter)
+   {
+      double dFast = iMA(NULL, PERIOD_D1, MtfFastPeriod, 0, MODE_EMA, PRICE_CLOSE, 1);
+      double dSlow = iMA(NULL, PERIOD_D1, MtfSlowPeriod, 0, MODE_EMA, PRICE_CLOSE, 1);
+      mtfBull = (dFast > dSlow);
+      mtfBear = (dFast < dSlow);
+   }
+
    // 直近確定バーを除いた過去DonchianPeriod本の高値/安値
    int hiIdx = iHighest(NULL, 0, MODE_HIGH, DonchianPeriod, 2);
    int loIdx = iLowest(NULL, 0, MODE_LOW, DonchianPeriod, 2);
@@ -247,7 +276,7 @@ void CheckSignalsAndTrade()
    sells = CountOrders(OP_SELL);
 
    //--- 買い: 上昇トレンド + 上抜けブレイク
-   if(bullTrend && adxOk && sells == 0)
+   if(bullTrend && adxOk && atrExpOk && mtfBull && sells == 0)
    {
       if(buys == 0 && buyBreak)
          OpenPosition(OP_BUY, atr);
@@ -261,7 +290,7 @@ void CheckSignalsAndTrade()
    }
 
    //--- 売り: 下降トレンド + 下抜けブレイク (LongOnly時は新規売りなし。買いの決済は上のドテン処理で行う)
-   if(bearTrend && adxOk && buys == 0 && !LongOnly)
+   if(bearTrend && adxOk && atrExpOk && mtfBear && buys == 0 && !LongOnly)
    {
       if(sells == 0 && sellBreak)
          OpenPosition(OP_SELL, atr);
@@ -410,18 +439,27 @@ void ManageTrailingStops()
 
       if(OrderType() == OP_BUY)
       {
+         double newSL = buyTrail;
+         // v1.2: ブレイクイーブン — 発動幅以上の含み益で建値をSLの下限にする
+         if(UseBreakeven && Bid >= OrderOpenPrice() + BeTriggerAtr * atr)
+            newSL = MathMax(newSL, OrderOpenPrice());
+         newSL = NormalizeDouble(newSL, Digits);
          // SLは上方向にのみ更新。ストップレベル制限も考慮
-         if(buyTrail > OrderStopLoss() + Point && buyTrail < Bid - minStopDist)
+         if(newSL > OrderStopLoss() + Point && newSL < Bid - minStopDist)
          {
-            if(!OrderModify(OrderTicket(), OrderOpenPrice(), buyTrail, OrderTakeProfit(), 0))
+            if(!OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0))
                Print("トレール更新失敗(買い) エラー:", GetLastError());
          }
       }
       else if(OrderType() == OP_SELL)
       {
-         if((OrderStopLoss() == 0 || sellTrail < OrderStopLoss() - Point) && sellTrail > Ask + minStopDist)
+         double newSL = sellTrail;
+         if(UseBreakeven && Ask <= OrderOpenPrice() - BeTriggerAtr * atr)
+            newSL = MathMin(newSL, OrderOpenPrice());
+         newSL = NormalizeDouble(newSL, Digits);
+         if((OrderStopLoss() == 0 || newSL < OrderStopLoss() - Point) && newSL > Ask + minStopDist)
          {
-            if(!OrderModify(OrderTicket(), OrderOpenPrice(), sellTrail, OrderTakeProfit(), 0))
+            if(!OrderModify(OrderTicket(), OrderOpenPrice(), newSL, OrderTakeProfit(), 0))
                Print("トレール更新失敗(売り) エラー:", GetLastError());
          }
       }
