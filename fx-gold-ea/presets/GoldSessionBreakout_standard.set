@@ -1,0 +1,26 @@
+; GoldSessionBreakout 標準プリセット (M5/M15チャート用)
+; アジア〜ロンドンレンジ(1-15時)のNY時間ブレイクアウト + H4トレンド整合
+; 検証 (backtest/REPORT.md):
+;   IS  M15 2023-10〜2024-12: +13.7% / PF 1.30 / DD 8.2% (リスク1.0%時)
+;   OOS M5  2025:             +24.7% / PF 2.26 / DD 3.9% / シャープ2.78 (リスク1.5%)
+RangeStartHour=1
+RangeEndHour=15
+TradeEndHour=20
+EodExitHour=23
+BufferFrac=0.10
+SlAtRangeMid=0
+TpRMultiple=3.0
+UseH4TrendFilter=1
+TrendFastEma=50
+TrendSlowEma=200
+LongOnly=0
+MinSlDistance=0.5
+MinRangePct=0.0
+MaxRangePct=0.0
+RiskPercent=1.5
+MaxDailyLossPct=5.0
+MaxDrawdownPct=30.0
+MaxSpreadPoints=60
+SlippagePoints=30
+MagicNumber=20260704
+TradeComment=GoldSessionBO

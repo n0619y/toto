@@ -1,4 +1,17 @@
-# GoldTrendRider — XAUUSD トレンドフォローEA (MT4/MQL4)
+# FX GOLD EA プロジェクト (MT4/MQL4)
+
+XAUUSD向けの2本立てEA。edge が異なるため同一口座で併走可能(マジックナンバー別)。
+
+| EA | 時間足 | 戦略 | 検証成績(概要) |
+|---|---|---|---|
+| **GoldTrendRider** | H4 | トレンドフォロー(ドンチャン+ATR拡大+買い専用) | 2022-25: +93%/PF3.22/DD16.7% |
+| **GoldSessionBreakout** | M5/M15 | アジア→NYセッションブレイク+H4整合 | 2025 OOS: +25%/PF2.26/DD3.9% |
+
+検証の全記録: [backtest/REPORT.md](backtest/REPORT.md)
+
+---
+
+# GoldTrendRider — XAUUSD トレンドフォローEA
 
 ゴールド(XAUUSD)の強いトレンド性を活かすブレイクアウト型EAです。
 
@@ -84,6 +97,33 @@ python3 run_validation.py                                        # エンジン�
 | `DonchianPeriod` | 20 | ブレイク判定の参照本数。大きいほどエントリー厳選 |
 | `MaxDailyLossPct` | 8.0 | 日次損失上限(%) |
 | `MaxDrawdownPct` | 35.0 | 完全停止となる最大DD(%) |
+
+---
+
+# GoldSessionBreakout — 短期セッションブレイクアウトEA
+
+アジア〜ロンドン時間(サーバー1〜15時)のレンジを、ボラティリティが爆発するNY時間(15〜20時)にブレイクした方向へ取るデイトレEA。H4トレンドと同方向のブレイクのみエントリーし、23時に全決済(オーバーナイトなし)。
+
+## セットアップ
+
+1. `GoldSessionBreakout.mq4` を `MQL4/Experts/` にコピーしてコンパイル
+2. XAUUSD の **M5 または M15 チャート**にアタッチ
+3. プリセット読み込み: `GoldSessionBreakout_standard.set`(リスク1.5%)または `_attack.set`(2.5%)
+4. **時刻設定はサーバー時間GMT+2/+3前提**。異なるブローカーでは `RangeStartHour/RangeEndHour/TradeEndHour/EodExitHour` を時差分ずらすこと
+
+## 主要パラメータ
+
+| パラメータ | デフォルト | 説明 |
+|-----------|----------|------|
+| `RangeStartHour`/`RangeEndHour` | 1 / 15 | レンジ計測ウィンドウ(サーバー時間) |
+| `TradeEndHour` | 20 | 未約定ストップ注文の取消時刻 |
+| `EodExitHour` | 23 | 全ポジション強制手仕舞い |
+| `BufferFrac` | 0.10 | ブレイク判定バッファ(レンジ幅比) |
+| `TpRMultiple` | 3.0 | 利確幅=リスクのR倍(0で時間手仕舞いのみ) |
+| `UseH4TrendFilter` | true | H4 EMA50/200と同方向のみ(IS検証でPF 1.10→1.30) |
+| `RiskPercent` | 1.5 | 1トレードのリスク(残高%) |
+
+GoldTrendRiderとの併走: マジックナンバーが異なる(20260703/20260704)ため同一口座で同時稼働できます。戦略の相関が低く、ポートフォリオとしてDDの平準化が期待できます。
 
 ## ⚠️ 免責・リスクについて
 
