@@ -1,0 +1,37 @@
+; GoldTrendRider バランス型プリセット (XAUUSD H1想定)
+; エンジン検証の感度分析から導いた仮説設定: リスクを抑えてトレールを広げ、
+; DDブレーカーに当たらず複利を長く効かせる狙い。実データでの検証必須。
+EmaFastPeriod=50
+EmaSlowPeriod=200
+DonchianPeriod=20
+UseAdxFilter=1
+AdxPeriod=14
+AdxThreshold=20.0
+UseAtrExpansion=0
+AtrExpFastPeriod=14
+AtrExpSlowPeriod=100
+AtrExpRatio=0.95
+UseMtfFilter=0
+MtfFastPeriod=50
+MtfSlowPeriod=200
+UseBreakeven=0
+BeTriggerAtr=1.0
+AtrPeriod=14
+SlAtrMult=2.0
+TrailAtrMult=4.0
+TrailLookback=22
+UseTakeProfit=0
+TpAtrMult=6.0
+LongOnly=0
+RiskPercent=1.5
+MaxPyramids=2
+PyramidSpacingATR=1.0
+MaxDailyLossPct=5.0
+MaxDrawdownPct=30.0
+MaxSpreadPoints=60
+SlippagePoints=30
+UseSessionFilter=1
+SessionStartHour=7
+SessionEndHour=21
+MagicNumber=20260703
+TradeComment=GoldTrendRider

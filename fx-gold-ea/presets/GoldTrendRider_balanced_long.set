@@ -1,0 +1,39 @@
+; GoldTrendRider バランス型ロング専用プリセット — 実データ検証での推奨設定
+; 推奨時間足: H4 (H1でも可)
+; 根拠: 2015-2025実データで売りは全時間足で合計マイナス。ロング専用化で
+;       H4: +73%/PF2.13/最大DD23% (2022-2025), D1 9年: PF3.0/最大DD14%
+; 詳細: backtest/REPORT.md
+EmaFastPeriod=50
+EmaSlowPeriod=200
+DonchianPeriod=20
+UseAdxFilter=1
+AdxPeriod=14
+AdxThreshold=20.0
+UseAtrExpansion=0
+AtrExpFastPeriod=14
+AtrExpSlowPeriod=100
+AtrExpRatio=0.95
+UseMtfFilter=0
+MtfFastPeriod=50
+MtfSlowPeriod=200
+UseBreakeven=0
+BeTriggerAtr=1.0
+AtrPeriod=14
+SlAtrMult=2.0
+TrailAtrMult=4.0
+TrailLookback=22
+UseTakeProfit=0
+TpAtrMult=6.0
+LongOnly=1
+RiskPercent=1.5
+MaxPyramids=2
+PyramidSpacingATR=1.0
+MaxDailyLossPct=5.0
+MaxDrawdownPct=30.0
+MaxSpreadPoints=60
+SlippagePoints=30
+UseSessionFilter=1
+SessionStartHour=7
+SessionEndHour=21
+MagicNumber=20260703
+TradeComment=GoldTrendRider
