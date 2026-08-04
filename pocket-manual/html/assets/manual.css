@@ -1,0 +1,179 @@
+/* =========================================================
+   小児循環器ポケットマニュアル — 院内リファレンス デザインシステム
+   視認性優先 / A4 印刷(Print to PDF)対応 / 自己完結・外部依存なし
+   ========================================================= */
+
+:root{
+  --navy:#1f3a5f;        /* 見出し・番号バッジ・棒 */
+  --navy-deep:#1b2430;   /* パネル見出しの濃紺 */
+  --thead:#23415f;       /* 表ヘッダ */
+  --ink:#2b2b2b;         /* 本文 */
+  --sub:#5a6570;         /* サブ見出し */
+  --muted:#9aa4ad;       /* フッタ等の淡色 */
+  --line:#e3e7eb;        /* カード枠 */
+  --hair:#eef1f4;        /* 細い区切り */
+  --dg-bg:#fdeceb; --dg-bd:#eec2bf; --dg-tx:#b83a30;   /* 危険(赤) */
+  --st-bg:#eaf5f2; --st-bd:#c2ddd6; --st-tx:#1f8069;   /* 安定(緑) */
+  --if-bg:#e9f0f8; --if-tx:#2d5a92;                    /* 情報/役割(青) */
+  --rv-bg:#fbf1d3; --rv-bd:#e6d290; --rv-tx:#8a6a1c;   /* 要校閲(黄) */
+  --rq-bg:#f7dede; --rq-tx:#b5342b;                    /* 必須(赤チップ) */
+  --dr-bg:#f6dcc9; --dr-tx:#8a4b1f;                    /* ドラフト(橙) */
+  --pill-bd:#cfd6dd;
+  --bar:#234e78; --bar-track:#e2ebf4; --mark:#d0433a; --bar-green:#2f8a6b;
+}
+
+*{ box-sizing:border-box; }
+html{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+body{
+  font-family:"IPAPGothic","IPAGothic","Noto Sans JP","Hiragino Kaku Gothic ProN",
+              "Yu Gothic",Meiryo,sans-serif;
+  color:var(--ink); font-size:13px; line-height:1.6; margin:0;
+  background:#f4f5f7;
+}
+b,strong{ font-weight:800; }
+a{ color:var(--if-tx); text-decoration:none; }
+
+/* ---- ページ枠(画面表示) ---- */
+.sheet{
+  background:#fff; width:210mm; min-height:297mm; margin:14px auto;
+  padding:20mm 15mm; box-shadow:0 2px 12px rgba(0,0,0,.12);
+}
+
+/* ---- 走りヘッダ / フッタ ---- */
+.runhead{ display:flex; justify-content:space-between; align-items:baseline;
+  border-bottom:1px solid var(--line); padding-bottom:8px; margin-bottom:16px;
+  font-size:11px; }
+.runhead .l{ font-weight:800; color:#33414f; }
+.runhead .r{ color:var(--muted); }
+.runfoot{ display:flex; justify-content:space-between; align-items:center;
+  border-top:1px solid var(--line); padding-top:8px; margin-top:20px;
+  font-size:10.5px; color:var(--muted); }
+.runfoot .status::before{ content:"●"; color:#c6982f; margin-right:6px; }
+
+/* ---- タイトル ---- */
+.title{ font-size:34px; font-weight:800; letter-spacing:.01em; margin:2px 0 2px; color:#182430; }
+.title small{ font-size:22px; font-weight:800; color:#33414f; }
+.subtitle{ font-size:15px; color:var(--sub); margin:0 0 12px; }
+.metachips{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:6px; }
+
+/* ---- チップ ---- */
+.chip{ display:inline-block; font-size:11px; font-weight:700; padding:2px 8px;
+  border-radius:5px; vertical-align:middle; background:#eef1f4; color:#4a5560; line-height:1.5; }
+.chip.draft{ background:var(--dr-bg); color:var(--dr-tx); }
+.chip.rev{ background:var(--rv-bg); border:1px solid var(--rv-bd); color:var(--rv-tx); }
+.chip.off{ background:var(--if-bg); color:var(--if-tx); }
+.chip.role{ background:var(--if-bg); color:var(--if-tx); }
+.chip.req{ background:var(--rq-bg); color:var(--rq-tx); }
+
+/* ---- 免責バー ---- */
+.disclaimer{ background:#fbfaf5; border:1px solid #ece7d6; border-radius:6px;
+  padding:8px 12px; font-size:11.5px; color:#6a6252; margin-bottom:14px; }
+
+/* ---- セクション見出し ---- */
+.sec{ margin-top:22px; }
+.sec-h{ display:flex; align-items:baseline; gap:9px;
+  border-bottom:2px solid var(--navy); padding-bottom:6px; margin:0 0 14px; }
+.sec-h .no{ color:var(--navy); font-weight:800; font-size:12px; letter-spacing:.06em; }
+.sec-h h2{ font-size:20px; font-weight:800; color:#1a2530; margin:0; }
+
+/* ---- カード / グリッド ---- */
+.grid2{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.grid3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; }
+.card{ border:1px solid var(--line); border-radius:8px; padding:12px 14px; background:#fff; }
+.card .ch{ font-weight:800; color:var(--navy); font-size:13px; margin-bottom:4px; }
+.card.danger{ background:var(--dg-bg); border-color:var(--dg-bd); }
+.card.danger .ch{ color:var(--dg-tx); }
+.avoid{ break-inside:avoid; }
+
+/* ---- クイックカード ---- */
+.qc{ border:1px solid #d3dbe3; border-radius:10px; overflow:hidden; margin:6px 0; }
+.qc-head{ background:var(--navy); color:#fff; padding:10px 14px; font-weight:800;
+  display:flex; justify-content:space-between; align-items:center; }
+.qc-head .tag{ font-size:11px; letter-spacing:.15em; color:#a9c1dd; font-weight:700; }
+.qc-body{ padding:14px; }
+.prem{ background:#eef3f8; border-radius:6px; padding:8px 12px; margin-bottom:12px; }
+.k{ font-weight:800; color:var(--navy); }
+.k.dg{ color:var(--dg-tx); } .k.st{ color:var(--st-tx); }
+
+/* ステップ */
+.step{ display:flex; gap:12px; padding:10px 2px; border-top:1px solid var(--hair); }
+.step.first{ border-top:none; }
+.badge{ flex:none; width:26px; height:26px; border-radius:50%; background:var(--navy);
+  color:#fff; font-weight:800; font-size:13px; display:flex; align-items:center;
+  justify-content:center; margin-top:1px; }
+.badge.crit{ background:#c0392b; }
+.step .c{ flex:1; }
+
+/* 用量ピル */
+.pill{ display:inline-flex; align-items:center; border:1.5px solid var(--pill-bd);
+  border-radius:16px; padding:2px 12px; font-weight:800; color:#23415f; background:#fff; }
+.arrow{ color:var(--muted); margin:0 5px; font-weight:800; }
+.unit{ color:var(--sub); font-weight:600; font-size:12px; }
+
+/* 危険インライン帯 */
+.warnline{ background:var(--dg-bg); border-radius:6px; padding:6px 10px;
+  color:var(--dg-tx); font-weight:700; margin-top:6px; }
+.no{ color:var(--dg-tx); font-weight:800; }         /* ⛔ 相当 */
+
+/* ---- 表 ---- */
+.tbl{ width:100%; border-collapse:collapse; font-size:12.5px; }
+.tbl thead th{ background:var(--thead); color:#fff; text-align:left; padding:8px 10px;
+  font-weight:700; }
+.tbl td{ padding:8px 10px; border-bottom:1px solid #e8ebee; vertical-align:top; }
+.tbl tbody tr:nth-child(even){ background:#f6f8fa; }
+.tbl td.k1{ font-weight:800; color:#26333f; white-space:nowrap; }
+
+/* ---- 棒グラフ(心拍数・比率) ---- */
+.bars{ margin:8px 0 2px; }
+.bars .row{ display:flex; align-items:center; gap:10px; margin:7px 0; }
+.bars .lb{ width:64px; text-align:right; color:var(--navy); font-weight:700; font-size:12.5px; }
+.bars .track{ position:relative; flex:1; height:26px; background:var(--bar-track);
+  border-radius:4px; overflow:hidden; }
+.bars .fill{ height:100%; background:var(--bar); }
+.bars .fill.green{ background:var(--bar-green); }
+.bars .seg{ height:100%; float:left; display:flex; align-items:center; padding-left:10px;
+  color:#fff; font-weight:700; font-size:11.5px; }
+.bars .mark{ position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--mark); }
+.bars .val{ width:76px; font-weight:800; color:#1a1a1a; }
+.legend{ font-size:11px; color:var(--sub); margin-top:4px; }
+.legend i{ display:inline-block; width:10px; height:10px; border-radius:2px; margin:0 4px 0 10px;
+  vertical-align:middle; }
+
+/* ---- タイムライン ---- */
+.tl{ display:grid; grid-auto-flow:column; grid-auto-columns:1fr; position:relative;
+  margin:16px 0 6px; }
+.tl::before{ content:""; position:absolute; top:7px; left:6px; right:6px; height:2px;
+  background:#d8dee4; }
+.tl .pt{ position:relative; padding-right:14px; }
+.tl .dot{ width:14px; height:14px; border-radius:50%; background:var(--navy); position:relative; }
+.tl .pt.t2 .dot{ background:var(--st-tx); }
+.tl .pt.t3 .dot{ background:#c6982f; }
+.tl .pt .lb{ font-weight:800; margin-top:8px; color:#26333f; }
+.tl .pt .ds{ color:var(--sub); font-size:12px; }
+
+/* ---- パネル(チェックリスト等) ---- */
+.panel{ border:1px solid #d3dbe3; border-radius:10px; overflow:hidden; margin-top:6px; }
+.panel-head{ background:var(--navy-deep); color:#fff; font-weight:800; padding:10px 14px; }
+.panel-body{ padding:12px 16px; }
+.check .item{ display:flex; gap:10px; align-items:flex-start; padding:7px 0; }
+.check .cb{ flex:none; width:16px; height:16px; border:1.5px solid #7b8794;
+  border-radius:3px; margin-top:3px; }
+.sign{ display:flex; gap:40px; margin-top:14px; padding-top:12px;
+  border-top:1px solid var(--hair); color:var(--muted); font-size:12px; }
+.sign .ln{ display:inline-block; width:160px; border-bottom:1px solid #c3ccd4; margin-left:8px; }
+
+.note{ color:var(--sub); font-size:11.5px; margin-top:6px; }
+.mt8{ margin-top:8px; } .mt12{ margin-top:12px; } .mb0{ margin-bottom:0; }
+
+/* ---- 印刷(Print to PDF) ---- */
+@page{ size:A4; margin:14mm 13mm; }
+@media print{
+  body{ background:#fff; }
+  .sheet{ width:auto; min-height:0; margin:0; padding:0; box-shadow:none; }
+  /* 走りヘッダ/フッタは先頭・末尾に1回ずつ(重なり防止のため固定にしない) */
+  .runhead{ margin-bottom:14px; }
+  .runfoot{ margin-top:18px; }
+  .card, .qc, .panel, .tbl, .grid2, .grid3, .tl, .bars, .step{ break-inside:avoid; }
+  .sec-h{ break-after:avoid; }
+  .sec{ margin-top:16px; }
+}

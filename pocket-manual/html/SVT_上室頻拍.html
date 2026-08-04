@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>上室頻拍(SVT)院内リファレンス</title>
+<link rel="stylesheet" href="assets/manual.css">
+</head>
+<body>
+<div class="sheet">
+
+  <div class="runhead">
+    <span class="l">上室頻拍(SVT)院内リファレンス</span>
+    <span class="r">不整脈 / 小児循環器 ・ 最終確認 2026-08-04</span>
+  </div>
+
+  <h1 class="title">上室頻拍<small>(SVT)</small></h1>
+  <p class="subtitle">Supraventricular Tachycardia — 急性期対応と長期管理</p>
+  <div class="metachips">
+    <span class="chip draft">ドラフト</span>
+    <span class="chip">要校閲:原典照合待ち</span>
+    <span class="chip">執筆 Claude / 校閲 未</span>
+    <span class="chip">2026-08-04(原典PDF未照合)</span>
+  </div>
+
+  <!-- ===== クイックカード ===== -->
+  <div class="qc avoid">
+    <div class="qc-head"><span>⚡ クイックカード(当直用・1画面)</span><span class="tag">ACUTE FLOW</span></div>
+    <div class="qc-body">
+      <div class="prem"><span class="k">大前提</span>&nbsp; wide QRS は原則 VT として対応。 / 全経過で心電図を記録し続ける(機序診断の証拠になる)。</div>
+
+      <div class="grid2">
+        <div class="card danger">
+          <div class="ch">① 不安定 − ショック・意識障害・重度心不全</div>
+          <div>同期下カルディオバージョン</div>
+          <div class="mt8"><span class="pill">0.5−1</span> <span class="unit">J/kg</span>
+            <span class="arrow">→</span> 無効 <span class="pill">2</span> <span class="unit">J/kg</span>
+            <span class="chip rev">要校閲</span></div>
+          <div class="note">意識があれば鎮静を先行。</div>
+        </div>
+        <div class="card" style="background:var(--st-bg);border-color:var(--st-bd);">
+          <div class="ch" style="color:var(--st-tx);">② 安定 − まず迷走神経刺激</div>
+          <div><b>乳児</b>&nbsp; 顔面に氷水バッグを数秒</div>
+          <div><b>年長児</b>&nbsp; Valsalva(改良Valsalva を含む)</div>
+          <div class="warnline">⛔ 眼球圧迫は禁止</div>
+        </div>
+      </div>
+
+      <div class="step first mt12">
+        <div class="badge">3</div>
+        <div class="c">
+          <b>無効 → ATP 0.1 mg/kg 急速静注 + 生食後押し</b> <span class="chip off">適応外</span>
+          <div class="mt8">
+            <span class="pill">0.1</span><span class="arrow">→</span>
+            <span class="pill">0.2</span><span class="arrow">→</span>
+            <span class="pill">0.3</span> <span class="unit">mg/kg</span>
+            <span class="chip rev">要校閲</span></div>
+          <div class="note">喘息は回避。心電図を記録しながら投与。</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="badge">4</div>
+        <div class="c">
+          <b>無効・年長児 → ベラパミル 0.1−0.2 mg/kg(最大 5 mg)を 5 分以上かけて静注</b>
+          <div class="warnline">⛔ 新生児・乳児は原則使用しない</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="badge">5</div>
+        <div class="c"><b>停止後 → 12誘導でデルタ波(WPW)を確認。</b> 初発例は心エコー。</div>
+      </div>
+      <div class="step">
+        <div class="badge">6</div>
+        <div class="c"><b>反復・薬物無効 →</b> 他剤へ切替、早期アブレーションを検討。心機能低下例は ICU。</div>
+      </div>
+
+      <div class="note mt12">用量の正本: <a href="../drugs/薬剤DB.csv">薬剤DB</a></div>
+    </div>
+  </div>
+
+  <!-- ===== 01 疾患概略 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">01</span><h2>疾患概略</h2></div>
+    <div class="grid2">
+      <div class="card"><div class="ch">定義</div>
+        His束分岐部より上位(心房・房室接合部)を回路または起源とする頻拍。狭義には <b>AVRT・AVNRT・心房頻拍(AT)</b>。</div>
+      <div class="card"><div class="ch">病態</div>
+        多くはリエントリー。基礎心疾患なしが大半だが、<b>Ebstein病・修正大血管転位</b>は副伝導路の合併が多く、初発時に基礎疾患を検索する。<span class="chip rev">要校閲</span></div>
+    </div>
+    <div class="card avoid mt12">
+      <div class="ch">疫学 − 小児で最多の頻脈性不整脈。年齢で機序の分布が変わる <span class="chip rev">要校閲:頻度を原文確認</span></div>
+      <div class="bars">
+        <div class="row"><span class="lb">乳児期</span>
+          <div class="track"><div class="seg" style="width:70%;background:var(--bar);">AVRT(副伝導路)が最多</div><div class="seg" style="width:22%;background:var(--bar-green);"></div><div class="seg" style="width:8%;background:#cdd8e2;"></div></div></div>
+        <div class="row"><span class="lb">学童期以降</span>
+          <div class="track"><div class="seg" style="width:42%;background:var(--bar);">AVRT</div><div class="seg" style="width:50%;background:var(--bar-green);">AVNRT が増加</div><div class="seg" style="width:8%;background:#cdd8e2;"></div></div></div>
+      </div>
+      <div class="legend"><i style="background:var(--bar);"></i>AVRT <i style="background:var(--bar-green);"></i>AVNRT <i style="background:#cdd8e2;"></i>AT ほか &nbsp;(模式図・比率は原典未照合)</div>
+    </div>
+    <div class="tl avoid mt12">
+      <div class="pt t1"><div class="dot"></div><div class="lb">乳児期</div><div class="ds">発症のピーク。症状は非特異的。</div></div>
+      <div class="pt t2"><div class="dot"></div><div class="lb">1歳頃</div><div class="ds">高率に消失 → 予防投与の中止を検討。</div></div>
+      <div class="pt t3"><div class="dot"></div><div class="lb">学童期</div><div class="ds">再発がありうる。<span class="chip rev">要校閲</span></div></div>
+    </div>
+  </div>
+
+  <!-- ===== 02 診断のポイント ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">02</span><h2>診断のポイント</h2></div>
+    <div class="grid2">
+      <div class="card"><div class="ch">乳児 − 症状が非特異的</div>
+        不機嫌・哺乳不良・多呼吸・顔色不良。長時間持続で心不全として発見されることがある。<b>原因不明のぐったり・頻脈では必ず12誘導。</b></div>
+      <div class="card"><div class="ch">年長児 − 発作性</div>
+        突然始まり突然終わる動悸。開始・停止の様子を必ず問診する。</div>
+    </div>
+    <div class="card avoid mt12">
+      <div class="ch">心拍数の目安 − この値を超えたら強く疑う 〔JRC2020 PLS〕 <span class="chip rev">要校閲</span></div>
+      <div class="bars">
+        <div class="row"><span class="lb">乳児</span>
+          <div class="track"><div class="fill" style="width:66%"></div><div class="mark" style="left:66%"></div></div>
+          <span class="val">≧220<span class="unit">/分</span></span></div>
+        <div class="row"><span class="lb">年長児</span>
+          <div class="track"><div class="fill" style="width:52%"></div><div class="mark" style="left:52%"></div></div>
+          <span class="val">≧180<span class="unit">/分</span></span></div>
+      </div>
+    </div>
+    <div class="grid2 mt12">
+      <div class="card"><div class="ch">洞性頻脈</div>
+        <ul class="mb0"><li>誘因あり(発熱・脱水・出血)</li><li>心拍数が変動する</li><li>P波は洞調律の軸</li></ul></div>
+      <div class="card"><div class="ch">SVT</div>
+        <ul class="mb0"><li>心拍数の変動が乏しい</li><li>突然の開始・突然の停止</li><li>short RP など機序を示す所見</li></ul></div>
+    </div>
+    <div class="card danger avoid mt12"><div class="ch">❗ ピットフォール</div>
+      <ul class="mb0"><li>停止後の心電図で<b>デルタ波(WPW)</b>を必ず確認する。</li>
+      <li>wide QRS は原則 VT として対応。変行伝導と安易に判断しない。</li></ul></div>
+  </div>
+
+  <!-- ===== 03 検査所見 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">03</span><h2>特徴的な検査所見</h2></div>
+    <table class="tbl avoid">
+      <thead><tr><th style="width:24%">検査</th><th>特徴的所見</th></tr></thead>
+      <tbody>
+        <tr><td class="k1">発作時心電図</td><td>narrow QRS の規則的頻拍。RP間隔とP′波の位置で機序推定(short RP: AVRT/AVNRT)。</td></tr>
+        <tr><td class="k1">停止後心電図</td><td>デルタ波・PQ短縮(WPW)、QT延長・基礎疾患の除外。</td></tr>
+        <tr><td class="k1">心エコー</td><td>基礎心疾患(Ebstein等)の除外、頻拍誘発性心筋症の評価。</td></tr>
+        <tr><td class="k1">ホルター</td><td>発作頻度・非持続性頻拍・デルタ波の間欠性。</td></tr>
+        <tr><td class="k1">採血</td><td>長時間発作でBNP/トロポニン・乳酸、電解質・甲状腺機能。</td></tr>
+        <tr><td class="k1">EPS</td><td>アブレーション適応の評価・無症候性WPWのリスク層別化。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== 04 急性期治療 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">04</span><h2>急性期治療</h2></div>
+    <div class="prem"><span class="k">判断軸</span>&nbsp; 血行動態が<b>不安定 → カルディオバージョン</b>。<b>安定 → 迷走神経刺激 → ATP</b>。</div>
+    <div class="step first"><div class="badge">1</div><div class="c"><b>初期評価</b> − ABC・SpO₂・血圧・意識。静脈路確保。12誘導の記録を開始。</div></div>
+    <div class="step"><div class="badge">2</div><div class="c"><b>迷走神経刺激(安定例)</b>
+      <div class="grid3 mt8">
+        <div class="card"><div class="ch">乳児</div>氷水バッグを前額〜顔面に数秒(dive reflex)</div>
+        <div class="card"><div class="ch">年長児</div>Valsalva(改良Valsalva を含む)</div>
+        <div class="card danger"><div class="ch">行わない</div>眼球圧迫(網膜剥離等)。頸動脈洞マッサージは小児で推奨度低 <span class="chip rev">要校閲</span></div>
+      </div></div></div>
+    <div class="step"><div class="badge">3</div><div class="c"><b>ATP</b> − 心臓に近い太い静脈から急速静注し、生食で後押し。無効なら段階増量(0.1 → 0.2 → 0.3 mg/kg)。</div></div>
+    <div class="step"><div class="badge">4</div><div class="c"><b>ATP無効・再発</b> − 年長児はベラパミル(新生児・乳児は原則不可)。あるいはプロカインアミド・アミオダロン等へ切替。<span class="chip rev">要校閲:推奨順を原典確認</span></div></div>
+    <div class="step"><div class="badge crit">5</div><div class="c"><b>不安定 または 薬物無効</b> − 同期下カルディオバージョン 0.5−1 J/kg → 無効なら 2 J/kg。意識があれば鎮静を先行 〔JRC2020〕 <span class="chip rev">要校閲</span></div></div>
+    <div class="step"><div class="badge">6</div><div class="c"><b>停止後</b> − 12誘導(デルタ波)。初発例は心エコー。頻拍誘発性心筋症を疑えば入院。</div></div>
+
+    <div class="card avoid mt12">
+      <div class="ch" style="color:#26333f;">院内エスカレーション基準(案)</div>
+      <div class="grid2 mt8">
+        <div><div style="color:var(--dg-tx);font-weight:800;margin-bottom:4px;">入院・ICU を検討</div>
+          <ul class="mb0"><li>カルディオバージョン施行例</li><li>心機能低下(頻拍誘発性心筋症疑い)</li><li>新生児・乳児の遷延例</li><li>循環不全の合併</li></ul></div>
+        <div><div style="color:var(--navy);font-weight:800;margin-bottom:4px;">不整脈チーム・カテ室と共有</div>
+          <ul class="mb0"><li>薬物抵抗性の反復例(早期アブレーション)</li><li>wide QRS 例(機序診断)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 05 慢性期治療計画 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">05</span><h2>慢性期治療計画</h2></div>
+    <div class="grid2">
+      <div class="card"><div class="ch">乳児期発症</div>
+        β遮断薬(プロプラノロール等)で再発予防。1歳前後で消失することが多く、中止を検討。<span class="chip rev">要校閲</span></div>
+      <div class="card danger"><div class="ch">顕性WPW合併</div>
+        ジゴキシン・ベラパミルの単独長期投与は避ける(AF時に副伝導路伝導を促進)。<span class="chip rev">要校閲</span></div>
+      <div class="card"><div class="ch">学童期以降・再発例</div>
+        カテーテルアブレーションの適応を検討(体格・発作頻度・薬物反応・希望)〔非薬物治療GL 2018〕 <span class="chip rev">要校閲:体重・年齢基準</span></div>
+      <div class="card"><div class="ch">無症候性WPW(検診発見)</div>
+        リスク層別化(間欠性デルタ波・運動負荷での消失・EPS)を経てアブレーション適応を判断。<span class="chip rev">要校閲</span></div>
+    </div>
+  </div>
+
+  <!-- ===== 06 薬物の小児用量 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">06</span><h2>薬物の小児用量</h2></div>
+    <div class="prem mb0">用量の正本は <a href="../drugs/薬剤DB.csv">薬剤DB</a>。ここは役割と要点のみ。使用時は最新の添付文書と照合する。</div>
+    <table class="tbl avoid mt12">
+      <thead><tr><th style="width:32%">薬剤(→薬剤DB)</th><th style="width:24%">役割</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="k1">ATP(アデホス-Lコーワ注)</td><td><span class="chip role">発作停止・第一選択</span></td><td><span class="no">適応外。</span> 急速静注+生食後押し。喘息は回避。</td></tr>
+        <tr><td class="k1">ベラパミル(ワソラン静注)</td><td><span class="chip role">発作停止・第二選択</span></td><td><span class="no">新生児・乳児は原則不可。</span> 5分以上かけて静注(年長児)。</td></tr>
+        <tr><td class="k1">プロプラノロール(インデラル)</td><td><span class="chip role">再発予防・第一選択</span></td><td>小児適応あり。喘息は禁忌。乳児は低血糖に注意。<span class="chip rev">要校閲</span></td></tr>
+        <tr><td class="k1">フレカイニド(タンボコール)</td><td><span class="chip role">再発予防・難治例</span></td><td>小児適応あり。器質的心疾患では催不整脈に注意。<span class="chip rev">要校閲</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note">ジゴキシン: 顕性WPWでは避ける(§05)。使用時は血中濃度をモニタ。<span class="chip rev">要校閲</span></div>
+  </div>
+
+  <!-- ===== 07 外来診療への移行 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">07</span><h2>外来診療への移行</h2></div>
+    <div class="card avoid"><div class="ch">退院基準(案)</div>
+      <div class="grid3 mt8">
+        <div class="card mb0" style="padding:8px 12px;">発作停止の確認</div>
+        <div class="card mb0" style="padding:8px 12px;">心機能が保持〜回復傾向</div>
+        <div class="card mb0" style="padding:8px 12px;">家族が発作時対応を説明できる</div>
+      </div></div>
+    <div class="panel avoid mt12">
+      <div class="panel-head" style="background:var(--navy);">移行時チェック</div>
+      <div class="panel-body check">
+        <div class="item"><span class="cb"></span>停止後12誘導でデルタ波を確認・記録</div>
+        <div class="item"><span class="cb"></span>初発例: 心エコーで基礎疾患を除外</div>
+        <div class="item"><span class="cb"></span>予防投与の要否を決定 → 用量・中止予定を家族に説明</div>
+        <div class="item"><span class="cb"></span>家庭での発作時対応(§08)と受診基準を説明</div>
+        <div class="item"><span class="cb"></span>次回外来・検査(心電図/ホルター)の予約</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 08 外来診療のポイント ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">08</span><h2>外来診療のポイント</h2></div>
+    <div class="grid2">
+      <div class="card"><div class="ch">受診間隔 <span class="chip rev">要校閲</span></div>内服中は 1〜3か月毎(調整期は短く)。中止後、再発がなければ延長。</div>
+      <div class="card"><div class="ch">毎回確認する項目</div>発作の有無・頻度・持続 / 内服アドヒアランス / 体重(用量再計算)/ 心拍数・心電図。</div>
+    </div>
+    <div class="card avoid mt12" style="background:var(--st-bg);border-color:var(--st-bd);">
+      <div class="ch" style="color:var(--st-tx);">家族への発作時指導</div>
+      <div class="grid3 mt8">
+        <div><b>年長児</b><div class="ds">自己停止手技(Valsalva)を指導</div></div>
+        <div><b>乳児</b><div class="ds">顔面冷却</div></div>
+        <div><b style="color:var(--dg-tx);">救急受診</b><div class="ds">ぐったり・顔色不良・30分以上の持続</div></div>
+      </div>
+    </div>
+    <div class="grid2 mt12">
+      <div class="card"><div class="ch">運動制限</div>コントロール良好・基礎疾患なしなら原則不要のことが多い。WPW合併・失神歴があれば運動負荷試験を踏まえ、管理指導表の区分を判断〔学校心臓検診GL〕 <span class="chip rev">要校閲</span></div>
+      <div class="card"><div class="ch">IE予防</div>基礎心疾患がなければ不要。</div>
+    </div>
+    <div class="warnline mt12">❗ <b>用量の再計算を忘れない。</b> 成長により mg/kg が目減りし、発作再発の一因になる。</div>
+  </div>
+
+  <!-- ===== 09 検査計画の流れ ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">09</span><h2>検査計画の流れ</h2></div>
+    <table class="tbl avoid">
+      <thead><tr><th style="width:16%">時期</th><th>心電図</th><th>ホルター</th><th>心エコー</th><th>その他</th></tr></thead>
+      <tbody>
+        <tr><td class="k1">初発時</td><td>発作時+停止後12誘導</td><td>頻度評価で考慮</td><td><span class="chip req">必須</span> 基礎疾患・心機能</td><td>電解質・甲状腺。長時間発作でBNP/トロポニン</td></tr>
+        <tr><td class="k1">内服調整期</td><td>毎回</td><td>適宜</td><td>心機能低下例でフォロー</td><td>β遮断薬: 心拍数・血糖(乳児)</td></tr>
+        <tr><td class="k1">安定期(内服中)</td><td>受診毎</td><td>6〜12か月毎</td><td>年1回目安</td><td>—</td></tr>
+        <tr><td class="k1">内服中止前後</td><td>中止前後</td><td>再発評価で考慮</td><td>—</td><td>家族へ再発時対応を再指導</td></tr>
+        <tr><td class="k1">アブレーション検討</td><td>12誘導</td><td>直近の頻度評価</td><td><span class="chip req">必須</span></td><td>EPS</td></tr>
+      </tbody>
+    </table>
+    <div class="note">間隔は目安(施設・症例で調整)。原典に明記があれば校閲時に差替。</div>
+  </div>
+
+  <!-- ===== 10 出典一覧 ===== -->
+  <div class="sec">
+    <div class="sec-h"><span class="no">10</span><h2>出典一覧</h2></div>
+    <ol style="margin:0;padding-left:20px;line-height:1.8;">
+      <li>日本小児循環器学会「小児不整脈の診断・治療ガイドライン」— ATP用量(0.1→0.3 mg/kg)等 <span class="chip rev">原典未照合・要校閲</span></li>
+      <li>日本循環器学会/日本不整脈心電学会「2020年改訂版 不整脈薬物治療ガイドライン」 <span class="chip rev">要校閲</span></li>
+      <li>「不整脈非薬物治療ガイドライン(2018年改訂/2021フォーカスアップデート)」— アブレーション適応 <span class="chip rev">要校閲</span></li>
+      <li>日本蘇生協議会「JRC蘇生ガイドライン2020」PLS — 頻拍アルゴリズム、カルディオバージョン 0.5〜1 J/kg <span class="chip rev">要校閲</span></li>
+      <li>ワソラン静注5mg 添付文書 — 小児 0.1〜0.2 mg/kg・5分以上、新生児・乳児の制限</li>
+      <li>インデラル錠 添付文書 — 小児不整脈 0.5〜2 mg/kg/日 分3〜4、最大 4 mg/kg/日・90 mg/日</li>
+      <li>タンボコール錠 添付文書 — 小児 50〜100 mg/m²/日 分2〜3、最大 200 mg/m²/日</li>
+      <li>アデホス-Lコーワ注 添付文書 — 効能・効果に頻拍性不整脈の記載がないことの確認 <span class="chip rev">要校閲</span></li>
+    </ol>
+    <div class="note mt8"><b>最終確認日 2026-08-04</b> − Web二次情報ベース。原典照合をもって承認済みとする。</div>
+  </div>
+
+  <!-- ===== 校閲チェックリスト ===== -->
+  <div class="panel avoid mt12">
+    <div class="panel-head">校閲チェックリスト(責任医師用)</div>
+    <div class="panel-body check">
+      <div class="item"><span class="cb"></span>JSPCCS-GL で <b>ATP用量・投与手順・1回上限</b></div>
+      <div class="item"><span class="cb"></span>JRC2020 で <b>心拍数目安(乳児220 / 年長児180)</b>・カルディオバージョンのエネルギー量</div>
+      <div class="item"><span class="cb"></span>アデホス添付文書の効能・効果、禁忌(喘息)・慎重投与</div>
+      <div class="item"><span class="cb"></span>WPW でのジゴキシン・ベラパミルの位置づけ</div>
+      <div class="item"><span class="cb"></span>アブレーション適応(年齢・体重)を非薬物治療GLで</div>
+      <div class="item"><span class="cb"></span>運動制限・管理指導表の区分記載</div>
+      <div class="item"><span class="cb"></span>外来間隔・自然寛解率の数値</div>
+      <div class="sign"><span>校閲者<span class="ln"></span></span><span>校閲日<span class="ln"></span></span></div>
+    </div>
+  </div>
+
+  <div class="runfoot">
+    <span>私的参考資料。適用は担当医の判断と責任で。薬剤は最新の添付文書を確認。</span>
+    <span class="status">ドラフト − 承認済みまで診療使用不可</span>
+  </div>
+
+</div>
+</body>
+</html>
