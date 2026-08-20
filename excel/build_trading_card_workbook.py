@@ -434,3 +434,29 @@ wb.active = wb.sheetnames.index("入力一覧")
 OUT = "/home/user/toto/excel/トレカ事業_従業員管理表.xlsx"
 wb.save(OUT)
 print("saved:", OUT)
+
+
+def fix_fonts_in_styles(path=OUT, font=FONT):
+    """recalc.py(LibreOffice)で再計算した後に実行する後処理.
+
+    LibreOffice は日本語フォント Meiryo を持たない環境で styles.xml のフォント名を
+    代替フォント(WenQuanYi Zen Hei 等)に書き換えてしまう。
+    数式のキャッシュ値を壊さないよう、xl/styles.xml だけを直接置換して戻す。
+    """
+    import os
+    import zipfile
+
+    tmp = path + ".tmp"
+    replaced = 0
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "xl/styles.xml":
+                text = data.decode("utf-8")
+                for alt in ("WenQuanYi Zen Hei", "Liberation Sans", "DejaVu Sans"):
+                    replaced += text.count(alt)
+                    text = text.replace(alt, font)
+                data = text.encode("utf-8")
+            zout.writestr(item, data)
+    os.replace(tmp, path)
+    return replaced
