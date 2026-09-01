@@ -12,6 +12,22 @@
 
 ---
 
+## 🫀 小児先天性心疾患ガイドライン集・全文検索アプリ（`guidelines/`）
+
+日本・米国・欧州の小児先天性心疾患関連ガイドライン（解剖・病態・診断・治療・術後管理・外来診療）を
+一括ダウンロードし、全文検索できるツール一式を `guidelines/` に収録しています。
+
+- 一括ダウンロード（ZIP・固定URL）: <https://github.com/n0619y/toto/releases/download/guidelines-latest/chd-guidelines-pdf.zip>
+- 使い方・収録一覧: [`guidelines/README.md`](guidelines/README.md)
+
+```bash
+python guidelines/download_guidelines.py   # PDF一括取得
+python guidelines/build_index.py           # 全文検索DB作成（pip install pymupdf が必要）
+python guidelines/app.py --open            # 検索アプリ起動 → http://127.0.0.1:8765
+```
+
+---
+
 ## 📦 これは何をするの？（ざっくり）
 
 `python main.py --theme "乳児の便秘"` と打つだけで、`output/` フォルダに次が出ます。

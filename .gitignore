@@ -27,3 +27,11 @@ output/review/*
 # OS
 .DS_Store
 Thumbs.db
+
+# ガイドライン検索アプリの生成物（PDFとDBはサイズが大きいためコミットしない）
+guidelines/pdf/*.pdf
+guidelines/pdf/_download_report.*
+guidelines/guidelines.db
+guidelines/guidelines.db-wal
+guidelines/guidelines.db-shm
+!guidelines/pdf/.gitkeep

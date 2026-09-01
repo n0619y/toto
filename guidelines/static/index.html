@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>小児先天性心疾患ガイドライン検索</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --ink: #1c2330; --muted: #62708a; --line: #e2e6ee;
+    --accent: #0f6fd6; --accent-ink: #fff; --mark: #fff3a3; --jp: #d94f4f; --us: #2d7ff9; --eu: #2aa66b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11151c; --card: #1a2029; --ink: #e8ecf3; --muted: #97a3b8; --line: #2b3441; --mark: #6b5d12; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", Segoe UI, sans-serif; }
+  header { background: var(--card); border-bottom: 1px solid var(--line); padding: 14px 20px; display: flex; gap: 16px; align-items: center; flex-wrap: wrap; position: sticky; top: 0; z-index: 5; }
+  header h1 { font-size: 17px; margin: 0; white-space: nowrap; }
+  header h1 small { color: var(--muted); font-weight: normal; margin-left: 8px; font-size: 12px; }
+  .searchbox { flex: 1; min-width: 260px; display: flex; gap: 8px; }
+  .searchbox input { flex: 1; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 15px; background: var(--bg); color: var(--ink); }
+  button { padding: 9px 14px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 8px; cursor: pointer; font-size: 14px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  nav.tabs { display: flex; gap: 4px; }
+  nav.tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  main { display: grid; grid-template-columns: 260px 1fr; gap: 18px; padding: 18px 20px; max-width: 1500px; margin: 0 auto; }
+  @media (max-width: 880px) { main { grid-template-columns: 1fr; } aside { order: 2; } }
+  aside { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; align-self: start; position: sticky; top: 74px; max-height: calc(100vh - 90px); overflow: auto; }
+  aside h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 14px 0 6px; }
+  aside h3:first-child { margin-top: 0; }
+  aside label { display: flex; justify-content: space-between; gap: 6px; padding: 3px 0; cursor: pointer; }
+  aside label span.n { color: var(--muted); font-size: 12px; }
+  aside .yr { display: flex; gap: 6px; align-items: center; }
+  aside .yr input { width: 70px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--ink); }
+  .summary { color: var(--muted); font-size: 13px; margin-bottom: 10px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .card .t { font-weight: 600; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+  .card .meta { color: var(--muted); font-size: 12px; margin: 2px 0 8px; }
+  .card .snip { line-height: 1.75; word-break: break-word; }
+  mark { background: var(--mark); color: inherit; padding: 0 2px; border-radius: 3px; font-weight: 600; }
+  .badge { font-size: 11px; padding: 1px 7px; border-radius: 999px; color: #fff; font-weight: 600; }
+  .badge.JP { background: var(--jp); } .badge.US { background: var(--us); } .badge.EU { background: var(--eu); }
+  .cat { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 7px; }
+  .links a { margin-right: 12px; font-size: 13px; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  .bydoc { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .bydoc button { font-size: 12px; padding: 3px 9px; border-radius: 999px; }
+  .bydoc button.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 13px; }
+  th { background: var(--bg); color: var(--muted); font-weight: 600; cursor: pointer; white-space: nowrap; }
+  .empty { color: var(--muted); padding: 40px; text-align: center; }
+  .qa textarea { width: 100%; min-height: 70px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; }
+  .qa .ans { white-space: pre-wrap; line-height: 1.8; }
+  .hint { color: var(--muted); font-size: 12px; }
+  .pager { display: flex; gap: 8px; justify-content: center; margin: 14px 0; }
+  .warn { background: #fff4e5; border: 1px solid #f5c98a; color: #7a4b00; padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; }
+  @media (prefers-color-scheme: dark) { .warn { background: #3a2a10; border-color: #7a5a20; color: #f5d59a; } }
+  .pageview { white-space: pre-wrap; font-size: 13px; background: var(--bg); border-radius: 8px; padding: 10px; margin-top: 8px; max-height: 320px; overflow: auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🫀 小児先天性心疾患ガイドライン検索<small>日本 / 米国 / 欧州</small></h1>
+  <form class="searchbox" id="form">
+    <input id="q" type="search" placeholder="例: ファロー四徴症 肺動脈弁置換 / Fontan anticoagulation / &quot;推奨クラス&quot;" autofocus>
+    <button class="primary" type="submit">検索</button>
+  </form>
+  <nav class="tabs">
+    <button data-tab="search" class="active">検索</button>
+    <button data-tab="catalog">ガイドライン一覧</button>
+    <button data-tab="qa">Claude Q&amp;A</button>
+  </nav>
+</header>
+
+<main>
+  <aside id="facets">
+    <div class="hint">読み込み中…</div>
+  </aside>
+
+  <section>
+    <div id="tab-search">
+      <div class="summary" id="summary"></div>
+      <div class="bydoc" id="bydoc"></div>
+      <div id="results"><div class="empty">キーワードを入力して検索してください。<br>
+        <span class="hint">複数語はAND検索、"引用符"で完全一致フレーズ。日本語・英語どちらでも可。</span></div></div>
+      <div class="pager" id="pager"></div>
+    </div>
+
+    <div id="tab-catalog" hidden>
+      <div class="summary" id="catalog-summary"></div>
+      <div style="overflow-x:auto"><table id="catalog"></table></div>
+    </div>
+
+    <div id="tab-qa" hidden>
+      <div class="card qa">
+        <div style="font-weight:600;margin-bottom:6px">ガイドライン根拠付きで質問する（Claude）</div>
+        <div class="hint" style="margin-bottom:8px">左の絞り込み条件が適用されます。回答には出典 [資料番号] とページが付きます。.env に ANTHROPIC_API_KEY が必要です。</div>
+        <textarea id="question" placeholder="例: 無症候性の小児ASDに対するカテーテル閉鎖の適応は？日本・米国・欧州で違いはありますか？"></textarea>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+          <button class="primary" id="ask">質問する</button><span class="hint" id="qa-status"></span>
+        </div>
+      </div>
+      <div id="qa-answer"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (s, el=document) => el.querySelector(s);
+const state = { tab: 'search', q: '', filters: {}, offset: 0, limit: 30, docId: null, facets: null, docs: null };
+
+// ---------- タブ ----------
+document.querySelectorAll('nav.tabs button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(t) {
+  state.tab = t;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  ['search','catalog','qa'].forEach(x => $('#tab-'+x).hidden = x !== t);
+  if (t === 'catalog' && !state.docs) loadCatalog();
+}
+
+// ---------- ファセット ----------
+async function loadFacets() {
+  const r = await fetch('/api/facets'); const f = await r.json();
+  if (f.error) { $('#facets').innerHTML = `<div class="warn">${esc(f.error)}</div>`; return; }
+  state.facets = f;
+  const sec = (title, col, items) => `<h3>${title}</h3>` + items.map(i =>
+    `<label><span><input type="checkbox" data-col="${col}" value="${esc(i.value)}"> ${esc(labelOf(col, i.value))}</span><span class="n">${i.count}</span></label>`).join('');
+  $('#facets').innerHTML =
+    sec('地域', 'region', f.region) +
+    sec('カテゴリ', 'category', f.category) +
+    sec('言語', 'language', f.language) +
+    `<h3>発行年</h3><div class="yr"><input id="yf" type="number" placeholder="from"> 〜 <input id="yt" type="number" placeholder="to"></div>` +
+    sec('発行団体', 'organization', f.organization) +
+    `<div style="margin-top:12px"><button id="clear">絞り込み解除</button></div>`;
+  $('#facets').querySelectorAll('input').forEach(i => i.onchange = () => { readFilters(); state.offset = 0; if (state.q) runSearch(); });
+  $('#clear').onclick = () => { $('#facets').querySelectorAll('input').forEach(i => { if (i.type==='checkbox') i.checked=false; else i.value=''; }); readFilters(); state.docId=null; if (state.q) runSearch(); };
+  const s = f.summary;
+  $('#summary').textContent = `収録: ${s.documents} ガイドライン（PDF取得済 ${s.with_pdf}）/ ${s.pages.toLocaleString()} ページを全文検索` + (s.with_pdf===0 ? '  ※ PDF未取得: download_guidelines.py → build_index.py を実行してください' : '');
+}
+function labelOf(col, v) { return col==='region' ? ({JP:'日本 (JP)', US:'米国 (US)', EU:'欧州 (EU)'}[v] || v) : col==='language' ? ({ja:'日本語', en:'英語', de:'ドイツ語'}[v]||v) : v; }
+function readFilters() {
+  const f = {};
+  $('#facets').querySelectorAll('input[type=checkbox]:checked').forEach(i => (f[i.dataset.col] ||= []).push(i.value));
+  if ($('#yf')?.value) f.year_from = $('#yf').value;
+  if ($('#yt')?.value) f.year_to = $('#yt').value;
+  state.filters = f;
+}
+function qs() {
+  const p = new URLSearchParams();
+  p.set('q', state.q); p.set('limit', state.limit); p.set('offset', state.offset);
+  for (const [k, v] of Object.entries(state.filters)) (Array.isArray(v) ? v : [v]).forEach(x => p.append(k, x));
+  if (state.docId) p.set('doc_id', state.docId);
+  return p.toString();
+}
+
+// ---------- 検索 ----------
+$('#form').onsubmit = e => { e.preventDefault(); state.q = $('#q').value.trim(); state.offset = 0; state.docId = null; showTab('search'); runSearch(); };
+async function runSearch() {
+  if (!state.q) return;
+  $('#results').innerHTML = '<div class="empty">検索中…</div>';
+  const r = await fetch('/api/search?' + qs()); const d = await r.json();
+  if (d.error) { $('#results').innerHTML = `<div class="warn">${esc(d.error)}</div>`; return; }
+  history.replaceState(null, '', '?' + qs());
+  $('#summary').innerHTML = `「<b>${esc(d.query)}</b>」 ${d.total.toLocaleString()} 件のページがヒット` +
+    (d.terms.some(t => t.length < 3) ? ' <span class="hint">（3文字未満の語は部分一致で補完）</span>' : '');
+  $('#bydoc').innerHTML = d.by_doc.length > 1 || state.docId ? d.by_doc.map(x =>
+    `<button class="${state.docId===x.id?'on':''}" data-id="${esc(x.id)}" title="${esc(x.title)}">${esc(x.region)} ${x.year} ${esc(short(x.title, 34))} <b>${x.n}</b></button>`).join('') : '';
+  $('#bydoc').querySelectorAll('button').forEach(b => b.onclick = () => { state.docId = state.docId===b.dataset.id ? null : b.dataset.id; state.offset = 0; runSearch(); });
+  if (!d.hits.length) { $('#results').innerHTML = '<div class="empty">該当なし。語を減らす／英語・日本語を切り替える／絞り込みを解除してみてください。</div>'; $('#pager').innerHTML=''; return; }
+  $('#results').innerHTML = d.hits.map(h => `
+    <div class="card">
+      <div class="t"><span class="badge ${h.region}">${h.region}</span> ${esc(h.title)} <span class="cat">${esc(h.category||'')}</span></div>
+      <div class="meta">${esc(h.organization||'')} ・ ${h.year||''} ・ p.${h.page}${h.title_en && h.title_en!==h.title ? ' ・ '+esc(h.title_en) : ''}</div>
+      <div class="snip">${h.snippet}</div>
+      <div class="links" style="margin-top:8px">
+        ${h.pdf ? `<a href="${h.pdf}" target="_blank">📄 PDFの該当ページを開く</a>` : ''}
+        <a href="#" data-doc="${esc(h.doc_id)}" data-page="${h.page}" class="showpage">📝 ページ全文を表示</a>
+        ${h.source_url ? `<a href="${esc(h.source_url)}" target="_blank" rel="noopener">🌐 配布元</a>` : ''}
+      </div>
+    </div>`).join('');
+  $('#results').querySelectorAll('.showpage').forEach(a => a.onclick = async e => {
+    e.preventDefault();
+    const card = a.closest('.card'); let pv = card.querySelector('.pageview');
+    if (pv) { pv.remove(); return; }
+    const r = await fetch(`/api/page?doc_id=${encodeURIComponent(a.dataset.doc)}&page=${a.dataset.page}`); const d = await r.json();
+    pv = document.createElement('div'); pv.className = 'pageview'; pv.innerHTML = highlight(d.text || '', state.q); card.appendChild(pv);
+  });
+  const pages = Math.ceil(d.total / state.limit), cur = Math.floor(state.offset / state.limit);
+  $('#pager').innerHTML = pages > 1 ? `<button ${cur===0?'disabled':''} id="prev">← 前へ</button><span class="hint" style="align-self:center">${cur+1} / ${pages}</span><button ${cur>=pages-1?'disabled':''} id="next">次へ →</button>` : '';
+  $('#prev')?.addEventListener('click', () => { state.offset -= state.limit; runSearch(); window.scrollTo(0,0); });
+  $('#next')?.addEventListener('click', () => { state.offset += state.limit; runSearch(); window.scrollTo(0,0); });
+}
+
+// ---------- カタログ ----------
+async function loadCatalog() {
+  const r = await fetch('/api/documents'); const docs = await r.json();
+  if (docs.error) { $('#catalog').innerHTML = `<tr><td><div class="warn">${esc(docs.error)}</div></td></tr>`; return; }
+  state.docs = docs;
+  $('#catalog-summary').textContent = `${docs.length} 件のガイドライン。PDF列のリンクはローカル保存分、配布元は公式サイトです。`;
+  const cols = [['region','地域'],['year','年'],['title_ja','ガイドライン'],['organization','発行'],['category','カテゴリ'],['pages','頁'],['pdf','PDF']];
+  let sortKey = 'region', asc = true;
+  const render = () => {
+    const rows = [...docs].sort((a,b) => (a[sortKey]??'') > (b[sortKey]??'') ? (asc?1:-1) : (a[sortKey]??'') < (b[sortKey]??'') ? (asc?-1:1) : 0);
+    $('#catalog').innerHTML = '<tr>' + cols.map(c => `<th data-k="${c[0]}">${c[1]}${sortKey===c[0]?(asc?' ▲':' ▼'):''}</th>`).join('') + '</tr>' +
+      rows.map(d => `<tr>
+        <td><span class="badge ${d.region}">${d.region}</span></td><td>${d.year||''}</td>
+        <td><div>${esc(d.title_ja||d.title_en)}</div>${d.title_en && d.title_en!==d.title_ja ? `<div class="hint">${esc(d.title_en)}</div>`:''}
+            ${d.notes ? `<div class="hint">${esc(d.notes)}</div>`:''}</td>
+        <td>${esc(d.organization||'')}</td><td>${esc(d.category||'')}</td><td>${d.pages||'—'}</td>
+        <td>${d.pdf ? `<a href="${d.pdf}" target="_blank">ローカル</a><br>` : '<span class="hint">未取得</span><br>'}
+            ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">配布元</a>` : ''}
+            ${d.landing_url && d.landing_url!==d.url ? ` / <a href="${esc(d.landing_url)}" target="_blank" rel="noopener">紹介頁</a>` : ''}
+            ${d.doi ? ` / <a href="https://doi.org/${esc(d.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}</td>
+      </tr>`).join('');
+    $('#catalog').querySelectorAll('th').forEach(th => th.onclick = () => { if (sortKey===th.dataset.k) asc=!asc; else { sortKey=th.dataset.k; asc=true; } render(); });
+  };
+  render();
+}
+
+// ---------- Q&A ----------
+$('#ask').onclick = async () => {
+  const q = $('#question').value.trim(); if (!q) return;
+  readFilters();
+  $('#qa-status').textContent = 'ガイドラインを検索してClaudeに問い合わせ中…'; $('#qa-answer').innerHTML = '';
+  const r = await fetch('/api/ask', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ question:q, filters: state.filters }) });
+  const d = await r.json(); $('#qa-status').textContent = '';
+  if (d.error) { $('#qa-answer').innerHTML = `<div class="warn">${esc(d.error)}</div>`; return; }
+  $('#qa-answer').innerHTML = `<div class="card"><div class="ans">${esc(d.answer)}</div><div class="hint" style="margin-top:8px">model: ${esc(d.model)}</div></div>` +
+    `<h3 style="margin:14px 0 6px">参照資料</h3>` + d.sources.map((h,i) => `<div class="card"><div class="t">[${i+1}] <span class="badge ${h.region}">${h.region}</span> ${esc(h.title)} <span class="hint">p.${h.page}</span></div>
+      <div class="snip">${h.snippet}</div><div class="links" style="margin-top:6px">${h.pdf ? `<a href="${h.pdf}" target="_blank">📄 PDF</a>`:''}${h.source_url?`<a href="${esc(h.source_url)}" target="_blank" rel="noopener">🌐 配布元</a>`:''}</div></div>`).join('');
+};
+
+// ---------- utils ----------
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function short(s, n) { s = String(s||''); return s.length > n ? s.slice(0, n) + '…' : s; }
+function highlight(text, q) {
+  let s = esc(text);
+  const terms = (q.match(/"([^"]+)"|(\S+)/g) || []).map(t => t.replace(/"/g,'')).filter(Boolean).sort((a,b)=>b.length-a.length);
+  for (const t of terms) s = s.replace(new RegExp(esc(t).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'gi'), m => `<mark>${m}</mark>`);
+  return s;
+}
+
+// ---------- init ----------
+loadFacets().then(() => {
+  const p = new URLSearchParams(location.search);
+  if (p.get('q')) {
+    $('#q').value = p.get('q'); state.q = p.get('q');
+    for (const [k, v] of p.entries()) { const cb = $('#facets').querySelector(`input[data-col="${k}"][value="${CSS.escape(v)}"]`); if (cb) cb.checked = true; }
+    if (p.get('year_from')) $('#yf').value = p.get('year_from'); if (p.get('year_to')) $('#yt').value = p.get('year_to');
+    readFilters(); runSearch();
+  }
+});
+</script>
+</body>
+</html>

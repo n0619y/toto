@@ -1,0 +1,93 @@
+# 小児先天性心疾患ガイドライン: PDF一括取得 → 全文検索DB作成 → GitHub Release に添付
+#
+# 実行方法:
+#   GitHub の Actions タブ → "Build CHD guideline bundle" → Run workflow
+#   （catalog/guidelines.json を更新して push した時も自動実行）
+#
+# 成果物（Release "guidelines-latest" の Assets）:
+#   chd-guidelines-pdf.zip   … 全ガイドラインPDF（一括ダウンロード用）
+#   guidelines.db            … 全文検索DB（アプリでそのまま使える）
+#   download_report.md       … 取得できなかったPDFの一覧（手動保存用リンク付き）
+#
+# 一括ダウンロードリンク（固定URL）:
+#   https://github.com/n0619y/toto/releases/download/guidelines-latest/chd-guidelines-pdf.zip
+#   https://github.com/n0619y/toto/releases/download/guidelines-latest/guidelines.db
+
+name: Build CHD guideline bundle
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "guidelines/catalog/guidelines.json"
+      - ".github/workflows/build-guideline-db.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: guideline-bundle
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install pymupdf
+
+      - name: Download all guideline PDFs
+        # 一部が publisher 側でブロックされても続行（レポートに記録される）
+        run: python guidelines/download_guidelines.py --workers 6 || true
+
+      - name: Build full-text search database
+        run: |
+          python guidelines/build_index.py --rebuild
+          python guidelines/build_index.py --stats
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp guidelines/pdf/_download_report.md dist/download_report.md
+          cp guidelines/pdf/_download_report.json dist/download_report.json
+          cp guidelines/catalog/guidelines.json dist/guidelines.json
+          cp guidelines/guidelines.db dist/guidelines.db
+          (cd guidelines && zip -r -9 ../dist/chd-guidelines-pdf.zip pdf catalog/guidelines.json catalog/urls.txt -x "pdf/_download_report.json")
+          ls -la dist
+
+      - name: Upload workflow artifact (backup)
+        uses: actions/upload-artifact@v4
+        with:
+          name: chd-guideline-bundle
+          path: dist/
+          retention-days: 90
+
+      - name: Publish to Release "guidelines-latest"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: guidelines-latest
+          name: 小児先天性心疾患ガイドライン一括バンドル (latest)
+          body: |
+            `guidelines/catalog/guidelines.json` に登録された日本・米国・欧州の小児先天性心疾患関連ガイドラインを
+            GitHub Actions で一括取得し、全文検索DBとともに添付しています。
+
+            - **chd-guidelines-pdf.zip** … 取得できた全PDF（+ カタログ）
+            - **guidelines.db** … 全文検索DB。`guidelines/` に置いて `python guidelines/app.py` で検索アプリを起動
+            - **download_report.md** … 自動取得できなかったPDFの一覧（ブラウザで開いて手動保存する用）
+
+            最終ビルド: ${{ github.sha }}
+          files: |
+            dist/chd-guidelines-pdf.zip
+            dist/guidelines.db
+            dist/download_report.md
+            dist/download_report.json
+            dist/guidelines.json
+          prerelease: false
+          make_latest: true
