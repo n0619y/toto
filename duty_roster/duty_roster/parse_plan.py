@@ -235,5 +235,10 @@ def load_plan(path: str, year: int | None = None, month: int | None = None) -> P
     if low.endswith(".pdf"):
         return parse_plan_pdf(path, year, month)
     if low.endswith((".xlsx", ".xlsm")):
-        return parse_plan_xlsx(path, year, month)
+        # 月ごとにシート分けしたテンプレートなら "YYYY-MM" シートを選ぶ
+        from openpyxl import load_workbook
+
+        names = load_workbook(path, read_only=True).sheetnames
+        sheet = f"{year:04d}-{month:02d}"
+        return parse_plan_xlsx(path, year, month, sheet if sheet in names else None)
     raise ValueError(f"未対応の形式: {path}")

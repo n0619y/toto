@@ -4,3 +4,4 @@ __pycache__/
 output/*
 !output/.gitkeep
 !output/2026-09/
+!output/予定一覧_*.xlsx

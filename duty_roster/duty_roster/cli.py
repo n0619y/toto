@@ -6,6 +6,7 @@
     python -m duty_roster render data/2026-09/roster.yaml -o output/2026-09/Schedule_2026-09   (.pdf と .xlsx)
     python -m duty_roster verify output/2026-09/Schedule_2026-09.pdf samples/Sep_2026_1_calendar.pdf
     python -m duty_roster check data/2026-09/roster.yaml
+    python -m duty_roster plan-template --start 2026-10 --end 2027-03 --example data/2026-09/plan.yaml -o output/予定一覧_2026-10_2027-03.xlsx
 """
 
 from __future__ import annotations
@@ -17,7 +18,8 @@ from .check import analyze, format_stats
 from .compare import compare_calendars, compare_roster_to_calendar, roster_from_calendar
 from .extract_calendar import extract_calendar
 from .model import Roster
-from .parse_plan import load_plan
+from .parse_plan import Plan, load_plan
+from .plan_template import make_plan_template
 from .render_pdf import PdfStyle, render_pdf
 from .render_xlsx import save_xlsx, xlsx_to_pdf
 from .skeleton import build_skeleton, skeleton_yaml
@@ -88,6 +90,14 @@ def cmd_verify(a: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan_template(a: argparse.Namespace) -> int:
+    example = Plan.load(a.example) if a.example else None
+    members = [m.strip() for m in a.members.split(",")] if a.members else (example.members if example else ["豊野", "仲本", "佐々木"])
+    path = make_plan_template(a.output, a.start, a.end, members, example, year_end=not a.no_year_end)
+    print(f"入力テンプレートを書き出しました: {path}  ({a.start} 〜 {a.end}, メンバー: {', '.join(members)})")
+    return 0
+
+
 def cmd_check(a: argparse.Namespace) -> int:
     roster = Roster.load(a.roster)
     st = analyze(roster)
@@ -130,6 +140,15 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("generated")
     s.add_argument("expected")
     s.set_defaults(func=cmd_verify)
+
+    s = sub.add_parser("plan-template", help="予定一覧 (1 枚目) 形式の Excel 入力テンプレートを作る (月ごとにシート)")
+    s.add_argument("--start", required=True, help="開始月 YYYY-MM")
+    s.add_argument("--end", required=True, help="終了月 YYYY-MM")
+    s.add_argument("--members", help="カンマ区切り (省略時は記入例または 豊野,仲本,佐々木)")
+    s.add_argument("--example", help="記入例として入れる plan.yaml")
+    s.add_argument("--no-year-end", action="store_true", help="12/29〜1/3 を休日にしない")
+    s.add_argument("-o", "--output", required=True)
+    s.set_defaults(func=cmd_plan_template)
 
     s = sub.add_parser("check", help="roster の集計と整合性チェック")
     s.add_argument("roster")

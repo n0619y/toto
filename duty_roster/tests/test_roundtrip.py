@@ -145,3 +145,25 @@ def test_skeleton_matches_plan_events():
 def test_check_original_has_one_first_per_slot():
     st = analyze(Roster.load(ROSTER))
     assert st.warnings == []
+
+
+def test_plan_template_roundtrip(tmp_path):
+    from duty_roster.parse_plan import Plan, load_plan
+    from duty_roster.plan_template import make_plan_template
+    from openpyxl import load_workbook
+
+    example = Plan.load(os.path.join(ROOT, "data", "2026-09", "plan.yaml"))
+    path = make_plan_template(str(tmp_path / "t.xlsx"), "2026-10", "2027-03", example.members, example)
+    wb = load_workbook(path)
+    assert wb.sheetnames == ["使い方", "2026-09", "2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"]
+    # 記入例シートは plan.yaml と同じ内容に読み戻せる
+    assert load_plan(path, 2026, 9).to_dict() == example.to_dict()
+    # 祝日: 10/12 スポーツの日, 11/3, 11/23, 12/29-31, 1/1-3, 1/11, 2/11, 2/23, 3/21-22
+    assert load_plan(path, 2026, 10).holidays == {3, 4, 10, 11, 12, 17, 18, 24, 25, 31}
+    assert {3, 23} <= load_plan(path, 2026, 11).holidays
+    assert {29, 30, 31} <= load_plan(path, 2026, 12).holidays
+    assert {1, 2, 3, 11} <= load_plan(path, 2027, 1).holidays
+    assert {11, 23} <= load_plan(path, 2027, 2).holidays
+    assert {21, 22} <= load_plan(path, 2027, 3).holidays
+    ws = wb["2026-10"]
+    assert ws["B1"].value == "豊野" and ws["A2"].value == 1 and ws["A32"].value == 31 and ws["E1"].value is None

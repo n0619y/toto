@@ -8,6 +8,7 @@ duty_roster/
 ├── duty_roster/            パッケージ本体
 │   ├── model.py            データモデル (コマ / 当番表 / セル結合ルール)
 │   ├── parse_plan.py       1 枚目 (予定一覧 PDF / xlsx) → plan.yaml
+│   ├── plan_template.py    1 枚目形式の Excel 入力テンプレート生成 (月ごとにシート, 祝日表つき)
 │   ├── skeleton.py         plan → 予定だけ埋めた roster 雛形 (予定文字列 → コマ変換ルール)
 │   ├── extract_calendar.py 2 枚目 (カレンダー PDF) → コマ単位の色・文字 (検証・roster 起こし用)
 │   ├── render_pdf.py       roster → PDF (PyMuPDF 直接描画, 元 PDF と同じ寸法)
@@ -53,6 +54,10 @@ python -m duty_roster verify data/2026-09/roster.yaml          samples/Sep_2026_
 
 # 5. 集計と整合性チェック (各コマに 1st が 1 人いるか等)
 python -m duty_roster check data/2026-09/roster.yaml
+
+# 予定一覧 (1 枚目) 形式の Excel 入力テンプレート (月ごとにシート, 土日祝は赤, 2026-09 を記入例として同梱)
+python -m duty_roster plan-template --start 2026-10 --end 2027-03 --example data/2026-09/plan.yaml -o "output/予定一覧_2026-10_2027-03.xlsx"
+#   記入後はそのまま読める:  python -m duty_roster parse-plan "output/予定一覧_2026-10_2027-03.xlsx" --month 2026-10 -o data/2026-10/plan.yaml
 
 # (元カレンダー PDF から roster.yaml を起こす)
 python -m duty_roster extract samples/Sep_2026_1_calendar.pdf --month 2026-09 -o data/2026-09/roster.yaml
