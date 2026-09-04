@@ -16,6 +16,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 from .parse_plan import DEPT_KEY, Plan
+from .recurring import Recurring, expand, skipped_on_holidays
 from .skeleton import split_top_level
 
 # 祝日 (2026-09 〜 2027-03). 必要になったら追記する.
@@ -98,13 +99,27 @@ def _style_sheet(ws, members: list[str], ndays: int, col_widths: list[float]) ->
     ws.print_area = f"A1:{get_column_letter(ncols)}{ndays + 1}"
 
 
-def add_month_sheet(wb: Workbook, year: int, month: int, members: list[str], plan: Plan | None = None, year_end: bool = True):  # noqa: ANN001
+def add_month_sheet(  # noqa: PLR0913
+    wb: Workbook,
+    year: int,
+    month: int,
+    members: list[str],
+    plan: Plan | None = None,
+    year_end: bool = True,
+    recurring: Recurring | None = None,
+) -> tuple:  # (worksheet, 休日のため入れなかった定例予定 [(day, member, event)])
     ws = wb.create_sheet(f"{year:04d}-{month:02d}")
     ndays = calendar.monthrange(year, month)[1]
     # ヘッダ: A1 空, メンバー名, 最後は無題 (科の予定)
     for ci, name in enumerate(members, start=2):
         ws.cell(row=1, column=ci, value=name)
     dept_col = len(members) + 2
+
+    def is_holiday(date: dt.date) -> bool:
+        return holiday_name(date, year_end) is not None
+
+    rec_days = expand(recurring, year, month, is_holiday) if recurring else {}
+    skipped = skipped_on_holidays(recurring, year, month, is_holiday) if recurring else []
     for day in range(1, ndays + 1):
         r = day + 1
         c = ws.cell(row=r, column=1, value=day)
@@ -112,6 +127,10 @@ def add_month_sheet(wb: Workbook, year: int, month: int, members: list[str], pla
         hol = holiday_name(date, year_end)
         if hol:
             c.fill = PatternFill(fill_type="solid", start_color=RED, end_color=RED)
+        for ci, name in enumerate(members, start=2):
+            text = rec_days.get(day, {}).get(name)
+            if text:
+                ws.cell(row=r, column=ci, value=text)
         if plan is not None:
             row = plan.days.get(day) or {}
             for ci, name in enumerate(members, start=2):
@@ -122,10 +141,18 @@ def add_month_sheet(wb: Workbook, year: int, month: int, members: list[str], pla
                 ws.cell(row=r, column=dept_col, value="\n".join(split_top_level(row[DEPT_KEY])))
     widths = [6] + [max(18, 44 - 12 * i) for i in range(len(members))] + [30]
     _style_sheet(ws, members, ndays, widths)
-    return ws
+    return ws, skipped
 
 
-def add_guide_sheet(wb: Workbook, members: list[str], months: list[tuple[int, int]], year_end: bool) -> None:
+def add_guide_sheet(  # noqa: PLR0913
+    wb: Workbook,
+    members: list[str],
+    months: list[tuple[int, int]],
+    year_end: bool,
+    recurring: Recurring | None = None,
+    flagged: dict[tuple[int, int], list[tuple[int, str, str]]] | None = None,
+    example_month: tuple[int, int] | None = None,
+) -> None:
     ws = wb.create_sheet("使い方", 0)
     font = Font(name=FONT_NAME, size=11)
     bold = Font(name=FONT_NAME, size=11, bold=True)
@@ -142,13 +169,42 @@ def add_guide_sheet(wb: Workbook, members: list[str], months: list[tuple[int, in
         ("    男鹿前日                翌朝から出張のため夜の当番に入れない", font),
         ("    医療安全管理部担当者会議 (16時～)   時刻付きの会議", font),
         ("    web会議 (19時～)        夜の予定", font),
+        ("    市立救急 (夜間)         夜間の予定", font),
         ("    OSCE外部評価者 (佐賀)   場所付き (終日)", font),
         ("・A 列の日番号が赤い日 = 土日・祝日" + (" (12/29〜1/3 の年末年始も赤にしています)" if year_end else "") + "。休日を変えるときはセルの塗りつぶしを変えてください。", font),
-        ("・記入例として 2026-09 シートに実際の予定を入れてあります。", font),
-        ("・このファイルはそのまま  python -m duty_roster parse-plan <このファイル> --month YYYY-MM  で読み込めます。", font),
-        ("", font),
-        ("祝日 (このファイルで赤にした日):", bold),
     ]
+    if example_month:
+        lines.append((f"・記入例として {example_month[0]}-{example_month[1]:02d} シートに実際の予定を入れてあります。", font))
+    lines.append(("・このファイルはそのまま  python -m duty_roster parse-plan <このファイル> --month YYYY-MM  で読み込めます。", font))
+    if recurring and recurring.rules:
+        lines.append(("", font))
+        lines.append(("定例予定 (各月に自動入力済み。変更するときはシートのセルを直接書き換えてください):", bold))
+        from .recurring import WEEKDAYS
+
+        def describe(r) -> str:  # noqa: ANN001
+            who = "全員" if not r.members else "・".join(r.members)
+            wk = "毎週" if r.week is None else f"第{r.week}"
+            tag = {"odd": " [奇数月]", "even": " [偶数月]", "all": ""}[r.months]
+            exc = ""
+            if r.exclude:
+                exc = " (除く: " + ", ".join(
+                    f"{ {'odd': '奇数月', 'even': '偶数月', 'all': ''}[c.months]}{'第' + str(c.week) if c.week else ''}" for c in r.exclude
+                ) + ")"
+            return f"{who}: {wk}{WEEKDAYS[r.weekday]}曜 {r.event}{tag}{exc}"
+
+        for r in recurring.rules:
+            lines.append(("    " + describe(r), font))
+        for m, ev in recurring.defaults.items():
+            lines.append((f"    {m}: 上記以外の平日 (空いている午前/午後) は {ev}", font))
+        if flagged and any(flagged.values()):
+            lines.append(("", font))
+            lines.append(("土日・祝日のため入力しなかった定例予定 (必要なら手で追加してください):", bold))
+            for (y, mo), items in flagged.items():
+                for day, member, ev in items:
+                    hol = holiday_name(dt.date(y, mo, day), year_end) or ""
+                    lines.append((f"    {y}-{mo:02d}-{day:02d} ({hol}) {member}: {ev}", font))
+    lines.append(("", font))
+    lines.append(("祝日 (このファイルで赤にした日):", bold))
     for (y, m) in months:
         names = []
         for day in range(1, calendar.monthrange(y, m)[1] + 1):
@@ -172,16 +228,19 @@ def make_plan_template(
     members: list[str],
     example: Plan | None = None,
     year_end: bool = True,
+    recurring: Recurring | None = None,
 ) -> str:
     wb = Workbook()
     wb.remove(wb.active)
     months = month_range(start, end)
     if example is not None:
         add_month_sheet(wb, example.year, example.month, example.members, example, year_end)
+    flagged: dict[tuple[int, int], list[tuple[int, str, str]]] = {}
     for y, m in months:
-        add_month_sheet(wb, y, m, members, None, year_end)
+        _, fl = add_month_sheet(wb, y, m, members, None, year_end, recurring)
+        flagged[(y, m)] = fl
     all_months = ([(example.year, example.month)] if example else []) + months
-    add_guide_sheet(wb, members, all_months, year_end)
+    add_guide_sheet(wb, members, all_months, year_end, recurring, flagged, (example.year, example.month) if example else None)
     # 最初に開いたとき最初の入力月を表示
     first = wb[f"{months[0][0]:04d}-{months[0][1]:02d}"]
     wb.active = wb.sheetnames.index(first.title)

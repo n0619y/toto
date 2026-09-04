@@ -47,7 +47,19 @@ class ParsedEvent:
     priority: int = 1  # 大きいほど優先 (同じコマに複数の予定があるとき)
 
 
-_AMPM = {"AM": [0], "PM": [1], "AM/PM": [0, 1], "PM/AM": [0, 1]}
+_AMPM = {
+    "AM": [0],
+    "PM": [1],
+    "AM/PM": [0, 1],
+    "PM/AM": [0, 1],
+    "午前": [0],
+    "午後": [1],
+    "午前/午後": [0, 1],
+    "終日": [0, 1],
+    "夜間": [2],
+    "夜": [2],
+    "NIGHT": [2],
+}
 
 
 def split_top_level(text: str) -> list[str]:

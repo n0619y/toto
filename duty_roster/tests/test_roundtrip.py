@@ -167,3 +167,33 @@ def test_plan_template_roundtrip(tmp_path):
     assert {21, 22} <= load_plan(path, 2027, 3).holidays
     ws = wb["2026-10"]
     assert ws["B1"].value == "豊野" and ws["A2"].value == 1 and ws["A32"].value == 31 and ws["E1"].value is None
+
+
+def test_recurring_expansion():
+    import datetime as dt
+
+    from duty_roster.plan_template import holiday_name
+    from duty_roster.recurring import Recurring, expand, skipped_on_holidays
+
+    rec = Recurring.load(os.path.join(ROOT, "data", "recurring.yaml"))
+    assert rec.members == ["岡﨑", "仲本", "佐々木"]
+
+    def hol(d: dt.date) -> bool:
+        return holiday_name(d) is not None
+
+    oct_ = expand(rec, 2026, 10, hol)
+    # 偶数月の第二水曜 (10/14) はカテーテル無し, 第一水曜 (10/7) はあり
+    assert oct_[7] == {"岡﨑": "心臓カテーテル (AM), センター業務 (PM)", "仲本": "心臓カテーテル (AM)", "佐々木": "心臓カテーテル (AM)"}
+    assert oct_[14] == {"岡﨑": "センター業務 (AM), 日赤 (PM)", "仲本": "能代厚生 (PM)"}
+    # 第三月曜 (10/19) 検査, 岡﨑は平日既定でセンター業務
+    assert oct_[19] == {"岡﨑": "センター業務", "仲本": "検査 (AM)", "佐々木": "検査 (AM)"}
+    # 第三金曜 (10/16) 佐々木 夜間 市立救急
+    assert oct_[16]["佐々木"] == "市立救急 (夜間)"
+    # 祝日 (10/12 スポーツの日) には入れない
+    assert 12 not in oct_
+    assert (12, "佐々木", "大森 (AM)") in skipped_on_holidays(rec, 2026, 10, hol)
+    # 奇数月 (11 月) の第二水曜 (11/11) はカテーテルあり, 仲本 第一金曜は由利組合
+    nov = expand(rec, 2026, 11, hol)
+    assert nov[11]["仲本"] == "心臓カテーテル (AM)"
+    assert nov[6]["仲本"] == "由利組合 (PM)"
+    assert nov[10]["仲本"] == "外来 (AM/PM)"

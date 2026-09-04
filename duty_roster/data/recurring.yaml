@@ -1,0 +1,60 @@
+# 各月共通の定例予定 (予定一覧テンプレートに自動入力される)
+#
+#   members : 対象メンバー。all = 全員 / 名前のリスト
+#   weekday : 月 火 水 木 金 土 日
+#   week    : 第何週の曜日か (1 = 第一, 2 = 第二, ...)。all = 毎週
+#   months  : all (毎月) / odd (奇数月) / even (偶数月)   省略時は all
+#   exclude : 除外条件のリスト (各要素は week / months の組み合わせ)
+#   event   : 予定一覧に書く文字列 (AM / PM / AM/PM / 夜間 の書き方は使い方シート参照)
+#
+# 土日・祝日 (A 列が赤の日) には入力しない。
+#
+members: [岡﨑, 仲本, 佐々木]
+
+rules:
+  # ---- メンバー共通 ----
+  - members: all
+    weekday: 水
+    week: all
+    event: "心臓カテーテル (AM)"
+    exclude:
+      - {months: even, week: 2}      # 偶数月の第二水曜日は行わない
+
+  # ---- 仲本・佐々木 共通 ----
+  - {members: [仲本, 佐々木], weekday: 月, week: 3, event: "検査 (AM)"}
+
+  # ---- 岡﨑 ----
+  - {members: [岡﨑], weekday: 木, week: 1, event: "平鹿総合 (PM)"}
+  - {members: [岡﨑], weekday: 金, week: 1, event: "日赤 (PM)"}
+  - {members: [岡﨑], weekday: 水, week: 2, event: "日赤 (PM)"}
+  - {members: [岡﨑], weekday: 金, week: 2, event: "日赤 (PM)"}
+  - {members: [岡﨑], weekday: 木, week: 3, event: "平鹿総合 (PM)"}
+  - {members: [岡﨑], weekday: 金, week: 3, event: "日赤 (PM)"}
+  - {members: [岡﨑], weekday: 水, week: 4, event: "日赤 (PM)"}
+  - {members: [岡﨑], weekday: 金, week: 4, event: "日赤 (PM)"}
+
+  # ---- 仲本 ----
+  - {members: [仲本], weekday: 火, week: all, event: "外来 (AM/PM)"}
+  # 奇数月
+  - {members: [仲本], weekday: 金, week: 1, event: "由利組合 (PM)", months: odd}
+  - {members: [仲本], weekday: 金, week: 2, event: "由利組合 (PM)", months: odd}
+  - {members: [仲本], weekday: 金, week: 3, event: "大曲厚生 (PM)", months: odd}
+  - {members: [仲本], weekday: 水, week: 4, event: "療育センター (PM)", months: odd}
+  # 偶数月
+  - {members: [仲本], weekday: 金, week: 1, event: "大曲厚生 (PM)", months: even}
+  - {members: [仲本], weekday: 水, week: 2, event: "能代厚生 (PM)", months: even}
+  - {members: [仲本], weekday: 金, week: 2, event: "由利組合 (PM)", months: even}
+  - {members: [仲本], weekday: 金, week: 3, event: "大曲厚生 (PM)", months: even}
+  - {members: [仲本], weekday: 水, week: 4, event: "療育センター (PM)", months: even}
+  - {members: [仲本], weekday: 金, week: 4, event: "能代厚生 (PM)", months: even}
+
+  # ---- 佐々木 ----
+  - {members: [佐々木], weekday: 月, week: 1, event: "大森 (AM)"}
+  - {members: [佐々木], weekday: 月, week: 2, event: "大森 (AM)"}
+  - {members: [佐々木], weekday: 金, week: 3, event: "市立救急 (夜間)"}
+  - {members: [佐々木], weekday: 月, week: 4, event: "大森 (AM)"}
+
+# 平日の空いている時間帯 (AM / PM) に入れる既定の業務
+#   終日空き → "センター業務", 午前だけ空き → "センター業務 (AM)", 午後だけ空き → "センター業務 (PM)"
+defaults:
+  岡﨑: センター業務
