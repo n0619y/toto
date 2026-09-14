@@ -1,0 +1,30 @@
+# 診断用: 指定URLの応答（HTTP状態・Content-Type・PDFリンク・API手掛かり）をログに出す
+# Actions タブ → "Probe guideline URLs" → Run workflow → urls にスペース区切りで入力
+# DOI は "doi:10.1161/CIR.0000000000000696" の形式で指定すると Europe PMC / Unpaywall の解決結果を表示
+
+name: Probe guideline URLs
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: "調査するURL（スペース区切り。doi:xxx も可）"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe
+        env:
+          UNPAYWALL_EMAIL: ${{ vars.UNPAYWALL_EMAIL }}
+        run: python guidelines/download_guidelines.py --probe ${{ inputs.urls }}

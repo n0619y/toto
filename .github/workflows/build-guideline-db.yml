@@ -45,6 +45,9 @@ jobs:
 
       - name: Download all guideline PDFs
         # 一部が publisher 側でブロックされても続行（レポートに記録される）
+        # UNPAYWALL_EMAIL（リポジトリ変数）を設定すると Unpaywall 経由でOA版も探します
+        env:
+          UNPAYWALL_EMAIL: ${{ vars.UNPAYWALL_EMAIL }}
         run: python guidelines/download_guidelines.py --workers 6 || true
 
       - name: Build full-text search database
