@@ -461,6 +461,39 @@ def probe(urls: list[str]) -> int:
     for url in urls:
         print("=" * 100)
         print("URL:", url)
+        if url.startswith("spa:"):  # SPA: HTML → 全スクリプト → 遅延チャンクまで辿って API 手掛かりを列挙
+            base = url[4:]
+            try:
+                html, _, final = _fetch(base)
+                ht = html.decode("utf-8", errors="ignore")
+                scripts = [urllib.parse.urljoin(final, sc) for sc in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', ht)]
+                chunk_urls: list[str] = []
+                for sc in scripts:
+                    js, _, _ = _fetch(sc)
+                    jt = js.decode("utf-8", errors="ignore")
+                    # Angular/webpack runtime のチャンク表 {id:"hash",...}
+                    for table in re.findall(r"\{((?:\d+:\"[0-9a-f]{8,}\",?)+)\}", jt):
+                        for cid, h in re.findall(r"(\d+):\"([0-9a-f]{8,})\"", table):
+                            chunk_urls.append(urllib.parse.urljoin(final, f"{cid}.{h}.js"))
+                print("  scripts:", scripts)
+                print("  lazy chunks:", len(chunk_urls))
+                keys = ("api", "http", "graphql", "/v1", "/v2", "guideline", "leitlinie", "assets/", ".pdf", ".json", "download")
+                for cu in (scripts + chunk_urls)[:25]:
+                    try:
+                        js, _, _ = _fetch(cu)
+                    except Exception as exc:  # noqa: BLE001
+                        print(f"  {cu.rsplit('/',1)[-1]}: fetch failed {exc}")
+                        continue
+                    jt = js.decode("utf-8", errors="ignore")
+                    lits = set(re.findall(r'["\'`]([^"\'`\s]{4,200})["\'`]', jt))
+                    hits = sorted(x for x in lits if any(k in x.lower() for k in keys) and "w3.org" not in x)
+                    if hits:
+                        print(f"  [{cu.rsplit('/',1)[-1]}] {len(hits)} hints:")
+                        for x in hits[:60]:
+                            print("     ", x)
+            except Exception as exc:  # noqa: BLE001
+                print("  ERROR", exc)
+            continue
         if url.startswith("js:"):  # JS バンドル内の API/URL 文字列を列挙（SPA の API 探索用）
             try:
                 js, _, _ = _fetch(url[3:])

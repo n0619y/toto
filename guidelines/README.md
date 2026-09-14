@@ -43,9 +43,16 @@ GitHub Actions がカタログ内の全PDFを自動取得し、Release `guidelin
 
 Release ページ: <https://github.com/n0619y/toto/releases/tag/guidelines-latest>
 
-- 初回は GitHub の **Actions → "Build CHD guideline bundle" → Run workflow** で生成されます（`catalog/guidelines.json` を更新して push しても自動実行）。
-- 学術出版社サイトの一部（AHA Journals / JACC / Oxford Academic など）は自動取得を拒否することがあります。
-  取得できなかったものは `download_report.md` に **ブラウザで開くURLと保存ファイル名** がまとまるので、手動で `guidelines/pdf/` に保存してください。
+- GitHub の **Actions → "Build CHD guideline bundle" → Run workflow** で再生成できます（`catalog/guidelines.json` を更新して push しても自動実行）。
+- 取得の仕組み: ①台帳の直接URL → ②Europe PMC / NCBI OA サービス経由のオープンアクセス版 → ③紹介ページ内のPDFリンク →
+  ④それでもPDFが無い場合は **Europe PMC の全文XML** を保存し、検索DBの本文として使います（ZIP内の `.xml`）。
+- **現在の自動取得状況（2026-09 時点）: 219件中 126件**（PDF 118件 ＋ 全文XML 8件）。
+  残り約90件は AHA Journals（Circulation の科学声明）・Elsevier系（JACC / Heart Rhythm / JTCVS）・Oxford Academic（EHJ / Europace）・BMJ・
+  ドイツ AWMF レジスタなどが自動取得（bot）を拒否するものです。これらはブラウザでは無料で開けるものが大半なので、
+  `download_report.md` の **「手動ダウンロードが必要なもの」表のリンクを開き、指定ファイル名で `guidelines/pdf/` に保存** →
+  `python guidelines/build_index.py` を実行すれば検索対象に加わります。
+- リポジトリ変数 `UNPAYWALL_EMAIL`（Settings → Secrets and variables → Actions → Variables）に自分のメールアドレスを設定すると、
+  Unpaywall API 経由のOA版探索も有効になります（ローカル実行時は環境変数で指定）。
 
 ### 方法B: 自分のPCで取得する
 
@@ -55,8 +62,9 @@ python guidelines/download_guidelines.py --region JP  # 日本のみ
 python guidelines/download_guidelines.py --retry-failed
 ```
 
-`guidelines/pdf/` に `JP_2018_jcs2018-chd-dx-drug.pdf` のような名前で保存され、
-`guidelines/pdf/_download_report.md` に成功／失敗の一覧が出ます。
+`guidelines/pdf/` に `JP_2018_jcs2018-pediatric-dx-drug.pdf` のような名前で保存され、
+`guidelines/pdf/_download_report.md` に成功／失敗の一覧（取得経路つき）が出ます。
+Release の ZIP をダウンロード済みなら、展開した `pdf/` を `guidelines/pdf/` に置いてから `--retry-failed` を実行すると未取得分だけ再試行します。
 wget 派の方は `wget -i guidelines/catalog/urls.txt -P guidelines/pdf` でも可です。
 
 ### リンク一覧ページ
@@ -87,7 +95,7 @@ Release の `guidelines.db` をダウンロードして `guidelines/guidelines.d
 - **絞り込み**: 地域（日/米/欧）・カテゴリ・発行団体・言語・発行年
 - **ガイドライン別ヒット数** のチップでドキュメントを切り替え
 - **該当ページをPDFで開く**（`#page=N` 付きリンク）／ページ全文をその場で表示
-- **ガイドライン一覧**: 収録・未取得の状況、配布元・DOIリンク
+- **ガイドライン一覧**: 収録（PDF／全文XML）・未取得の状況、配布元・DOIリンク
 - **Claude Q&A（任意）**: 質問文から関連ページを検索し、出典番号・ページ付きで回答
   （リポジトリ直下の `.env` に `ANTHROPIC_API_KEY` が必要。モデルは `config/settings.yaml` の `claude.model`、または環境変数 `GUIDELINE_QA_MODEL` で指定）
 
@@ -98,12 +106,15 @@ guidelines/
 ├── catalog/guidelines.json   … ガイドライン台帳（ここに追加すると全部に反映）
 ├── catalog/urls.txt / .csv   … make_catalog.py が生成
 ├── index.html                … リンク一覧ページ（make_catalog.py が生成）
-├── download_guidelines.py    … 一括ダウンローダ
-├── build_index.py            … PDF → guidelines.db（FTS5, trigram）
+├── download_guidelines.py    … 一括ダウンローダ（OA版探索・全文XMLフォールバック・--probe 診断）
+├── build_index.py            … PDF / 全文XML → guidelines.db（FTS5, trigram）
 ├── app.py                    … 検索サーバー（標準ライブラリのみ）
 ├── static/index.html         … 検索UI
 └── pdf/                      … PDF保存先（git管理外）
 ```
+
+URLの応答を調べたいときは `python guidelines/download_guidelines.py --probe <URL|doi:...>`、
+GitHub 上では **Actions → "Probe guideline URLs"**（または `catalog/probe_urls.txt` を編集して push）でログに結果が出ます。
 
 台帳に1件追加するには `catalog/guidelines.json` に次の形式で追記し、`python guidelines/make_catalog.py` を実行します。
 
