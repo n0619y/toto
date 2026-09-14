@@ -480,8 +480,8 @@ def probe(urls: list[str]) -> int:
                     chunk_urls = list(dict.fromkeys(chunk_urls))
                 print("  scripts:", scripts)
                 print("  lazy chunks:", len(chunk_urls))
-                keys = ("api", "http", "graphql", "/v1", "/v2", "guideline", "leitlinie", "assets/", ".pdf", ".json", "download")
-                for cu in (scripts + chunk_urls)[:25]:
+                keys = tuple(k for k in os.environ.get("PROBE_KEYS", "api,http,graphql,/v1,/v2,_search,elastic,assets/guidelines,.json").split(",") if k)
+                for cu in (scripts + chunk_urls)[: int(os.environ.get("PROBE_MAX_CHUNKS", "90"))]:
                     try:
                         js, _, _ = _fetch(cu)
                     except Exception as exc:  # noqa: BLE001
@@ -492,7 +492,7 @@ def probe(urls: list[str]) -> int:
                     hits = sorted(x for x in lits if any(k in x.lower() for k in keys) and "w3.org" not in x)
                     if hits:
                         print(f"  [{cu.rsplit('/',1)[-1]}] {len(hits)} hints:")
-                        for x in hits[:60]:
+                        for x in hits[:40]:
                             print("     ", x)
             except Exception as exc:  # noqa: BLE001
                 print("  ERROR", exc)
