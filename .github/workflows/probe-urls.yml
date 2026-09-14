@@ -1,5 +1,6 @@
 # 診断用: 指定URLの応答（HTTP状態・Content-Type・PDFリンク・API手掛かり）をログに出す
-# Actions タブ → "Probe guideline URLs" → Run workflow → urls にスペース区切りで入力
+# - Actions タブ → "Probe guideline URLs" → Run workflow → urls にスペース区切りで入力
+# - または guidelines/catalog/probe_urls.txt（1行1URL）を編集して push すると自動実行
 # DOI は "doi:10.1161/CIR.0000000000000696" の形式で指定すると Europe PMC / Unpaywall の解決結果を表示
 
 name: Probe guideline URLs
@@ -9,8 +10,12 @@ on:
     inputs:
       urls:
         description: "調査するURL（スペース区切り。doi:xxx も可）"
-        required: true
+        required: false
         type: string
+  push:
+    paths:
+      - ".github/workflows/probe-urls.yml"
+      - "guidelines/catalog/probe_urls.txt"
 
 permissions:
   contents: read
@@ -27,4 +32,12 @@ jobs:
       - name: Probe
         env:
           UNPAYWALL_EMAIL: ${{ vars.UNPAYWALL_EMAIL }}
-        run: python guidelines/download_guidelines.py --probe ${{ inputs.urls }}
+          URLS_INPUT: ${{ inputs.urls }}
+        run: |
+          if [ -n "$URLS_INPUT" ]; then
+            URLS="$URLS_INPUT"
+          else
+            URLS=$(grep -v '^\s*#' guidelines/catalog/probe_urls.txt | grep -v '^\s*$' | tr '\n' ' ')
+          fi
+          echo "probing: $URLS"
+          python guidelines/download_guidelines.py --probe $URLS
