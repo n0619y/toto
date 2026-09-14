@@ -171,7 +171,7 @@ async function runSearch() {
   $('#results').innerHTML = d.hits.map(h => `
     <div class="card">
       <div class="t"><span class="badge ${h.region}">${h.region}</span> ${esc(h.title)} <span class="cat">${esc(h.category||'')}</span></div>
-      <div class="meta">${esc(h.organization||'')} ・ ${h.year||''} ・ p.${h.page}${h.title_en && h.title_en!==h.title ? ' ・ '+esc(h.title_en) : ''}</div>
+      <div class="meta">${esc(h.organization||'')} ・ ${h.year||''} ・ ${h.fulltext ? '全文XML §'+h.page : 'p.'+h.page}${h.title_en && h.title_en!==h.title ? ' ・ '+esc(h.title_en) : ''}</div>
       <div class="snip">${h.snippet}</div>
       <div class="links" style="margin-top:8px">
         ${h.pdf ? `<a href="${h.pdf}" target="_blank">📄 PDFの該当ページを開く</a>` : ''}
@@ -208,7 +208,7 @@ async function loadCatalog() {
         <td><div>${esc(d.title_ja||d.title_en)}</div>${d.title_en && d.title_en!==d.title_ja ? `<div class="hint">${esc(d.title_en)}</div>`:''}
             ${d.notes ? `<div class="hint">${esc(d.notes)}</div>`:''}</td>
         <td>${esc(d.organization||'')}</td><td>${esc(d.category||'')}</td><td>${d.pages||'—'}</td>
-        <td>${d.pdf ? `<a href="${d.pdf}" target="_blank">ローカル</a><br>` : '<span class="hint">未取得</span><br>'}
+        <td>${d.pdf ? `<a href="${d.pdf}" target="_blank">ローカル</a><br>` : d.fulltext ? '<span class="hint">全文XML(PMC)</span><br>' : '<span class="hint">未取得</span><br>'}
             ${d.url ? `<a href="${esc(d.url)}" target="_blank" rel="noopener">配布元</a>` : ''}
             ${d.landing_url && d.landing_url!==d.url ? ` / <a href="${esc(d.landing_url)}" target="_blank" rel="noopener">紹介頁</a>` : ''}
             ${d.doi ? ` / <a href="https://doi.org/${esc(d.doi)}" target="_blank" rel="noopener">DOI</a>` : ''}</td>

@@ -109,28 +109,67 @@ def normalize_doi(doi: str | None) -> str | None:
 # --------------------------------------------------------------------------- #
 # オープンアクセス版の探索（出版社サイトが bot をブロックする場合の迂回路）
 # --------------------------------------------------------------------------- #
-def europepmc_pdf_urls(doi: str) -> list[str]:
-    """Europe PMC REST API で DOI → PMCID / 全文PDF URL を引く（API キー不要）。"""
+def europepmc_lookup(doi: str) -> tuple[list[str], list[str]]:
+    """Europe PMC REST API で DOI → (PDF URL 候補, PMCID 一覧) を引く（API キー不要）。"""
     q = urllib.parse.quote(f'DOI:"{doi}"')
     api = (
         "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
         f"?query={q}&format=json&resultType=core&pageSize=3"
     )
-    out: list[str] = []
+    urls: list[str] = []
+    pmcids: list[str] = []
     try:
         body, _, _ = _fetch(api)
         data = json.loads(body.decode("utf-8", errors="ignore"))
     except Exception:  # noqa: BLE001
-        return out
+        return urls, pmcids
     for r in data.get("resultList", {}).get("result", []):
         for ft in r.get("fullTextUrlList", {}).get("fullTextUrl", []):
-            if ft.get("documentStyle") == "pdf" and ft.get("url"):
-                out.append(ft["url"])
+            if ft.get("documentStyle") == "pdf" and ft.get("url") and ft["url"] not in urls:
+                urls.append(ft["url"])
         pmcid = r.get("pmcid")
-        if pmcid:
-            out.append(f"https://europepmc.org/articles/{pmcid}?pdf=render")
-            out.append(f"https://pmc.ncbi.nlm.nih.gov/articles/{pmcid}/pdf/")
+        if pmcid and pmcid not in pmcids:
+            pmcids.append(pmcid)
+    return urls, pmcids
+
+
+def ncbi_oa_pdf_urls(pmcid: str) -> list[str]:
+    """NCBI PMC Open Access Web Service で PMCID → PDF の FTP(HTTPS) URL を引く（OAサブセットのみ）。"""
+    api = f"https://www.ncbi.nlm.nih.gov/pmc/utils/oa/oa.fcgi?id={pmcid}"
+    out: list[str] = []
+    try:
+        body, _, _ = _fetch(api)
+    except Exception:  # noqa: BLE001
+        return out
+    text = body.decode("utf-8", errors="ignore")
+    for fmt, href in re.findall(r'<link[^>]+format="(pdf|tgz)"[^>]+href="([^"]+)"', text):
+        if fmt != "pdf":
+            continue
+        href = re.sub(r"^ftp://ftp\.ncbi\.nlm\.nih\.gov/", "https://ftp.ncbi.nlm.nih.gov/", href)
+        if href not in out:
+            out.append(href)
     return out
+
+
+def europepmc_fulltext_xml(pmcid: str) -> bytes | None:
+    """Europe PMC の全文XML（JATS）。PDF が取得できない場合の全文テキスト源として使う。"""
+    api = f"https://www.ebi.ac.uk/europepmc/webservices/rest/{pmcid}/fullTextXML"
+    try:
+        body, ctype, _ = _fetch(api)
+    except Exception:  # noqa: BLE001
+        return None
+    if body.lstrip()[:5] == b"<?xml" or b"<article" in body[:2000]:
+        return body
+    return None
+
+
+def europepmc_pdf_urls(doi: str) -> list[str]:
+    urls, pmcids = europepmc_lookup(doi)
+    for pmcid in pmcids:
+        for u in ncbi_oa_pdf_urls(pmcid):
+            if u not in urls:
+                urls.append(u)
+    return urls
 
 
 def unpaywall_pdf_urls(doi: str) -> list[str]:
@@ -190,19 +229,26 @@ def awmf_pdf_urls(url: str) -> list[str]:
     return out
 
 
-def resolver_urls(entry: dict) -> list[str]:
-    """DOI / ランディングURLから OA 版 PDF 候補を集める。"""
+def resolver_urls(entry: dict) -> tuple[list[str], list[str]]:
+    """DOI / ランディングURLから OA 版 PDF 候補と PMCID を集める。"""
     out: list[str] = []
+    pmcids: list[str] = []
     doi = normalize_doi(entry.get("doi"))
     if doi:
-        for u in europepmc_pdf_urls(doi) + unpaywall_pdf_urls(doi):
+        urls, pmcids = europepmc_lookup(doi)
+        for pmcid in pmcids:
+            urls += ncbi_oa_pdf_urls(pmcid)
+        urls += unpaywall_pdf_urls(doi)
+        if doi.startswith("10.1186/"):  # BMC (Springer Nature) は link.springer.com に PDF がある
+            urls.append(f"https://link.springer.com/content/pdf/{doi}.pdf")
+        for u in urls:
             if u not in out:
                 out.append(u)
     for u in (entry.get("landing_url"), entry.get("url")):
         for link in awmf_pdf_urls(u or ""):
             if link not in out:
                 out.append(link)
-    return out
+    return out, pmcids
 
 
 def _fetch(url: str) -> tuple[bytes, str, str]:
@@ -223,8 +269,15 @@ _CITATION_PDF_RE = re.compile(
 )
 
 
+_BAD_LINK_RE = re.compile(
+    r"(proposal|form|erratum|correction|corrigend|supplement|appendix|slides|poster|flyer|leaflet|"
+    r"checklist|template|brochure|newsletter|program|abstract-book|cover|toc|table-of-contents)",
+    re.IGNORECASE,
+)
+
+
 def find_pdf_links_in_html(html: str, base_url: str) -> list[str]:
-    """ランディングページHTMLからPDFらしきリンクを抽出する。"""
+    """ランディングページHTMLからPDFらしきリンクを抽出する（付録・別文書らしきものは除外）。"""
     found: list[str] = []
     for m in _CITATION_PDF_RE.finditer(html):
         found.append(urllib.parse.urljoin(base_url, m.group(1)))
@@ -234,7 +287,8 @@ def find_pdf_links_in_html(html: str, base_url: str) -> list[str]:
     seen: set[str] = set()
     out = []
     for u in found:
-        if u not in seen:
+        name = urllib.parse.urlparse(u).path.rsplit("/", 1)[-1]
+        if u not in seen and not _BAD_LINK_RE.search(name):
             seen.add(u)
             out.append(u)
     return out[:8]
@@ -248,21 +302,30 @@ def download_one(entry: dict, dest_dir: Path, force: bool = False) -> dict:
         "id": entry["id"],
         "title": entry.get("title_ja") or entry.get("title_en"),
         "file": fname,
+        "format": "pdf",
         "ok": False,
         "bytes": 0,
         "source_url": None,
+        "via": None,
         "error": None,
         "tried": [],
     }
-    if dest.exists() and dest.stat().st_size > 1024 and not force:
-        result.update(ok=True, bytes=dest.stat().st_size, source_url="(cached)")
-        return result
+    xml_dest = dest.with_suffix(".xml")
+    if not force:
+        if dest.exists() and dest.stat().st_size > 1024:
+            result.update(ok=True, bytes=dest.stat().st_size, source_url="(cached)", via="cache")
+            return result
+        if xml_dest.exists() and xml_dest.stat().st_size > 1024:
+            result.update(ok=True, bytes=xml_dest.stat().st_size, source_url="(cached)", via="cache",
+                          file=xml_dest.name, format="xml")
+            return result
 
     visited: set[str] = set()
     last_error = None
 
-    def try_queue(queue: list[str]) -> bool:
+    def try_queue(queue: list[str], stage: str) -> bool:
         nonlocal last_error
+        followed: set[str] = set()  # HTML から辿って見つけたリンク（別文書の可能性があるので厳しめに検証）
         while queue:
             url = queue.pop(0)
             if url in visited:
@@ -285,8 +348,13 @@ def download_one(entry: dict, dest_dir: Path, force: bool = False) -> dict:
                     continue
 
                 if body[:5] == b"%PDF-":
+                    if url in followed and len(body) < 150 * 1024:
+                        last_error = f"HTML経由のPDFが小さすぎるため別文書と判断 ({len(body)}B) ({url})"
+                        result["tried"].append(last_error)
+                        break
                     dest.write_bytes(body)
-                    result.update(ok=True, bytes=len(body), source_url=final_url)
+                    result.update(ok=True, bytes=len(body), source_url=final_url,
+                                  via=stage + ("+html" if url in followed else ""))
                     return True
 
                 # HTMLが返ってきた → PDFリンクを探して候補に追加
@@ -294,6 +362,7 @@ def download_one(entry: dict, dest_dir: Path, force: bool = False) -> dict:
                     html = body.decode("utf-8", errors="ignore")
                     links = [u for u in find_pdf_links_in_html(html, final_url) if u not in visited]
                     if links:
+                        followed.update(links)
                         queue[:0] = links
                     last_error = f"HTMLが返却（PDFリンク {len(links)} 件を追試） ({url})"
                     result["tried"].append(last_error)
@@ -304,14 +373,24 @@ def download_one(entry: dict, dest_dir: Path, force: bool = False) -> dict:
         return False
 
     # 第1段階: 直接PDF URL・代替URL
-    if try_queue(direct_urls(entry)):
+    if try_queue(direct_urls(entry), "direct"):
         return result
-    # 第2段階: Europe PMC / Unpaywall / AWMF API で OA 版を探す
-    if try_queue(resolver_urls(entry)):
+    # 第2段階: Europe PMC / NCBI OA / Unpaywall / AWMF API で OA 版を探す
+    oa_urls, pmcids = resolver_urls(entry)
+    if try_queue(oa_urls, "oa"):
         return result
     # 第3段階: ランディングページ・doi.org（HTML内のPDFリンクを追跡）
-    if try_queue(landing_urls(entry)):
+    if try_queue(landing_urls(entry), "landing"):
         return result
+    # 第4段階: PDF が取れなければ Europe PMC の全文XML（検索DB用の本文として利用）
+    for pmcid in pmcids:
+        xml = europepmc_fulltext_xml(pmcid)
+        if xml:
+            xml_dest.write_bytes(xml)
+            result.update(ok=True, bytes=len(xml), file=xml_dest.name, format="xml", via="europepmc-xml",
+                          source_url=f"https://europepmc.org/article/PMC/{pmcid}")
+            return result
+        result["tried"].append(f"全文XMLなし ({pmcid})")
 
     result["error"] = last_error or "候補URLなし"
     return result
@@ -357,9 +436,23 @@ def write_report(results: list[dict], dest_dir: Path, catalog: list[dict]) -> No
                 f"| {i} | {r['title']} | {links} | `{r['file']}` | {r['error']} |"
             )
         lines.append("")
-    lines += ["## 成功一覧", "", "| ガイドライン | ファイル | サイズ |", "|---|---|---|"]
+    xml_ok = [r for r in ok if r.get("format") == "xml"]
+    if xml_ok:
+        lines += [
+            "## PDFの代わりに全文XML（Europe PMC）を取得したもの",
+            "",
+            "出版社サイトが自動取得を拒否したため、検索DB用に Europe PMC の全文XMLを保存しました。",
+            "PDFが必要な場合は下記リンク（PMC）からブラウザで保存してください。",
+            "",
+            "| ガイドライン | PMC | 保存ファイル |",
+            "|---|---|---|",
+        ]
+        for r in xml_ok:
+            lines.append(f"| {r['title']} | {r['source_url']} | `{r['file']}` |")
+        lines.append("")
+    lines += ["## 成功一覧", "", "| ガイドライン | ファイル | サイズ | 取得経路 |", "|---|---|---|---|"]
     for r in ok:
-        lines.append(f"| {r['title']} | `{r['file']}` | {r['bytes']/1024/1024:.1f} MB |")
+        lines.append(f"| {r['title']} | `{r['file']}` | {r['bytes']/1024/1024:.1f} MB | {r.get('via') or ''} |")
     (dest_dir / "_download_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -370,7 +463,12 @@ def probe(urls: list[str]) -> int:
         print("URL:", url)
         if url.startswith("doi:"):
             doi = url[4:]
-            print("  EuropePMC:", europepmc_pdf_urls(doi))
+            urls, pmcids = europepmc_lookup(doi)
+            print("  EuropePMC pdf urls:", urls, " pmcids:", pmcids)
+            for pmcid in pmcids:
+                print(f"  NCBI OA ({pmcid}):", ncbi_oa_pdf_urls(pmcid))
+                xml = europepmc_fulltext_xml(pmcid)
+                print(f"  EuropePMC fullTextXML ({pmcid}):", f"{len(xml)} bytes" if xml else None)
             print("  Unpaywall:", unpaywall_pdf_urls(doi))
             continue
         try:
@@ -401,6 +499,9 @@ def probe(urls: list[str]) -> int:
                 h2 = set(re.findall(r'["\'](https?://[^"\'\s]{0,120}api[^"\'\s]{0,120})["\']', jt))
                 h2 |= set(re.findall(r'["\'](/api/[^"\'\s]{0,120})["\']', jt))
                 h2 |= set(re.findall(r'(assets/guidelines[^"\'\s]{0,80})', jt))
+                host = urllib.parse.urlparse(final_url).netloc.split(".")[-2]
+                h2 |= set(u for u in re.findall(r'["\'](https?://[^"\'\s]{5,160})["\']', jt) if host in u)
+                h2 |= set(re.findall(r'["\']((?:/|\./)?[A-Za-z0-9_./-]*(?:v1|v2|graphql|guideline|leitlinie)[A-Za-z0-9_./-]*)["\']', jt))
                 print(f"  api hints ({sc[:60]}):", sorted(h2)[:15])
             except Exception as exc:  # noqa: BLE001
                 print(f"  script fetch failed {sc[:60]}: {exc}")

@@ -1,15 +1,13 @@
 # Probe guideline URLs ワークフローが調査するURL（1行1つ。# で始まる行は無視）
-# doi:xxxx と書くと Europe PMC / Unpaywall による OA 版 PDF の解決結果を表示します
-https://register.awmf.org/de/leitlinien/detail/023-011
-https://register.awmf.org/assets/guidelines/023-011l_S2k_Vorhofseptumdefekt-im-Kindes-und-Jugendalter_2020-06.pdf
+# doi:xxxx と書くと Europe PMC / NCBI OA / 全文XML / Unpaywall による OA 版の解決結果を表示します
 doi:10.1161/CIR.0000000000000696
+doi:10.1161/JAHA.122.025358
 doi:10.1161/CIR.0000000000001211
 doi:10.1093/eurheartj/ehaa554
+doi:10.1186/1532-429X-15-51
 doi:10.1016/j.hrthm.2016.02.009
-https://www.ahajournals.org/doi/pdf/10.1161/CIR.0000000000001211
-https://www.jacc.org/doi/pdf/10.1016/j.jacc.2025.09.006
-https://www.heartrhythmjournal.com/article/S1547-5271(16)00172-7/pdf
-https://www.j-circ.or.jp/old/guideline/pdf/JCS2017_nakatani_h.pdf
-https://www.nice.org.uk/guidance/cg64
-https://pmc.ncbi.nlm.nih.gov/articles/PMC6667221/pdf/
-https://europepmc.org/articles/PMC6667221?pdf=render
+https://www.dgpk.org/leitlinien/
+https://www.dgpk.org/
+https://register.awmf.org/de/leitlinien/detail/023-011
+https://www.j-circ.or.jp/cms/wp-content/uploads/2020/02/JCS2017_nakatani_h.pdf
+https://link.springer.com/content/pdf/10.1186/1532-429X-15-51.pdf

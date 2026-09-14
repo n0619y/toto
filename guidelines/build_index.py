@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """ガイドラインPDF → 全文検索データベース（SQLite FTS5）ビルダー。
 
-pdf/ フォルダのPDFをページ単位でテキスト化し、guidelines.db に格納します。
+pdf/ フォルダのPDF（および PDF が取得できなかった文献の Europe PMC 全文XML）を
+ページ単位でテキスト化し、guidelines.db に格納します。
 日本語・英語どちらも部分一致で検索できるよう trigram トークナイザを使用します。
 
 使い方:
@@ -95,7 +96,59 @@ def _extract_pypdf(path: Path) -> list[str]:
     return [(p.extract_text() or "") for p in reader.pages]
 
 
+def _extract_jats_xml(path: Path) -> list[str]:
+    """Europe PMC 全文XML（JATS）→ セクション単位の疑似ページ列。"""
+    import xml.etree.ElementTree as ET
+
+    root = ET.parse(path).getroot()
+
+    def text_of(el) -> str:
+        parts = []
+        for node in el.iter():
+            if node.tag in ("table-wrap-foot", "xref"):
+                pass
+            if node.text:
+                parts.append(node.text)
+            if node.tail:
+                parts.append(node.tail)
+            if node.tag in ("p", "title", "sec", "tr", "list-item", "label", "caption", "abstract"):
+                parts.append("\n")
+        return re.sub(r"\n{2,}", "\n", "".join(parts))
+
+    pages: list[str] = []
+    head = []
+    for tag in ("article-title", "abstract"):
+        for el in root.iter(tag):
+            head.append(text_of(el))
+            break
+    if head:
+        pages.append("\n".join(head))
+    body = next(root.iter("body"), None)
+    secs = list(body.findall("sec")) if body is not None else []
+    if not secs and body is not None:
+        secs = [body]
+    for sec in secs:
+        t = text_of(sec).strip()
+        # 長いセクションは 3500 字前後で分割（1ページ相当）
+        while len(t) > 4000:
+            cut = t.rfind("\n", 2500, 3600)
+            if cut < 0:
+                cut = 3500
+            pages.append(t[:cut])
+            t = t[cut:]
+        if t:
+            pages.append(t)
+    for tag in ("table-wrap", "back"):
+        for el in root.iter(tag):
+            t = text_of(el).strip()
+            if len(t) > 200 and tag == "table-wrap":
+                pages.append(t)
+    return pages or [text_of(root)]
+
+
 def extract_pages(path: Path) -> list[str]:
+    if path.suffix.lower() == ".xml":
+        return _extract_jats_xml(path)
     errors = []
     for fn in (_extract_pymupdf, _extract_pypdf):
         try:
@@ -189,8 +242,9 @@ def build(catalog_path: Path, pdf_dir: Path, db_path: Path, rebuild: bool = Fals
         fname = expected_filename(e)
         pdf = pdf_dir / fname
         if not pdf.exists():
-            # 別名で保存されている場合（id を含むファイル名）も許容
-            cands = list(pdf_dir.glob(f"*{e['id']}*.pdf"))
+            # PDF が無ければ全文XML、さらに別名で保存されている場合（id を含むファイル名）も許容
+            cands = [pdf.with_suffix(".xml")] + list(pdf_dir.glob(f"*{e['id']}*.pdf")) + list(pdf_dir.glob(f"*{e['id']}*.xml"))
+            cands = [c for c in cands if c.exists()]
             pdf = cands[0] if cands else pdf
         if not pdf.exists():
             upsert_document(conn, e, None, 0, 0, None)
@@ -241,9 +295,11 @@ def print_stats(db_path: Path) -> None:
         print("DBがまだありません。python guidelines/build_index.py を実行してください。")
         return
     conn = sqlite3.connect(db_path)
-    total, with_file = conn.execute("SELECT COUNT(*), SUM(file IS NOT NULL) FROM documents").fetchone()
+    total, with_file, with_xml = conn.execute(
+        "SELECT COUNT(*), SUM(file IS NOT NULL), SUM(file LIKE '%.xml') FROM documents"
+    ).fetchone()
     pages = conn.execute("SELECT COUNT(*) FROM pages").fetchone()[0]
-    print(f"登録ガイドライン: {total} 件（PDFあり: {with_file or 0} 件） / 検索対象ページ: {pages:,}")
+    print(f"登録ガイドライン: {total} 件（本文あり: {with_file or 0} 件、うち全文XML: {with_xml or 0} 件） / 検索対象ページ: {pages:,}")
     for region, n, p in conn.execute(
         "SELECT region, COUNT(*), SUM(pages) FROM documents GROUP BY region ORDER BY region"
     ):

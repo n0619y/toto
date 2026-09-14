@@ -169,7 +169,11 @@ class SearchEngine:
                     "region": r["region"],
                     "category": r["category"],
                     "language": r["language"],
-                    "pdf": f"/pdf/{urllib.parse.quote(r['file'])}#page={r['page']}" if r["file"] else None,
+                    "pdf": (
+                        f"/pdf/{urllib.parse.quote(r['file'])}#page={r['page']}"
+                        if r["file"] and r["file"].lower().endswith(".pdf") else None
+                    ),
+                    "fulltext": r["file"].lower().endswith(".xml") if r["file"] else False,
                     "source_url": r["url"],
                 }
             )
@@ -237,7 +241,9 @@ class SearchEngine:
         docs = []
         for r in conn.execute("SELECT * FROM documents ORDER BY region, year DESC, title_ja"):
             d = dict(r)
-            d["pdf"] = f"/pdf/{urllib.parse.quote(d['file'])}" if d.get("file") else None
+            f = d.get("file") or ""
+            d["pdf"] = f"/pdf/{urllib.parse.quote(f)}" if f.lower().endswith(".pdf") else None
+            d["fulltext"] = f.lower().endswith(".xml")
             docs.append(d)
         return docs
 
