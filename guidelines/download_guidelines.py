@@ -466,15 +466,18 @@ def probe(urls: list[str]) -> int:
             try:
                 html, _, final = _fetch(base)
                 ht = html.decode("utf-8", errors="ignore")
+                mb = re.search(r'<base[^>]+href=["\']([^"\']+)["\']', ht)  # <base href> を尊重
+                if mb:
+                    final = urllib.parse.urljoin(final, mb.group(1))
                 scripts = [urllib.parse.urljoin(final, sc) for sc in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', ht)]
                 chunk_urls: list[str] = []
                 for sc in scripts:
                     js, _, _ = _fetch(sc)
                     jt = js.decode("utf-8", errors="ignore")
                     # Angular/webpack runtime のチャンク表 {id:"hash",...}
-                    for table in re.findall(r"\{((?:\d+:\"[0-9a-f]{8,}\",?)+)\}", jt):
-                        for cid, h in re.findall(r"(\d+):\"([0-9a-f]{8,})\"", table):
-                            chunk_urls.append(urllib.parse.urljoin(final, f"{cid}.{h}.js"))
+                    for cid, h in re.findall(r"(\d+):\"([0-9a-f]{12,})\"", jt):
+                        chunk_urls.append(urllib.parse.urljoin(final, f"{cid}.{h}.js"))
+                    chunk_urls = list(dict.fromkeys(chunk_urls))
                 print("  scripts:", scripts)
                 print("  lazy chunks:", len(chunk_urls))
                 keys = ("api", "http", "graphql", "/v1", "/v2", "guideline", "leitlinie", "assets/", ".pdf", ".json", "download")
