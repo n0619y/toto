@@ -461,6 +461,21 @@ def probe(urls: list[str]) -> int:
     for url in urls:
         print("=" * 100)
         print("URL:", url)
+        if url.startswith("js:"):  # JS バンドル内の API/URL 文字列を列挙（SPA の API 探索用）
+            try:
+                js, _, _ = _fetch(url[3:])
+                jt = js.decode("utf-8", errors="ignore")
+                lits = set(re.findall(r'["\'`]([^"\'`\s]{4,200})["\'`]', jt))
+                keys = ("api", "guideline", "leitlinie", "assets/", "register", "graphql", "/v1", "/v2", "detail", ".pdf", ".json")
+                hits = sorted(x for x in lits if any(k in x.lower() for k in keys))
+                print(f"  {len(lits)} literals; matching {len(hits)}:")
+                for x in hits[:120]:
+                    print("   ", x)
+                for m in sorted(set(re.findall(r'https?://[A-Za-z0-9.-]+\.[a-z]{2,}[^"\'`\s)]*', jt)))[:60]:
+                    print("    URL:", m)
+            except Exception as exc:  # noqa: BLE001
+                print("  ERROR", exc)
+            continue
         if url.startswith("doi:"):
             doi = url[4:]
             urls, pmcids = europepmc_lookup(doi)

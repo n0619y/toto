@@ -1,13 +1,8 @@
 # Probe guideline URLs ワークフローが調査するURL（1行1つ。# で始まる行は無視）
-# doi:xxxx と書くと Europe PMC / NCBI OA / 全文XML / Unpaywall による OA 版の解決結果を表示します
-doi:10.1161/CIR.0000000000000696
-doi:10.1161/JAHA.122.025358
-doi:10.1161/CIR.0000000000001211
-doi:10.1093/eurheartj/ehaa554
-doi:10.1186/1532-429X-15-51
-doi:10.1016/j.hrthm.2016.02.009
-https://www.dgpk.org/leitlinien/
-https://www.dgpk.org/
-https://register.awmf.org/de/leitlinien/detail/023-011
-https://www.j-circ.or.jp/cms/wp-content/uploads/2020/02/JCS2017_nakatani_h.pdf
-https://link.springer.com/content/pdf/10.1186/1532-429X-15-51.pdf
+# doi:xxxx → Europe PMC / NCBI OA / 全文XML / Unpaywall の解決結果、js:URL → JSバンドル内のAPI手掛かりを表示
+js:https://register.awmf.org/main.1c15525aa934ab66.js
+https://register.awmf.org/api/v1/guidelines/023-011
+https://register.awmf.org/api/guidelines/023-011
+https://leitlinien-api.awmf.org/v1/guidelines/023-011
+https://www.awmf.org/leitlinien/detail/ll/023-011.html
+https://register.awmf.org/de/leitlinien/detail/023-011/pdf
