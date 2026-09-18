@@ -37,6 +37,17 @@ DEFAULT_ALIASES = {
 PREV_DAY_SUFFIX = "前日"
 
 
+def load_aliases(path: str | None) -> dict[str, str]:
+    """略称ファイル (yaml: 予定名 → 表示名) を読む."""
+    if not path:
+        return {}
+    import yaml
+
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    return {str(k): str(v) for k, v in data.items()}
+
+
 @dataclass
 class ParsedEvent:
     name: str
@@ -62,16 +73,17 @@ _AMPM = {
 }
 
 
-def split_top_level(text: str) -> list[str]:
-    """括弧の外にあるカンマで分割する."""
+def split_top_level(text: str, separators: str = ",、/") -> list[str]:
+    """括弧の外にあるカンマ (と "/") で分割する. "雄勝(AM)/大曲厚生 (PM)" のような書き方にも対応."""
     out, depth, buf = [], 0, ""
     for ch in text:
         if ch in "(（":
             depth += 1
         elif ch in ")）":
             depth = max(0, depth - 1)
-        if ch in ",、" and depth == 0:
-            out.append(buf.strip())
+        if ch in separators and depth == 0:
+            if buf.strip():
+                out.append(buf.strip())
             buf = ""
         else:
             buf += ch
@@ -110,6 +122,12 @@ def parse_event(item: str, aliases: dict[str, str] | None = None) -> ParsedEvent
         return ev
 
     if qual is None:
+        if name.endswith("当直"):  # 当直 = 夜間
+            ev.slots = [2]
+            return ev
+        if name.endswith("日直"):  # 日直 = 昼間
+            ev.slots = [0, 1]
+            return ev
         # 無印: 休暇などは昼間 (AM/PM). 他の予定に譲る (優先度低)
         ev.slots = [0, 1]
         ev.priority = 0
@@ -134,9 +152,11 @@ def parse_event(item: str, aliases: dict[str, str] | None = None) -> ParsedEvent
             ev.slots = [start]
         return ev
 
-    # 括弧内が時刻でも AM/PM でもない → 場所とみなして終日. ラベルは場所
+    # 括弧内が時刻でも AM/PM でもない → 場所とみなして終日.
+    # ラベルは場所 (元表の "OSCE外部評価者 (佐賀)" → "佐賀")。ただし名前が短ければ名前のまま ("私用 (岩手)" → "私用")
     ev.slots = [0, 1, 2]
-    ev.label = aliases.get(qual, qual)
+    if name not in aliases and len(name) > 4:
+        ev.label = aliases.get(qual, qual)
     return ev
 
 

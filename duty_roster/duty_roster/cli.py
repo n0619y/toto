@@ -23,7 +23,7 @@ from .plan_template import make_plan_template
 from .recurring import Recurring
 from .render_pdf import PdfStyle, render_pdf
 from .render_xlsx import save_xlsx, xlsx_to_pdf
-from .skeleton import build_skeleton, skeleton_yaml
+from .skeleton import build_skeleton, load_aliases, skeleton_yaml
 
 
 def _month(s: str) -> tuple[int, int]:
@@ -42,7 +42,7 @@ def cmd_parse_plan(a: argparse.Namespace) -> int:
 def cmd_skeleton(a: argparse.Namespace) -> int:
     y, m = _month(a.month) if a.month else (None, None)
     plan = load_plan(a.input, y, m)
-    roster, comments = build_skeleton(plan)
+    roster, comments = build_skeleton(plan, load_aliases(a.aliases))
     with open(a.output, "w", encoding="utf-8") as f:
         f.write(skeleton_yaml(roster, comments))
     print(f"雛形を書き出しました: {a.output}  (予定だけ入っています。1st / 2nd を埋めてください)")
@@ -127,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     s = sub.add_parser("skeleton", help="plan → 予定だけ入れた roster 雛形")
     s.add_argument("input", help="plan.yaml または予定一覧 PDF/xlsx")
     s.add_argument("--month")
+    s.add_argument("--aliases", help="予定名の略称ファイル (data/aliases.yaml)")
     s.add_argument("-o", "--output", required=True)
     s.set_defaults(func=cmd_skeleton)
 

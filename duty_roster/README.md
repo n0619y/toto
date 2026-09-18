@@ -18,6 +18,8 @@ duty_roster/
 │   ├── check.py            集計・整合性チェック
 │   └── cli.py              コマンドライン
 ├── data/recurring.yaml     各月共通の定例予定 (テンプレートに自動入力される)
+├── data/aliases.yaml       予定名 → カレンダー表示名 (略称)
+├── data/2026-10/           10 月の予定一覧 (plan.yaml) と予定だけ入れた当番表 (roster.yaml)
 ├── data/2026-09/
 │   ├── plan.yaml           1 枚目を読んだ結果
 │   ├── roster_skeleton.yaml plan から自動生成した雛形 (予定のみ)
@@ -44,8 +46,8 @@ PDF 出力には日本語フォントが必要です。IPA ゴシック / Noto S
 # 1. 予定一覧 (1 枚目) を読む → plan.yaml
 python -m duty_roster parse-plan samples/Schedule_202609_plan.pdf --month 2026-09 -o data/2026-09/plan.yaml
 
-# 2. 予定だけ埋めた雛形を作る (1st / 2nd は人が (将来は自動で) 埋める)
-python -m duty_roster skeleton data/2026-09/plan.yaml -o data/2026-09/roster_skeleton.yaml
+# 2. 予定だけ埋めた雛形を作る (1st / 2nd は人が (将来は自動で) 埋める). --aliases で長い予定名を略称に置き換え
+python -m duty_roster skeleton data/2026-09/plan.yaml --aliases data/aliases.yaml -o data/2026-09/roster_skeleton.yaml
 
 # 3. roster.yaml からカレンダーを出力 (PDF と xlsx)
 python -m duty_roster render data/2026-09/roster.yaml -o output/2026-09/Schedule_2026-09

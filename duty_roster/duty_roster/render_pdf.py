@@ -256,6 +256,10 @@ def _wrap_point(text: str, width_of, inner: float) -> int | None:  # noqa: ANN00
     fits = [n for n in range(1, len(text)) if width_of(text[:n]) <= inner and width_of(text[n:]) <= inner]
     if not fits:
         return None
+    # 1 文字だけの行はなるべく避ける ("1ヶ月健診" → "1ヶ月/健診")
+    balanced = [n for n in fits if n >= 2 and len(text) - n >= 2]
+    if balanced:
+        fits = balanced
     mid = len(text) / 2
     spaces = [n for n in fits if text[n - 1] == " " or text[n] == " "]
     if spaces:
