@@ -245,11 +245,15 @@ class Cell:
         return "\n".join(self.lines)
 
 
+MAX_CROSS_DAY_SLOTS = 6  # 日をまたいで 1 セルにまとめる予定の最大コマ数 (2 日分)
+
+
 def build_cells(roster: Roster) -> list[Cell]:
     """結合ルールに従って描画セルを生成する.
 
     * 同じ色・同じ表示文字の隣接コマは結合する
-    * 「予定のみ」のセルは日をまたいで結合できる (例: 出張 4日PM〜6日AM)
+    * 「予定のみ」のセルは日をまたいで結合できる (例: 出張 4日PM〜6日AM)。
+      ただし 2 日分 (MAX_CROSS_DAY_SLOTS コマ) を超える長い予定 (夏季休暇 1 週間など) は日ごとのセルに分ける
     * 当番セルは同じ日の中でのみ結合する
     * 空きセル (白 / 水色) は結合しない (バツ印付きの空きセル同士は結合する)
     """
@@ -289,7 +293,16 @@ def build_cells(roster: Roster) -> list[Cell]:
                     run = cell if mergeable else None
                     run_day = day
                     run_event_only = spec.is_event_only
-    return cells
+    # 長すぎる日またぎセルは日ごとに分割する
+    out: list[Cell] = []
+    for cell in cells:
+        if cell.end - cell.start + 1 > MAX_CROSS_DAY_SLOTS and cell.start // 3 != cell.end // 3:
+            for di in range(cell.start // 3, cell.end // 3 + 1):
+                s0, e0 = max(cell.start, di * 3), min(cell.end, di * 3 + 2)
+                out.append(Cell(cell.member, cell.week_index, s0, e0, cell.color, cell.lines, cell.cross))
+        else:
+            out.append(cell)
+    return out
 
 
 def iter_slots(roster: Roster) -> Iterable[tuple[int, str, int, SlotSpec]]:

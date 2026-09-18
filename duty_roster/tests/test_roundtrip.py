@@ -197,3 +197,14 @@ def test_recurring_expansion():
     assert nov[11]["仲本"] == "心臓カテーテル (AM)"
     assert nov[6]["仲本"] == "由利組合 (PM)"
     assert nov[10]["仲本"] == "外来 (AM/PM)"
+
+
+def test_long_event_split_per_day():
+    roster = Roster(2026, 10, ["A"])
+    for d in range(12, 19):  # 12 (月) 〜 18 (日) 終日 夏季休暇
+        roster.days[d] = {"A": [SlotSpec.parse("夏季休暇")] * 3}
+    roster.days[10] = {"A": [SlotSpec.parse("仙台")] * 3}  # 10 (土), 11 (日) は 2 日分なので 1 セル
+    roster.days[11] = {"A": [SlotSpec.parse("仙台")] * 3}
+    spans = {(c.week_index, c.start, c.end, c.text) for c in build_cells(roster) if c.lines}
+    assert (1, 15, 20, "仙台") in spans
+    assert all((2, di * 3, di * 3 + 2, "夏季休暇") in spans for di in range(7))
