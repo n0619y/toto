@@ -44,13 +44,15 @@ GitHub Actions がカタログ内の全PDFを自動取得し、Release `guidelin
 Release ページ: <https://github.com/n0619y/toto/releases/tag/guidelines-latest>
 
 - GitHub の **Actions → "Build CHD guideline bundle" → Run workflow** で再生成できます（`catalog/guidelines.json` を更新して push しても自動実行）。
-- 取得の仕組み: ①台帳の直接URL → ②Europe PMC / NCBI OA サービス経由のオープンアクセス版 → ③紹介ページ内のPDFリンク →
-  ④それでもPDFが無い場合は **Europe PMC の全文XML** を保存し、検索DBの本文として使います（ZIP内の `.xml`）。
-- **現在の自動取得状況（2026-09 時点）: 219件中 126件**（PDF 118件 ＋ 全文XML 8件）。
-  残り約90件は AHA Journals（Circulation の科学声明）・Elsevier系（JACC / Heart Rhythm / JTCVS）・Oxford Academic（EHJ / Europace）・BMJ・
-  ドイツ AWMF レジスタなどが自動取得（bot）を拒否するものです。これらはブラウザでは無料で開けるものが大半なので、
+- 取得の仕組み: ①台帳の直接URL → ②Europe PMC / NCBI OA サービス経由のオープンアクセス版、AWMF レジスタ（独）公開API →
+  ③紹介ページ内のPDFリンク → ④それでもPDFが無い場合は **Europe PMC の全文XML** を保存し、検索DBの本文として使います（ZIP内の `.xml`）。
+- **現在の自動取得状況（2026-09-29 ビルド）: 219件中 136件**（PDF 128件 ＋ 全文XML 8件、約 4,000 ページ超を全文検索可能）。
+  残り約80件は AHA Journals（Circulation の科学声明）・Elsevier系（JACC / Heart Rhythm / JTCVS）・Oxford Academic（EHJ / Europace）・BMJ、
+  および AWMF 側で「期限切れ・改訂中」扱いのためファイル情報が公開されていないドイツ語ガイドライン（ASD・VSD・AVSD・TGA など 10件）が
+  自動取得（bot）を拒否するものです。これらはブラウザでは無料で開けるものが大半なので、
   `download_report.md` の **「手動ダウンロードが必要なもの」表のリンクを開き、指定ファイル名で `guidelines/pdf/` に保存** →
   `python guidelines/build_index.py` を実行すれば検索対象に加わります。
+  配布元サイトの一時的な障害で失敗したもの（例: JPIC のカテーテル治療適応ガイドライン）は次回ビルドで自動的に再試行されます。
 - リポジトリ変数 `UNPAYWALL_EMAIL`（Settings → Secrets and variables → Actions → Variables）に自分のメールアドレスを設定すると、
   Unpaywall API 経由のOA版探索も有効になります（ローカル実行時は環境変数で指定）。
 
