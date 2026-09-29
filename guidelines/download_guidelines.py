@@ -196,35 +196,77 @@ def unpaywall_pdf_urls(doi: str) -> list[str]:
     return out
 
 
-_AWMF_RE = re.compile(r"register\.awmf\.org/de/leitlinien/detail/(\d{3}-\d{3}[A-Za-z]*)")
+_AWMF_RE = re.compile(r"(?:register\.awmf\.org/de/leitlinien/detail/|awmf\.org/leitlinien/detail/ll/)(\d{3}-\d{3}[A-Za-z]*)")
+# AWMF レジスタ（register.awmf.org）の SPA が利用している公開 API。
+# Api-Key は SPA の JS に埋め込まれている公開クライアントキー（ブラウザと同じ経路でアクセスする）。
+AWMF_API_BASE = "https://leitlinien-api.awmf.org/v1/"
+AWMF_API_KEY = os.environ.get("AWMF_API_KEY", "MkI5Y1VIOEJ0ZGpoelNBVXRNM1E6WVFld0pBUF9RLVdJa012UHVPTmRQUQ==")
+
+
+def _walk_strings(obj, out: list[str]) -> None:
+    if isinstance(obj, dict):
+        for v in obj.values():
+            _walk_strings(v, out)
+    elif isinstance(obj, list):
+        for v in obj:
+            _walk_strings(v, out)
+    elif isinstance(obj, str):
+        out.append(obj)
+
+
+def awmf_api_get(path: str) -> object | None:
+    req = urllib.request.Request(AWMF_API_BASE + path, headers={**HEADERS, "Api-Key": AWMF_API_KEY, "Accept": "application/json"})
+    with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+        body = resp.read()
+    try:
+        return json.loads(body.decode("utf-8", errors="ignore"))
+    except json.JSONDecodeError:
+        return body.decode("utf-8", errors="ignore")
+
+
+def awmf_candidate_paths(reg: str) -> list[str]:
+    return [
+        f"get/detail/{reg}?limit=20&lang=de",
+        f"get/guideline/{reg}?limit=20&lang=de",
+        f"get/registernumber/{reg}?limit=20&lang=de",
+        f"get/AWMFGuidelineID/{reg}?limit=20&lang=de",
+        f"search/{reg}?limit=20&lang=de",
+        f"search/keywords/{reg}?limit=20&lang=de",
+    ]
 
 
 def awmf_pdf_urls(url: str) -> list[str]:
-    """AWMF レジスタ（ドイツ）の SPA ランディングページから PDF URL を解決する。"""
+    """AWMF レジスタの公開 API からガイドライン本文（Langfassung）PDF の URL を解決する。"""
     m = _AWMF_RE.search(url or "")
     if not m:
         return []
     reg = m.group(1)
     out: list[str] = []
-    # 公開 JSON API（SPA が内部で使用しているもの）を順に試す
-    for api in (
-        f"https://register.awmf.org/api/v1/guidelines/{reg}",
-        f"https://register.awmf.org/api/guidelines/{reg}",
-        f"https://leitlinien-api.awmf.org/v1/guidelines/{reg}",
-    ):
+    for path in awmf_candidate_paths(reg):
         try:
-            body, ctype, _ = _fetch(api)
+            data = awmf_api_get(path)
         except Exception:  # noqa: BLE001
             continue
-        text = body.decode("utf-8", errors="ignore")
-        for link in re.findall(r"https?://[^\s\"'<>]+?\.pdf", text):
-            if link not in out:
-                out.append(link)
-        for rel in re.findall(r"\"(/?assets/guidelines/[^\"]+?\.pdf)\"", text):
-            link = urllib.parse.urljoin("https://register.awmf.org/", rel)
-            if link not in out:
-                out.append(link)
-        if out:
+        strings: list[str] = []
+        _walk_strings(data, strings) if not isinstance(data, str) else strings.append(data)
+        found = []
+        for sv in strings:
+            for link in re.findall(r"(?:https?://[^\s\"'<>]+?|[^\s\"'<>]*assets/guidelines/[^\s\"'<>]+?)\.pdf", sv):
+                if not link.startswith("http"):
+                    link = urllib.parse.urljoin("https://register.awmf.org/assets/guidelines/", link.split("assets/guidelines/")[-1])
+                if link not in found:
+                    found.append(link)
+        if found:
+            # 本文（Langfassung: "l_" / "-l_" / "l_S"）を優先し、報告書・患者版・短縮版は後ろへ
+            def rank(u: str) -> tuple:
+                name = u.rsplit("/", 1)[-1].lower()
+                return (
+                    0 if re.search(r"(^|[_-])l_", name) or "langfassung" in name else 1,
+                    1 if re.search(r"(report|patient|kurz|_k_|_p_|_m_|abgelaufen)", name) else 0,
+                    name,
+                )
+            found.sort(key=rank)
+            out.extend(found)
             break
     return out
 
@@ -461,6 +503,19 @@ def probe(urls: list[str]) -> int:
     for url in urls:
         print("=" * 100)
         print("URL:", url)
+        if url.startswith("awmf:"):  # AWMF API の各候補パスの応答を表示
+            reg = url[5:]
+            for path in awmf_candidate_paths(reg):
+                try:
+                    data = awmf_api_get(path)
+                    txt = json.dumps(data, ensure_ascii=False)[:1500] if not isinstance(data, str) else data[:1500]
+                    print(f"  [{path}] OK: {txt}")
+                except urllib.error.HTTPError as exc:
+                    print(f"  [{path}] HTTP {exc.code}: {exc.read()[:200].decode('utf-8', 'ignore')}")
+                except Exception as exc:  # noqa: BLE001
+                    print(f"  [{path}] ERROR {exc}")
+            print("  resolved:", awmf_pdf_urls(f"https://register.awmf.org/de/leitlinien/detail/{reg}"))
+            continue
         if url.startswith("ctx:"):  # ctx:URL|regex → 一致箇所の前後 300 文字を表示（JS内のAPI定義の確認用）
             target, _, pat = url[4:].partition("|")
             try:
