@@ -43,6 +43,19 @@ jobs:
       - name: Install dependencies
         run: pip install pymupdf
 
+      - name: Restore PDFs from the previous release (keeps files whose source went offline)
+        run: |
+          set +e
+          curl -sSL --retry 3 -o /tmp/prev.zip \
+            "https://github.com/${GITHUB_REPOSITORY}/releases/download/guidelines-latest/chd-guidelines-pdf.zip"
+          if [ -s /tmp/prev.zip ]; then
+            mkdir -p guidelines/pdf
+            unzip -q -o /tmp/prev.zip 'pdf/*.pdf' 'pdf/*.xml' -d guidelines/ && echo "restored $(ls guidelines/pdf | wc -l) files"
+          else
+            echo "no previous release bundle"
+          fi
+          exit 0
+
       - name: Download all guideline PDFs
         # 一部が publisher 側でブロックされても続行（レポートに記録される）
         # UNPAYWALL_EMAIL（リポジトリ変数）を設定すると Unpaywall 経由でOA版も探します
