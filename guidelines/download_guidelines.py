@@ -225,14 +225,14 @@ def awmf_api_get(path: str) -> object | None:
 
 
 def awmf_candidate_paths(reg: str) -> list[str]:
-    return [
-        f"get/detail/{reg}?limit=20&lang=de",
-        f"get/guideline/{reg}?limit=20&lang=de",
-        f"get/registernumber/{reg}?limit=20&lang=de",
-        f"get/AWMFGuidelineID/{reg}?limit=20&lang=de",
-        f"search/{reg}?limit=20&lang=de",
-        f"search/keywords/{reg}?limit=20&lang=de",
-    ]
+    """レジスタ番号 '023-011' → API パス get/<学会番号>/<ガイドライン番号>。"""
+    assoc, _, num = reg.partition("-")
+    num_core = re.sub(r"[^0-9]", "", num) or num
+    paths = [f"get/{assoc}/{num_core}?limit=20&lang=de"]
+    if num != num_core:
+        paths.append(f"get/{assoc}/{num}?limit=20&lang=de")
+    paths.append(f"get/{assoc}/{num_core}?limit=20&lang=de&include_outdated=1")
+    return paths
 
 
 def awmf_pdf_urls(url: str) -> list[str]:
