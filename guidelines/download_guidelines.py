@@ -508,8 +508,15 @@ def probe(urls: list[str]) -> int:
             for path in awmf_candidate_paths(reg):
                 try:
                     data = awmf_api_get(path)
-                    txt = json.dumps(data, ensure_ascii=False)[:1500] if not isinstance(data, str) else data[:1500]
-                    print(f"  [{path}] OK: {txt}")
+                    if isinstance(data, dict):
+                        recs = data.get("records") or []
+                        print(f"  [{path}] hits={data.get('meta', {}).get('hits')} records={len(recs)}")
+                        for rec in recs[:2]:
+                            slim = {k: v for k, v in rec.items() if k not in ("description", "coordination", "contactAddress", "contactEmail", "contactName")}
+                            print("    keys:", sorted(rec.keys()))
+                            print("    record:", json.dumps(slim, ensure_ascii=False)[:4000])
+                    else:
+                        print(f"  [{path}] OK: {str(data)[:1500]}")
                 except urllib.error.HTTPError as exc:
                     print(f"  [{path}] HTTP {exc.code}: {exc.read()[:200].decode('utf-8', 'ignore')}")
                 except Exception as exc:  # noqa: BLE001
