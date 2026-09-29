@@ -235,39 +235,48 @@ def awmf_candidate_paths(reg: str) -> list[str]:
     return paths
 
 
+AWMF_TYPE_RANK = {"longVersion": 0, "shortVersion": 1, "practiceGuidance": 2, "evidenceReport": 3, "guidelineReport": 4, "patientGuideline": 5}
+
+
 def awmf_pdf_urls(url: str) -> list[str]:
-    """AWMF レジスタの公開 API からガイドライン本文（Langfassung）PDF の URL を解決する。"""
+    """AWMF レジスタの公開 API からガイドライン文書（Langfassung 優先）の PDF URL を解決する。
+
+    API の records[].links[] に {type: longVersion|shortVersion|guidelineReport..., media: <ファイル名>} が入り、
+    実ファイルは https://register.awmf.org/assets/guidelines/<media> に置かれている（SPA と同じ組み立て）。
+    """
     m = _AWMF_RE.search(url or "")
     if not m:
         return []
     reg = m.group(1)
-    out: list[str] = []
+    found: list[tuple[int, int, str]] = []
     for path in awmf_candidate_paths(reg):
         try:
             data = awmf_api_get(path)
         except Exception:  # noqa: BLE001
             continue
-        strings: list[str] = []
-        _walk_strings(data, strings) if not isinstance(data, str) else strings.append(data)
-        found = []
-        for sv in strings:
-            for link in re.findall(r"(?:https?://[^\s\"'<>]+?|[^\s\"'<>]*assets/guidelines/[^\s\"'<>]+?)\.pdf", sv):
-                if not link.startswith("http"):
-                    link = urllib.parse.urljoin("https://register.awmf.org/assets/guidelines/", link.split("assets/guidelines/")[-1])
-                if link not in found:
-                    found.append(link)
+        if not isinstance(data, dict):
+            continue
+        for rec in data.get("records") or []:
+            status_rank = 0 if rec.get("AWMFStatus") == 1 else 1  # 有効なガイドラインを優先
+            for link in rec.get("links") or []:
+                media = (link.get("media") or "").strip()
+                href = (link.get("href") or "").strip()
+                ltype = link.get("type") or ""
+                if ltype not in AWMF_TYPE_RANK:
+                    continue
+                target = ""
+                if media:
+                    target = urllib.parse.urljoin("https://register.awmf.org/assets/guidelines/", media)
+                elif href.lower().endswith(".pdf"):
+                    target = href if href.startswith("http") else urllib.parse.urljoin("https://register.awmf.org/assets/guidelines/", href)
+                if target:
+                    found.append((status_rank, AWMF_TYPE_RANK[ltype], target))
         if found:
-            # 本文（Langfassung: "l_" / "-l_" / "l_S"）を優先し、報告書・患者版・短縮版は後ろへ
-            def rank(u: str) -> tuple:
-                name = u.rsplit("/", 1)[-1].lower()
-                return (
-                    0 if re.search(r"(^|[_-])l_", name) or "langfassung" in name else 1,
-                    1 if re.search(r"(report|patient|kurz|_k_|_p_|_m_|abgelaufen)", name) else 0,
-                    name,
-                )
-            found.sort(key=rank)
-            out.extend(found)
             break
+    out: list[str] = []
+    for _, _, u in sorted(found):
+        if u not in out:
+            out.append(u)
     return out
 
 
