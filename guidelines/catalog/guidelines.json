@@ -130,7 +130,11 @@
    "landing_url": "http://www.jpic-meeting.org/",
    "doi": null,
    "url_is_pdf": true,
-   "notes": "Year uncertain (approx.); superseded by 2024 revision."
+   "notes": "Year uncertain (approx.); superseded by 2024 revision.",
+   "alt_urls": [
+    "https://jspccs.jp/wp-content/uploads/GLCI2012.pdf"
+   ],
+   "pdf_url_alt": "https://jspccs.jp/wp-content/uploads/GLCI2012.pdf"
   },
   {
    "id": "jcs2026-inherited-arrhythmia",
