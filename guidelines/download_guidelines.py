@@ -461,6 +461,20 @@ def probe(urls: list[str]) -> int:
     for url in urls:
         print("=" * 100)
         print("URL:", url)
+        if url.startswith("ctx:"):  # ctx:URL|regex → 一致箇所の前後 300 文字を表示（JS内のAPI定義の確認用）
+            target, _, pat = url[4:].partition("|")
+            try:
+                body, _, _ = _fetch(target)
+                text = body.decode("utf-8", errors="ignore")
+                hits = list(re.finditer(pat or "api", text))
+                print(f"  {len(text)} chars, {len(hits)} matches for /{pat}/")
+                for m in hits[:12]:
+                    a, b = max(0, m.start() - 300), min(len(text), m.end() + 300)
+                    print("  ---", m.start())
+                    print("  " + text[a:b].replace("\n", " "))
+            except Exception as exc:  # noqa: BLE001
+                print("  ERROR", exc)
+            continue
         if url.startswith("spa:"):  # SPA: HTML → 全スクリプト → 遅延チャンクまで辿って API 手掛かりを列挙
             base = url[4:]
             try:
