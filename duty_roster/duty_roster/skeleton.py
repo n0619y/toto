@@ -55,6 +55,7 @@ class ParsedEvent:
     slots: list[int] = field(default_factory=list)  # 0=AM 1=PM 2=NIGHT
     label: str = ""
     unavailable_night: bool = False
+    note_only: bool = False  # "1st不可" のような制約: コマには入れずコメントに残す
     priority: int = 1  # 大きいほど優先 (同じコマに複数の予定があるとき)
 
 
@@ -89,7 +90,11 @@ def split_top_level(text: str, separators: str = ",、/") -> list[str]:
             buf += ch
     if buf.strip():
         out.append(buf.strip())
-    return out
+    # "大学外来 (AM) 日赤 (PM)" / "外来 (AM/PM)　当直" のように、閉じ括弧の後の空白 (全角含む) で区切られた項目も分ける
+    split_out: list[str] = []
+    for item in out:
+        split_out.extend(x.strip() for x in re.split(r"(?<=[)）])[ \u3000]+(?=\S)", item) if x.strip())
+    return split_out
 
 
 def _hour_of(q: str) -> float | None:
@@ -118,6 +123,10 @@ def parse_event(item: str, aliases: dict[str, str] | None = None) -> ParsedEvent
 
     if name.endswith(PREV_DAY_SUFFIX):
         ev.unavailable_night = True
+        ev.slots = []
+        return ev
+    if "不可" in name or "希望" in name:  # "1st不可", "1st不可(私用)", "当番希望" → 制約として注記のみ
+        ev.note_only = True
         ev.slots = []
         return ev
 
@@ -171,6 +180,9 @@ def events_to_slots(text: str, aliases: dict[str, str] | None = None) -> tuple[l
         ev = parse_event(item, aliases)
         if ev.unavailable_night:
             notes.append(f"{ev.name} (夜は当番不可)")
+            continue
+        if ev.note_only:
+            notes.append(item)
             continue
         placed = False
         for s in ev.slots:

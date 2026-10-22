@@ -208,3 +208,21 @@ def test_long_event_split_per_day():
     spans = {(c.week_index, c.start, c.end, c.text) for c in build_cells(roster) if c.lines}
     assert (1, 15, 20, "仙台") in spans
     assert all((2, di * 3, di * 3 + 2, "夏季休暇") in spans for di in range(7))
+
+
+@pytest.mark.parametrize(
+    "text, expected, note",
+    [
+        ("大学外来 (AM) 日赤 (PM)", ["大学外来", "日赤", "-"], []),
+        ("外来 (AM/PM)　当直", ["外来", "外来", "当直"], []),
+        ("センター業務 (PM)　県医師会病院訪問＠大学病院", ["県医師会病院訪問＠大学病院", "センター業務", "-"], []),
+        ("心臓カテーテル (AM), 1st不可 ", ["心臓カテーテル", "-", "-"], ["1st不可"]),
+        ("1st不可(私用)", ["-", "-", "-"], ["1st不可(私用)"]),
+        ("日直", ["日直", "日直", "-"], []),
+        ("休み", ["休み", "休み", "-"], []),
+    ],
+)
+def test_events_to_slots_november_notation(text, expected, note):
+    specs, notes = events_to_slots(text)
+    assert [s.to_text() for s in specs] == expected
+    assert notes == note
