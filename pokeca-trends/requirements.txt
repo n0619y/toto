@@ -1,0 +1,8 @@
+# ポケカ話題まとめ（pokeca-trends）依存パッケージ
+anthropic>=2.8.0       # Claude API（要約・感情分析・買取表画像の読み取り）
+pydantic>=2.6          # 構造化出力のスキーマ
+python-dotenv>=1.0.0   # .env 読み込み
+PyYAML>=6.0            # 設定ファイル
+requests>=2.31.0       # 各SNS API / 買取表取得
+beautifulsoup4>=4.12.0 # 買取表HTMLのパース
+Jinja2>=3.1.2          # 静的サイト生成

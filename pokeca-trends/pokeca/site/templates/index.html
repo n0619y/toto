@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% from "_senti.html" import senti %}
+{% block title %}{{ date }} のポケカ話題ランキング｜{{ site_title }}{% endblock %}
+{% block body %}
+<h1>{{ date }} のポケカ話題ランキング</h1>
+<p class="sub">国内・海外のSNSから {{ stats.posts }} 件の投稿を収集し、{{ topics|length }} の話題にまとめました。{% if not ai %}（簡易分析モード）{% endif %}</p>
+
+<div class="stats">
+  <div class="card stat"><div class="k">収集投稿数</div><div class="v">{{ "{:,}".format(stats.posts) }}</div></div>
+  <div class="card stat"><div class="k">分析コメント数</div><div class="v">{{ "{:,}".format(stats.comments) }}</div></div>
+  <div class="card stat"><div class="k">新着の話題</div><div class="v">{{ stats.new }}</div></div>
+  <div class="card stat"><div class="k">好意的な反応が多い話題</div><div class="v">{{ stats.positive }}</div></div>
+</div>
+
+{% if market and market.commentary and market.commentary.headline %}
+<div class="card"><div class="meta">今日の相場</div><b>{{ market.commentary.headline }}</b> <a href="market.html">相場を見る →</a></div>
+{% endif %}
+
+<h2>トピックランキング</h2>
+<div class="filters" data-key="region">
+  <button class="on" data-v="all">すべて</button><button data-v="ja">国内</button><button data-v="global">海外</button>
+</div>
+<div class="filters" data-key="source">
+  <button class="on" data-v="all">全媒体</button>{% for s in all_sources %}<button data-v="{{ s }}">{{ s|source }}</button>{% endfor %}
+</div>
+<div class="grid">
+{% for t in topics %}
+  <article class="card topic" data-topic data-region="{{ 'ja global' if t.region=='both' else t.region }}" data-source="{{ t.sources|join(' ') }}">
+    <div class="rank">{{ t.rank }}{{ t|trend|safe }}</div>
+    <div>
+      <h3><a href="{{ root }}topic/{{ date }}/{{ t.topic_key }}.html">{{ t.title }}</a></h3>
+      <p>{{ t.summary }}</p>
+      <div class="meta">
+        <span class="tag">{{ t.category }}</span><span class="tag">{{ t.region|region }}</span>
+        {% for s in t.sources %}<span class="tag">{{ s|source }}</span>{% endfor %}
+        <span>投稿 {{ t.post_count }}件・いいね {{ "{:,}".format(t.engagement.likes) }}・コメント {{ "{:,}".format(t.engagement.comments) }}</span>
+        {% if t.days_running > 1 %}<span>{{ t.days_running }}日連続</span>{% endif %}
+      </div>
+      {{ senti(t.sentiment) }}
+    </div>
+  </article>
+{% else %}
+  <p class="empty">この日の話題はまだありません。</p>
+{% endfor %}
+</div>
+{% endblock %}

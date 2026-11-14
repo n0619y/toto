@@ -1,0 +1,60 @@
+# =========================================================
+# ポケカ話題まとめ 設定ファイル
+# =========================================================
+
+claude:
+  model: claude-opus-5-5        # 要約・トピック化に使うモデル
+  light_model: claude-opus-5-5  # コメント感情分析など大量処理用（コスト重視なら claude-haiku-5-5 などに変更可）
+  topic_effort: high            # トピック抽出の思考深度 (low/medium/high/xhigh/max)
+  sentiment_effort: low         # 感情分析の思考深度
+  max_posts_for_topics: 400     # 1日あたりトピック化に回す投稿数の上限（エンゲージメント上位から）
+  max_comments_per_topic: 120   # 1トピックあたり感情分析に回すコメント数の上限
+
+# 収集対象（キーワードは国内/海外で分けて管理）
+keywords:
+  ja: ["ポケカ", "ポケモンカード", "ポケカ 高騰", "ポケカ 新弾", "ポケカ 買取", "ポケカ 再販"]
+  en: ["pokemon tcg", "pokemon cards", "ptcg", "pokemon card pull"]
+
+collectors:
+  reddit:
+    enabled: true
+    subreddits: [PokemonTCG, pkmntcg, pokemoncardcollectors, PokemonTCGDeals, PKMNTCGDeals]
+    listing: top          # top / hot / new
+    time_filter: day
+    limit_per_sub: 50
+    comments_per_post: 40
+  x:
+    enabled: true
+    max_results_per_query: 100   # 1クエリあたり（APIプランの月間上限に注意）
+    fetch_replies: true          # 返信（コメント）も取得する
+    replies_per_post: 30
+  threads:
+    enabled: true
+    limit_per_query: 50
+    replies_per_post: 30
+  instagram:
+    enabled: true
+    hashtags: [ポケカ, ポケモンカード, pokemontcg, pokemoncards]   # 7日間で30種類までの制限あり
+    limit_per_hashtag: 50
+
+# ランキングのスコア計算の重み
+ranking:
+  weight_likes: 1.0
+  weight_comments: 2.0
+  weight_shares: 1.5
+  weight_post_count: 3.0
+  source_diversity_bonus: 0.25   # 複数SNSで話題になっているほど加点（1媒体増えるごとに+25%）
+  top_n: 30
+
+# 買取表の取得元（config/shops.yaml に定義）
+market:
+  shops_file: config/shops.yaml
+  manual_csv_dir: data/buylists   # 手入力/ダウンロードしたCSVを置くと自動取込
+  request_interval_sec: 3         # 取得間隔（相手サーバーに負荷をかけない）
+  respect_robots_txt: true
+
+site:
+  title: ポケカ話題まとめ
+  output_dir: ../docs             # GitHub Pages の公開ディレクトリ（リポジトリ直下 docs/）
+  base_url: ""                    # 例: /toto  (GitHub Pages のプロジェクトサイトの場合)
+  archive_days: 60

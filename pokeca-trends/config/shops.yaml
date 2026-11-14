@@ -1,0 +1,37 @@
+# =========================================================
+# カードショップ買取表の取得設定
+# ---------------------------------------------------------
+# 必ず各ショップの利用規約・robots.txt を確認し、許可されている範囲で利用してください。
+# 公式に買取表を画像やCSVで配布しているショップは、その配布物を使うのが安全です。
+#
+# type:
+#   html_table : Webページの表をCSSセレクタで読み取る
+#   image      : 買取表の画像URLを Claude の画像認識で読み取る
+#   csv        : CSVファイル/URL（列: card_name,card_number,rarity,price[,set_code,condition]）
+# =========================================================
+
+shops: []
+
+# ---- 設定例（コメントを外し、実在ショップのURL・セレクタに書き換えて使います）----
+# shops:
+#   - name: ショップA
+#     type: html_table
+#     url: https://example-shop.jp/kaitori/pokemon
+#     selectors:
+#       row: "table.kaitori tbody tr"
+#       card_name: "td.name"
+#       card_number: "td.number"
+#       rarity: "td.rarity"
+#       price: "td.price"
+#
+#   - name: ショップB
+#     type: image
+#     image_urls:
+#       - https://example-shop.jp/images/kaitori_2026xxxx_1.jpg
+#     # ページ内の画像を自動で拾う場合（img の CSS セレクタ）
+#     page_url: https://example-shop.jp/kaitori
+#     image_selector: "div.kaitori-list img"
+#
+#   - name: ショップC
+#     type: csv
+#     url: https://example-shop.jp/kaitori.csv

@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{% block title %}{{ site_title }}{% endblock %}</title>
+<meta name="description" content="国内・海外SNSのポケカ（ポケモンカード）の話題を毎日自動で収集・要約し、反応と買取相場を分析します。">
+<link rel="stylesheet" href="{{ root }}static/style.css">
+<script src="{{ root }}static/app.js"></script>
+</head>
+<body>
+<header class="site"><div class="wrap">
+  <a class="logo" href="{{ root }}index.html">{{ site_title }}</a>
+  <nav>
+    <a href="{{ root }}index.html" class="{{ 'on' if nav=='topics' }}">今日の話題</a>
+    <a href="{{ root }}market.html" class="{{ 'on' if nav=='market' }}">買取相場</a>
+    <a href="{{ root }}archive.html" class="{{ 'on' if nav=='archive' }}">過去の話題</a>
+  </nav>
+</div></header>
+{% if demo %}<div class="demo">これはデモ表示です。投稿・ショップ・価格はすべて架空のサンプルデータです。</div>{% endif %}
+<main class="wrap">{% block body %}{% endblock %}</main>
+<footer class="wrap">
+  最終更新 {{ generated_at }} ／ 対象: X・Threads・Instagram・Reddit の公開投稿（各公式APIで取得）／ 要約・感情分析はAIによる自動生成のため誤りを含む場合があります。
+  買取価格は各ショップの公開情報を集計したもので、実際の買取額を保証するものではありません。投資助言ではありません。
+</footer>
+</body>
+</html>
