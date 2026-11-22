@@ -6,3 +6,4 @@ PyYAML>=6.0            # 設定ファイル
 requests>=2.31.0       # 各SNS API / 買取表取得
 beautifulsoup4>=4.12.0 # 買取表HTMLのパース
 Jinja2>=3.1.2          # 静的サイト生成
+requests-oauthlib>=1.3 # X への投稿（OAuth 1.0a）

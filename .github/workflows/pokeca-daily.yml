@@ -1,9 +1,13 @@
-# ポケカ話題まとめ: 毎日自動で 収集→要約・感情分析→相場分析→サイト生成 を実行し、docs/ を更新する
+# ポケカ話題まとめ: 1日3サイクル
+#   収集 → 要約・感情分析 → 相場分析(1日1回) → 自分の投稿の反応回収 → 学習 → 投稿生成・審査 → 投稿 → サイト更新
+# ※ GitHub Actions の定期実行は混雑時に数分〜数十分遅れることがあります
 name: pokeca-daily
 
 on:
   schedule:
-    - cron: "17 13 * * *"   # 毎日 22:17 JST（UTC 13:17）
+    - cron: "41 22 * * *"   # 07:41 JST（朝の通勤時間帯）
+    - cron: "13 3 * * *"    # 12:13 JST（昼休み）
+    - cron: "47 10 * * *"   # 19:47 JST（夜）
   workflow_dispatch: {}      # 手動実行ボタン
 
 permissions:
@@ -38,12 +42,18 @@ jobs:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
           IG_USER_ID: ${{ secrets.IG_USER_ID }}
-        run: python main.py run
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+          X_API_SECRET: ${{ secrets.X_API_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_SECRET: ${{ secrets.X_ACCESS_SECRET }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          TZ: Asia/Tokyo
+        run: python main.py cycle
       - name: 結果をコミット（DBとサイト）
         working-directory: .
         run: |
           git config user.name "pokeca-bot"
           git config user.email "pokeca-bot@users.noreply.github.com"
           git add docs pokeca-trends/data/pokeca.db
-          git diff --cached --quiet || git commit -m "daily update $(TZ=Asia/Tokyo date +%F)"
-          git push
+          git diff --cached --quiet || git commit -m "cycle update $(TZ=Asia/Tokyo date '+%F %H:%M')"
+          git push || (git pull --rebase && git push)

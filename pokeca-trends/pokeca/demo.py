@@ -119,3 +119,44 @@ def buylist_for_day(day: Date) -> dict[str, list[dict]]:
                          "card_number": num, "rarity": rar, "price": f"¥{price:,}", "condition": ""})
         out[shop] = rows
     return out
+
+
+# ---------- 自動投稿のシミュレーション（架空の反応） ----------
+ARCHE_QUALITY = {"question": 1.5, "souba": 1.35, "voice": 1.15, "matome": 1.0, "sokuho": 0.9, "kaigai": 0.8}
+
+
+def simulate_autopost(dates: list[str], hours_jst=(8, 12, 20)) -> None:
+    """過去日付で 1日3サイクル の自動投稿を回し、架空の反応数値を付けて学習させる。"""
+    from . import db
+    from .autopost import cycle, feedback
+
+    jst = timezone(timedelta(hours=9))
+    counter = {"n": 0}
+
+    def fake_post(pf, text, arche):
+        counter["n"] += 1
+        return f"demo-{pf}-{counter['n']}"
+
+    for d in dates:
+        for h in hours_jst:
+            now = datetime.fromisoformat(f"{d}T{h:02d}:05:00").replace(tzinfo=jst).astimezone(timezone.utc)
+            # 前のサイクルまでの投稿に架空の反応を付ける（本番では feedback.collect が API から取得）
+            with db.connect() as conn:
+                for p in db.own_posts(conn, "status='posted'"):
+                    age = feedback.age_hours(p["created_at"], now)
+                    if age < 6 or (p["metrics_at"] and feedback.age_hours(p["created_at"], datetime.fromisoformat(p["metrics_at"])) >= 24):
+                        continue
+                    rnd = random.Random(p["platform_id"])
+                    q = ARCHE_QUALITY.get(p["archetype"], 1.0) * rnd.uniform(0.6, 1.4) * min(1, age / 24) ** 0.5
+                    views = int(rnd.lognormvariate(7.5, 0.4) * min(1, age / 24))
+                    likes = int(views * 0.02 * q)
+                    m = {"views": views, "likes": likes, "replies": int(likes * 0.12 * q), "reposts": int(likes * 0.15),
+                         "quotes": int(likes * 0.03), "bookmarks": int(likes * 0.1)}
+                    pos = 55 if p["archetype"] != "kaigai" else 40
+                    neg = 15 if p["archetype"] not in ("voice", "question") else 25
+                    senti = {"overall": "好意的" if pos - neg > 25 else "賛否両論", "score": pos - neg, "analyzed": m["replies"],
+                             "ratio": {"positive": pos, "negative": neg, "neutral": 100 - pos - neg}}
+                    db.update_own_post(conn, p["id"], metrics=m, metrics_at=now.isoformat(), reply_sentiment=senti)
+            feedback.rescore()
+            feedback.update_playbook(d, use_ai=False)
+            cycle.post_cycle(d, now=now, force_offline=True, simulate=fake_post)

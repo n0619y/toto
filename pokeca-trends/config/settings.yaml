@@ -58,3 +58,34 @@ site:
   output_dir: ../docs             # GitHub Pages の公開ディレクトリ（リポジトリ直下 docs/）
   base_url: ""                    # 例: /toto  (GitHub Pages のプロジェクトサイトの場合)
   archive_days: 60
+
+# =========================================================
+# 自動投稿（バズ投稿の“型”を学習 → オリジナル投稿 → 反応を次に反映）
+# =========================================================
+autopost:
+  enabled: false            # ★ false の間は投稿せず「下書き（dry_run）」として保存だけする。内容を確認してから true に
+  platforms: [x, threads]   # Reddit は bot 投稿を禁止するコミュニティが多く、Instagram は画像必須のため対象外
+  posts_per_cycle: 1        # 1サイクルで各媒体に投稿する件数
+  max_posts_per_day: 4      # 各媒体の1日あたり上限（スパム判定の回避）
+  same_topic_cooldown_hours: 24   # 同じ話題は24時間空ける
+  candidates: 3             # 1投稿あたり作る候補数（審査に通った中から選ぶ）
+  site_url: ""              # 例: https://<ユーザー名>.github.io/toto/ 。設定すると一部の投稿にサイトのリンクを付ける
+  link_ratio: 0.3           # リンクを付ける投稿の割合（Xはリンク付き投稿が伸びにくい傾向がある）
+  max_hashtags: 2
+  # 盗用防止: 元のバズ投稿と「連続一致する文字数」または「文字3-gramの重なり率」がこれ以上なら不採用
+  max_copied_chars: 18
+  max_similarity_to_source: 0.5
+  max_similarity_to_own: 0.6
+  # 投稿の「型」。成績に応じて選ばれる頻度が自動で変わる（UCBバンディット）
+  archetypes:
+    sokuho: 速報・ニュース型（冒頭で要点、事実を短く）
+    question: 問いかけ型（事実を伝えた上で読者に意見を聞き、返信を促す）
+    matome: 箇条書きまとめ型（要点を2〜4行の箇条書きで）
+    souba: 相場数字型（買取価格の動きを具体的な数字で伝える）
+    kaigai: 海外の反応紹介型（海外SNSでの話題・反応を日本語で紹介）
+    voice: コミュニティの声型（SNS上の賛否の割合や代表的な意見を紹介）
+  exploration: 0.8          # 大きいほど成績の分からない型を試す
+  feedback:
+    min_age_hours: 6        # 投稿からこの時間が経ったら成績を評価
+    eval_age_hours: 24      # この時点の数値で型どうしを比較（足りない場合は経過時間で補正）
+    max_age_days: 7

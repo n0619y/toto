@@ -27,7 +27,7 @@ cp .env.example .env    # 各APIキーを記入（使う媒体だけでOK。未�
 python main.py run      # 収集 → 話題化・要約 → 反応分析 → ランキング → 相場分析 → サイト生成
 ```
 
-個別実行: `collect`（`--only x reddit` で媒体限定） / `analyze` / `market` / `build`、日付指定は `--date 2026-11-14`。
+個別実行: `cycle`（自動投稿込みの1サイクル） / `compose`（投稿文だけ生成） / `feedback`（反応の回収と学習だけ） / `collect`（`--only x reddit` で媒体限定） / `analyze` / `market` / `build`、日付指定は `--date 2026-11-14`。
 
 ### 毎日の自動実行（GitHub Actions）
 
@@ -49,6 +49,38 @@ python main.py run      # 収集 → 話題化・要約 → 反応分析 → ラ
 | Instagram | ビジネス/クリエイターアカウント + Graph API | ハッシュタグ投稿のキャプション・いいね/コメント数。**他人の投稿のコメント本文は取得不可**、ハッシュタグは7日で30種まで |
 
 サイトには投稿の抜粋（160字まで）と元投稿へのリンクのみを載せ、投稿者名は表示しません。
+
+## 自動投稿（学習しながら1日3回投稿）
+
+`python main.py cycle` が1サイクルです。GitHub Actions で **1日3回（7:41 / 12:13 / 19:47 JST）** 自動実行します。
+
+```
+収集 → 話題化・要約 → 自分の過去投稿の反応を回収 → 成績計算・学習 → バズ投稿の型を分析 → 投稿文を生成 → 審査 → 投稿 → サイト更新
+```
+
+| 仕組み | 内容 |
+|---|---|
+| バズ投稿の“型”の学習 | 反応の大きい投稿と小さい投稿を比べ、構成・冒頭の掴み・長さ・絵文字/タグの傾向を抽象化（文言はコピーしない） |
+| 投稿の型（6種類） | 速報 / 問いかけ / 箇条書きまとめ / 相場数字 / 海外の反応 / コミュニティの声。**UCBバンディット**で成績の良い型を多く、未知の型もときどき試す |
+| 反応のフィードバック | 投稿6時間後から いいね・返信・拡散・表示回数・返信の感情 を取得。表示1000回あたりの反応率を24時間時点にそろえ、同じ媒体内の順位(0〜1)を成績にする。**否定的な返信が多い投稿は減点**（炎上で伸びたものを成功と学ばない） |
+| プレイブック | 成績上位/下位の投稿を Claude が比べ「続けること・避けること」をまとめ、次の投稿生成に渡す |
+| 安全装置 | ①資料（サイトの要約・相場データ）にある事実だけで書く ②別の Claude が事実・規約を審査 ③機械チェック: 元投稿との連続一致18字以上や重なり率で盗用を排除、架空の体験談・断定的な相場予測・売買推奨・メンション・拡散要求を禁止、文字数（X は重み付き280） ④同じ話題は24時間空ける ⑤1日の投稿上限 |
+
+### 有効にする手順
+
+1. **まず下書きで確認**: `autopost.enabled: false`（既定）のまま数日動かし、サイトの「自動投稿」ページで生成された下書きを確認
+2. X: Developer Portal でアプリ権限を **Read and write** にし、`X_API_KEY` `X_API_SECRET` `X_ACCESS_TOKEN` `X_ACCESS_SECRET` を登録。
+   プロフィール設定で **「自動化されたアカウント」ラベル**を付ける（Xの自動化ルール）
+3. Threads: `threads_content_publish` `threads_manage_insights` `threads_read_replies` 権限のトークンを `THREADS_ACCESS_TOKEN` に
+4. `config/settings.yaml` の `autopost.enabled: true` にしてコミット
+
+投稿数は `posts_per_cycle`（既定: 1サイクル各媒体1件）と `max_posts_per_day`（既定4）で調整します。
+X の投稿APIはプランごとに月間の投稿数上限があるので、`3回/日 × 媒体数` が収まるか確認してください。
+
+### 対象外にしているもの
+- **Reddit**: bot による投稿を禁止しているサブレディットが多く、アカウント停止のリスクが高いため収集のみ
+- **Instagram**: テキストだけの投稿ができない（画像が必須）ため収集のみ
+- 他人の投稿への自動返信・自動メンション・自動いいね・自動フォロー（各SNSのスパム規約に触れやすいため実装しない）
 
 ## 買取表の設定
 
@@ -77,6 +109,8 @@ pokeca-trends/
   pokeca/collectors/         x_twitter.py threads.py instagram.py reddit.py
   pokeca/analysis/           topics.py（話題化・要約） sentiment.py（反応判定） ranking.py offline.py（APIキー無し用）
   pokeca/market/             buylist.py（取得） normalize.py（名寄せ） analytics.py（相場分析）
+  pokeca/autopost/           style.py（バズの型） composer.py（生成・審査） guard.py（盗用・禁止表現） bandit.py（型の選択）
+                             publisher.py（X/Threads投稿・反応取得） feedback.py（成績・プレイブック） cycle.py
   pokeca/site/               builder.py + templates/（静的サイト生成）
   pokeca/demo.py             架空のデモデータ
 docs/                        生成されたサイト（GitHub Pages 公開用）

@@ -90,6 +90,7 @@ def build(demo: bool = False) -> Path:
     write(out / "market.html", e.get_template("market.html").render(
         **common, m=m, root="", nav="market", cards_json=json.dumps(slim, ensure_ascii=False).replace("</", "<\\/"),
         index_json=json.dumps(m["index"]), initial_key=(m["risers"][0]["key"] if m["risers"] else "")))
+    build_autopost(e, out, common)
     # 外部連携用に JSON も出力
     write(out / "data" / "latest.json", json.dumps(
         {"date": dates[0] if dates else None, "topics": db_topics_light(dates[0]) if dates else [],
@@ -108,3 +109,19 @@ def db_topics_light(date: str) -> list[dict]:
 def write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def build_autopost(e, out: Path, common: dict) -> None:
+    cfg = settings()["autopost"]
+    with db.connect() as conn:
+        posts = db.own_posts(conn, limit=60)
+        playbook = db.latest_report(conn, "playbook")
+        style = db.latest_report(conn, "style")
+    st = (playbook or {}).get("archetype_stats", {})
+    rows = sorted(({"label": cfg["archetypes"].get(k, k), "mean": v["mean"], "n": v["n"]} for k, v in st.items()),
+                  key=lambda r: -r["mean"])
+    write(out / "autopost.html", e.get_template("autopost.html").render(
+        **common, root="", nav="autopost", enabled=cfg.get("enabled"), platforms=[SOURCE_LABEL.get(p, p) for p in cfg["platforms"]],
+        posts=posts, playbook=playbook, style=style, arche_rows=rows, archetypes=cfg["archetypes"],
+        min_age=cfg["feedback"]["min_age_hours"],
+        status_label={"posted": "投稿済み", "dry_run": "下書き", "rejected": "審査で不合格", "failed": "投稿失敗"}))

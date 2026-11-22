@@ -7,6 +7,9 @@
   python main.py analyze [--date 2026-11-14] [--offline]
   python main.py market  [--date ...]
   python main.py build
+  python main.py cycle               # 自動投稿サイクル: 収集→分析→反応回収→学習→生成・審査→投稿→サイト更新
+  python main.py compose             # 今ある話題から投稿文だけ作る（settings の autopost.enabled が false なら下書き）
+  python main.py feedback            # 自分の投稿の反応だけ回収して学習を更新
 """
 from __future__ import annotations
 
@@ -27,7 +30,7 @@ def today() -> str:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="国内・海外のポケカ話題を自動収集・要約するサイト生成ツール")
-    ap.add_argument("command", choices=["run", "collect", "analyze", "market", "build", "demo"])
+    ap.add_argument("command", choices=["run", "collect", "analyze", "market", "build", "demo", "cycle", "compose", "feedback"])
     ap.add_argument("--date", default=today(), help="対象日 (YYYY-MM-DD、既定は今日 JST)")
     ap.add_argument("--only", nargs="*", help="収集する媒体を限定 (x threads instagram reddit)")
     ap.add_argument("--offline", action="store_true", help="Claude を使わず簡易分析で実行")
@@ -47,6 +50,19 @@ def main() -> None:
         pipeline.analyze(a.date, force_offline=a.offline)
         pipeline.market(a.date, force_offline=a.offline)
         builder.build()
+    elif a.command == "cycle":
+        from pokeca.autopost import cycle
+        cycle.run(a.date, force_offline=a.offline)
+    elif a.command == "compose":
+        from pokeca.autopost import cycle
+        cycle.post_cycle(a.date, force_offline=a.offline)
+        builder.build()
+    elif a.command == "feedback":
+        from pokeca.analysis import llm
+        from pokeca.autopost import feedback
+        feedback.collect(use_ai=llm.available() and not a.offline)
+        feedback.update_playbook(a.date, use_ai=llm.available() and not a.offline)
+        builder.build()
     elif a.command == "demo":
         from pokeca import db
         db.DB_PATH = ROOT / "data" / "demo.db"   # 本番DBを汚さない
@@ -60,6 +76,8 @@ def main() -> None:
                 pipeline.collect(d, use_demo=True)
                 pipeline.analyze(d, force_offline=a.offline)
             pipeline.market(d, use_demo=True, force_offline=True)
+        from pokeca.demo import simulate_autopost
+        simulate_autopost([(end - timedelta(days=i)).isoformat() for i in range(a.days - 1, -1, -1)])
         builder.build(demo=True)
 
 
