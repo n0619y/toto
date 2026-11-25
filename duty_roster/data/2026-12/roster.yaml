@@ -32,8 +32,8 @@ days:
     佐々木: 2nd, 2nd, 2nd
   '6':
     岡﨑: -, -, -
-    仲本: 2nd, 2nd, 2nd
-    佐々木: NICU/1st, NICU/1st, 1st
+    仲本: 2nd, 2nd, 1st
+    佐々木: NICU/1st, NICU/1st, 2nd
   '7':
     岡﨑: センター, CC1 Sim, -
     仲本: 1st, 1st, 1st
@@ -88,8 +88,8 @@ days:
     佐々木: 1st, 1st, 1st
   '20':
     岡﨑: -, -, -
-    仲本: 2nd, 2nd, 2nd
-    佐々木: NICU/1st, NICU/1st, 1st
+    仲本: 2nd, 2nd, 1st
+    佐々木: NICU/1st, NICU/1st, 2nd
   '21':
     岡﨑: センター, CC1 Sim, -
     仲本: 1st, 1st, 1st
@@ -144,6 +144,6 @@ days:
     佐々木: 1st, 1st, 1st
   '+3':
     岡﨑: -, -, -
-    仲本: 2nd, 2nd, 2nd
-    佐々木: 1st, 1st, 1st
+    仲本: 2nd, 2nd, 1st
+    佐々木: 1st, 1st, 2nd
 extra_days: 3

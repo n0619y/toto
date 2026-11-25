@@ -226,3 +226,24 @@ def format_report(roster: Roster, report: AssignReport, callers: list[str]) -> s
         for d, s, m, why in report.discouraged:
             lines.append(f"  {roster.day_label(d)} {SLOT_NAMES[s]}: {m} ({why})")
     return "\n".join(lines)
+
+
+def apply_overrides(roster: Roster, path: str) -> list[str]:
+    """手修正ファイル (overrides.yaml) を roster に適用する. 戻り値は適用内容の説明."""
+    import yaml
+
+    with open(path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    applied: list[str] = []
+    for key, per_member in (data.get("days") or {}).items():
+        day = roster.parse_day_key(key)
+        for member, text in (per_member or {}).items():
+            parts = [t.strip() for t in str(text).split(",")]
+            if len(parts) != 3:
+                raise ValueError(f"overrides {key} {member}: コマは 3 つ必要です: {text!r}")
+            for s, t in enumerate(parts):
+                if t in ("=", ""):
+                    continue
+                roster.set_slot(day, member, s, SlotSpec.parse(t))
+                applied.append(f"{roster.day_label(day)} {['AM', 'PM', '夜'][s]} {member} → {t}")
+    return applied

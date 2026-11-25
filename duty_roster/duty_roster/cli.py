@@ -23,7 +23,7 @@ from .plan_template import make_plan_template
 from .recurring import Recurring
 from .render_pdf import PdfStyle, render_pdf
 from .render_xlsx import save_xlsx, xlsx_to_pdf
-from .assign import assign, format_report
+from .assign import apply_overrides, assign, format_report
 from .skeleton import build_skeleton, load_aliases, merge_next_month, skeleton_yaml
 
 
@@ -130,6 +130,9 @@ def cmd_assign(a: argparse.Namespace) -> int:
     skeleton, _ = build_skeleton(plan, aliases, extra_days=extra)
     callers = [c.strip() for c in a.callers.split(",")]
     roster, report = assign(plan, skeleton, callers, aliases)
+    if a.overrides:
+        for line in apply_overrides(roster, a.overrides):
+            print("手修正:", line)
     roster.save(a.output)
     print(format_report(roster, report, callers))
     print(f"→ {a.output}")
@@ -169,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("--callers", default="仲本,佐々木", help="1st/2nd を担当するメンバー (カンマ区切り)")
     s.add_argument("--extend-days", type=int, default=0, help="翌月の先頭 N 日分も表に含める")
     s.add_argument("--next-plan", help="翌月の plan.yaml")
+    s.add_argument("--overrides", help="手修正ファイル (data/YYYY-MM/overrides.yaml)")
     s.add_argument("-o", "--output", required=True)
     s.set_defaults(func=cmd_assign)
 
