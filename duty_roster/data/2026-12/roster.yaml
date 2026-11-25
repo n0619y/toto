@@ -128,7 +128,7 @@ days:
     佐々木: 2nd, 2nd, 2nd
   '30':
     岡﨑: -, -, -
-    仲本: 1st, 1st, 1st
+    仲本: 1st, 1st, 小児科/1st
     佐々木: 2nd, 2nd, 2nd
   '31':
     岡﨑: -, -, -
@@ -145,5 +145,5 @@ days:
   '+3':
     岡﨑: -, -, -
     仲本: 2nd, 2nd, 1st
-    佐々木: 1st, 1st, 2nd
+    佐々木: NICU/1st, NICU/1st, 2nd
 extra_days: 3
