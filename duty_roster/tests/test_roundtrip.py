@@ -265,7 +265,7 @@ def test_assign_december_with_january_days():
     skeleton, _ = build_skeleton(plan, aliases, extra_days=3)
     roster, report = assign(plan, skeleton, ["仲本", "佐々木"], aliases)
     assert roster.last_day == 34 and roster.day_label(34) == "1/3"
-    assert {29, 30, 31, 32, 33, 34} <= roster.holidays
+    assert all(roster.is_holiday(d) for d in (29, 30, 31, 32, 33, 34))
     assert report.blanks == []
     assert abs(report.weighted["仲本"] - report.weighted["佐々木"]) <= 3.0
     # 1/1〜1/3 は仲本が休みなので佐々木が 1st
