@@ -23,7 +23,8 @@ from .plan_template import make_plan_template
 from .recurring import Recurring
 from .render_pdf import PdfStyle, render_pdf
 from .render_xlsx import save_xlsx, xlsx_to_pdf
-from .skeleton import build_skeleton, load_aliases, skeleton_yaml
+from .assign import assign, format_report
+from .skeleton import build_skeleton, load_aliases, merge_next_month, skeleton_yaml
 
 
 def _month(s: str) -> tuple[int, int]:
@@ -41,8 +42,8 @@ def cmd_parse_plan(a: argparse.Namespace) -> int:
 
 def cmd_skeleton(a: argparse.Namespace) -> int:
     y, m = _month(a.month) if a.month else (None, None)
-    plan = load_plan(a.input, y, m)
-    roster, comments = build_skeleton(plan, load_aliases(a.aliases))
+    plan, extra = _load_plan_with_extension(a)
+    roster, comments = build_skeleton(plan, load_aliases(a.aliases), extra_days=extra)
     with open(a.output, "w", encoding="utf-8") as f:
         f.write(skeleton_yaml(roster, comments))
     print(f"雛形を書き出しました: {a.output}  (予定だけ入っています。1st / 2nd を埋めてください)")
@@ -107,6 +108,34 @@ def cmd_plan_template(a: argparse.Namespace) -> int:
     return 0
 
 
+def _load_plan_with_extension(a: argparse.Namespace):  # noqa: ANN202
+    y, m = _month(a.month) if a.month else (None, None)
+    plan = load_plan(a.input, y, m)
+    extra = int(a.extend_days or 0)
+    if extra:
+        ny, nm = (plan.year + 1, 1) if plan.month == 12 else (plan.year, plan.month + 1)
+        if a.next_plan:
+            next_plan = load_plan(a.next_plan, ny, nm)
+        elif a.input.lower().endswith((".xlsx", ".xlsm")):
+            next_plan = load_plan(a.input, ny, nm)  # 同じブックの翌月シート
+        else:
+            raise SystemExit("--extend-days には --next-plan (翌月の予定) が必要です")
+        plan = merge_next_month(plan, next_plan, extra)
+    return plan, extra
+
+
+def cmd_assign(a: argparse.Namespace) -> int:
+    plan, extra = _load_plan_with_extension(a)
+    aliases = load_aliases(a.aliases)
+    skeleton, _ = build_skeleton(plan, aliases, extra_days=extra)
+    callers = [c.strip() for c in a.callers.split(",")]
+    roster, report = assign(plan, skeleton, callers, aliases)
+    roster.save(a.output)
+    print(format_report(roster, report, callers))
+    print(f"→ {a.output}")
+    return 0
+
+
 def cmd_check(a: argparse.Namespace) -> int:
     roster = Roster.load(a.roster)
     st = analyze(roster)
@@ -128,8 +157,20 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("input", help="plan.yaml または予定一覧 PDF/xlsx")
     s.add_argument("--month")
     s.add_argument("--aliases", help="予定名の略称ファイル (data/aliases.yaml)")
+    s.add_argument("--extend-days", type=int, default=0, help="翌月の先頭 N 日分も表に含める (例: 12 月表に 1/1〜1/3)")
+    s.add_argument("--next-plan", help="翌月の plan.yaml (入力が xlsx なら同じブックの翌月シートを自動で使う)")
     s.add_argument("-o", "--output", required=True)
     s.set_defaults(func=cmd_skeleton)
+
+    s = sub.add_parser("assign", help="予定一覧から 1st/2nd call を自動割り当てした roster.yaml を作る")
+    s.add_argument("input", help="plan.yaml または予定一覧 PDF/xlsx")
+    s.add_argument("--month")
+    s.add_argument("--aliases", help="予定名の略称ファイル (data/aliases.yaml)")
+    s.add_argument("--callers", default="仲本,佐々木", help="1st/2nd を担当するメンバー (カンマ区切り)")
+    s.add_argument("--extend-days", type=int, default=0, help="翌月の先頭 N 日分も表に含める")
+    s.add_argument("--next-plan", help="翌月の plan.yaml")
+    s.add_argument("-o", "--output", required=True)
+    s.set_defaults(func=cmd_assign)
 
     s = sub.add_parser("extract", help="カレンダー PDF → roster.yaml")
     s.add_argument("input")

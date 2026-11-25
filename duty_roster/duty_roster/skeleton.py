@@ -56,6 +56,7 @@ class ParsedEvent:
     label: str = ""
     unavailable_night: bool = False
     note_only: bool = False  # "1st不可" のような制約: コマには入れずコメントに残す
+    duty: str | None = None  # "night" (当直) / "day" (日直): その人がその時間帯の当番 (1st) を兼務する
     priority: int = 1  # 大きいほど優先 (同じコマに複数の予定があるとき)
 
 
@@ -131,11 +132,15 @@ def parse_event(item: str, aliases: dict[str, str] | None = None) -> ParsedEvent
         return ev
 
     if qual is None:
-        if name.endswith("当直"):  # 当直 = 夜間
+        if name.endswith("当直") or name.upper() == "NICU":  # 当直 (または単に NICU) = 夜間
             ev.slots = [2]
+            ev.duty = "night"
+            if name.upper() == "NICU":
+                ev.label = aliases.get("NICU当直", "NICU")
             return ev
         if name.endswith("日直"):  # 日直 = 昼間
             ev.slots = [0, 1]
+            ev.duty = "day"
             return ev
         # 無印: 休暇などは昼間 (AM/PM). 他の予定に譲る (優先度低)
         ev.slots = [0, 1]
@@ -195,17 +200,44 @@ def events_to_slots(text: str, aliases: dict[str, str] | None = None) -> tuple[l
     return [s or SlotSpec() for s in slots], notes
 
 
-def build_skeleton(plan: Plan, aliases: dict[str, str] | None = None, title: str = "") -> tuple[Roster, dict[int, list[str]]]:
-    """plan から予定だけを入れた Roster を作る. 戻り値の 2 つ目は日ごとのコメント (元の予定文字列)."""
+def merge_next_month(plan: Plan, next_plan: Plan | None, extra_days: int) -> Plan:
+    """翌月の先頭 extra_days 日分を day = ndays+1.. として plan に足した新しい Plan を返す."""
+    import calendar as _cal
+
+    if not extra_days:
+        return plan
+    ndays = _cal.monthrange(plan.year, plan.month)[1]
+    merged = Plan(plan.year, plan.month, list(plan.members), set(plan.holidays), {d: dict(r) for d, r in plan.days.items()})
+    for i in range(1, extra_days + 1):
+        if next_plan is not None:
+            if i in next_plan.holidays:
+                merged.holidays.add(ndays + i)
+            row = next_plan.days.get(i)
+            if row:
+                merged.days[ndays + i] = dict(row)
+    return merged
+
+
+def build_skeleton(
+    plan: Plan,
+    aliases: dict[str, str] | None = None,
+    title: str = "",
+    extra_days: int = 0,
+) -> tuple[Roster, dict[int, list[str]]]:
+    """plan から予定だけを入れた Roster を作る. 戻り値の 2 つ目は日ごとのコメント (元の予定文字列).
+
+    plan に翌月分 (day > ndays) が含まれているときは extra_days を指定する (merge_next_month 参照)。
+    """
     roster = Roster(
         year=plan.year,
         month=plan.month,
         members=list(plan.members),
-        holidays={d for d in plan.holidays if plan_date_is_weekday(plan, d)},
         title=title,
+        extra_days=extra_days,
     )
+    roster.holidays = {d for d in plan.holidays if roster.date(d).weekday() < 5}
     comments: dict[int, list[str]] = {}
-    for day in range(1, roster.ndays + 1):
+    for day in range(1, roster.last_day + 1):
         row = plan.days.get(day) or {}
         lines: list[str] = []
         for member in plan.members:
@@ -234,15 +266,16 @@ def skeleton_yaml(roster: Roster, comments: dict[int, list[str]]) -> str:
         f"month: {roster.year:04d}-{roster.month:02d}",
         f"title: {roster.title or roster.default_title()}",
         "members: [" + ", ".join(roster.members) + "]",
-        "holidays: [" + ", ".join(str(d) for d in sorted(roster.holidays)) + "]",
+        "holidays: [" + ", ".join(roster.day_key(d) for d in sorted(roster.holidays)) + "]",
+        *([f"extra_days: {roster.extra_days}"] if roster.extra_days else []),
         "# コマの書き方: 'AM, PM, NIGHT' の順. - = 空き, 1st / 2nd = 当番, 予定名 = 予定, 予定名/2nd = 予定しながら当番,",
         "#               1st+補足 = 当番ラベルの下に補足行, × = バツ印",
         "days:",
     ]
-    for day in range(1, roster.ndays + 1):
+    for day in range(1, roster.last_day + 1):
         wd = "月火水木金土日"[roster.date(day).weekday()]
         hol = " 休" if roster.is_holiday(day) else ""
-        out.append(f"  {day}:  # {wd}{hol}")
+        out.append(f"  {roster.day_key(day)}:  # {roster.day_label(day)} {wd}{hol}")
         for c in comments.get(day, []):
             out.append(f"    # {c}")
         for member in roster.members:

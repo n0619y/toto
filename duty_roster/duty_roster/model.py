@@ -131,14 +131,35 @@ class Roster:
     title: str = ""
     # days[day][member] = [SlotSpec, SlotSpec, SlotSpec]
     days: dict[int, dict[str, list[SlotSpec]]] = field(default_factory=dict)
+    # 翌月の日を最終週に続けて表示する日数 (例: 12 月の表に 1/1〜1/3 を載せるなら 3)。
+    # それらは day = ndays+1, ndays+2, ... として扱う (YAML では "+1", "+2", ... と書く)
+    extra_days: int = 0
 
     # ---- 基本情報 -----------------------------------------------------------
     @property
     def ndays(self) -> int:
         return calendar.monthrange(self.year, self.month)[1]
 
+    @property
+    def last_day(self) -> int:
+        return self.ndays + self.extra_days
+
     def date(self, day: int) -> dt.date:
-        return dt.date(self.year, self.month, day)
+        return dt.date(self.year, self.month, 1) + dt.timedelta(days=day - 1)
+
+    def day_label(self, day: int) -> str:
+        """日付セルの表示. 翌月の日は "1/1" のように月を付ける."""
+        d = self.date(day)
+        return f"{d.month}/{d.day}" if day > self.ndays else str(d.day)
+
+    def day_key(self, day: int) -> str:
+        return f"+{day - self.ndays}" if day > self.ndays else str(day)
+
+    def parse_day_key(self, key) -> int:  # noqa: ANN001
+        k = str(key).strip()
+        if k.startswith("+"):
+            return self.ndays + int(k[1:])
+        return int(k)
 
     def is_holiday(self, day: int) -> bool:
         return self.date(day).weekday() >= 5 or day in self.holidays
@@ -150,11 +171,19 @@ class Roster:
         self.slots(day, member)[slot] = spec
 
     def weeks(self) -> list[list[int | None]]:
-        """月曜始まりの週ごとの日付リスト (月外は None)."""
-        return [
+        """月曜始まりの週ごとの日付リスト (月外は None). extra_days 分は最終週に続けて入れる."""
+        weeks = [
             [d if d != 0 else None for d in week]
             for week in calendar.Calendar(firstweekday=0).monthdayscalendar(self.year, self.month)
         ]
+        day = self.ndays + 1
+        while day <= self.last_day:
+            if all(x is not None for x in weeks[-1]):
+                weeks.append([None] * 7)
+            idx = next(i for i, x in enumerate(weeks[-1]) if x is None)
+            weeks[-1][idx] = day
+            day += 1
+        return weeks
 
     def default_title(self) -> str:
         return f"Schedule for {calendar.month_name[self.month]} {self.year} (Cardiology)"
@@ -167,11 +196,12 @@ class Roster:
             year=y,
             month=m,
             members=list(data["members"]),
-            holidays=set(int(d) for d in data.get("holidays", [])),
             title=data.get("title", "") or "",
+            extra_days=int(data.get("extra_days", 0) or 0),
         )
+        roster.holidays = set(roster.parse_day_key(d) for d in data.get("holidays", []))
         for day, per_member in (data.get("days") or {}).items():
-            day = int(day)
+            day = roster.parse_day_key(day)
             for member, specs in (per_member or {}).items():
                 if member not in roster.members:
                     raise ValueError(f"{day}日: 未知のメンバー {member!r}")
@@ -183,20 +213,23 @@ class Roster:
         return roster
 
     def to_dict(self) -> dict:
-        days: dict[int, dict[str, str]] = {}
-        for day in range(1, self.ndays + 1):
+        days: dict[str, dict[str, str]] = {}
+        for day in range(1, self.last_day + 1):
             row = {}
             for member in self.members:
                 specs = self.slots(day, member)
                 row[member] = ", ".join(s.to_text() for s in specs)
-            days[day] = row
-        return {
+            days[self.day_key(day)] = row
+        out = {
             "month": f"{self.year:04d}-{self.month:02d}",
             "title": self.title or self.default_title(),
             "members": list(self.members),
-            "holidays": sorted(self.holidays),
+            "holidays": [self.day_key(d) for d in sorted(self.holidays)],
             "days": days,
         }
+        if self.extra_days:
+            out["extra_days"] = self.extra_days
+        return out
 
     @classmethod
     def load(cls, path: str) -> "Roster":
@@ -306,7 +339,7 @@ def build_cells(roster: Roster) -> list[Cell]:
 
 
 def iter_slots(roster: Roster) -> Iterable[tuple[int, str, int, SlotSpec]]:
-    for day in range(1, roster.ndays + 1):
+    for day in range(1, roster.last_day + 1):
         for member in roster.members:
             for si, spec in enumerate(roster.slots(day, member)):
                 yield day, member, si, spec

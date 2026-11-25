@@ -125,7 +125,7 @@ def render_workbook(roster: Roster, style: Style | None = None) -> Workbook:
             ws.merge_cells(start_row=row, start_column=c0, end_row=row, end_column=c0 + 2)
             holiday = (day is not None and roster.is_holiday(day)) or (day is None and di >= 5)
             fill = COLOR_HOLIDAY if holiday else COLOR_FREE
-            put(row, c0, day, fill=fill)
+            put(row, c0, roster.day_label(day) if day is not None and day > roster.ndays else day, fill=fill)
             for k in (1, 2):
                 put(row, c0 + k, fill=fill)
         # メンバー行

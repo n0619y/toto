@@ -171,7 +171,7 @@ def render_pdf(roster: Roster, path: str, style: PdfStyle | None = None) -> str:
                 holiday = (day is not None and roster.is_holiday(day)) or (day is None and di >= 5)
                 fill_rect(r, COLOR_HOLIDAY if holiday else COLOR_FREE)
                 if day is not None:
-                    text_in(r, (str(day),), st.font_size)
+                    text_in(r, (roster.day_label(day),), st.font_size)
             continue
         if kind == "member":
             text_in(lay.rect(ri, 0, 0), (member,), st.font_size)  # type: ignore[arg-type]

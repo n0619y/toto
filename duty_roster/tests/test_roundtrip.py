@@ -226,3 +226,50 @@ def test_events_to_slots_november_notation(text, expected, note):
     specs, notes = events_to_slots(text)
     assert [s.to_text() for s in specs] == expected
     assert notes == note
+
+
+def test_assign_matches_reference_mostly():
+    """11 月の完成版 (手作業) と自動割り当ての 1st が概ね一致する."""
+    from duty_roster.assign import assign
+    from duty_roster.parse_plan import load_plan
+    from duty_roster.skeleton import load_aliases
+
+    xlsx = os.path.join(ROOT, "samples", "予定一覧_2026-10_2027-03_記入済.xlsx")
+    plan = load_plan(xlsx, 2026, 11)
+    aliases = load_aliases(os.path.join(ROOT, "data", "aliases.yaml"))
+    skeleton, _ = build_skeleton(plan, aliases)
+    roster, report = assign(plan, skeleton, ["仲本", "佐々木"], aliases)
+    ref = Roster.load(os.path.join(ROOT, "data", "2026-11", "roster_final.yaml"))
+    same = sum(
+        1
+        for d in range(1, 31)
+        for s in range(3)
+        if [m for m in roster.members if roster.slots(d, m)[s].role == "1st"] == [m for m in ref.members if ref.slots(d, m)[s].role == "1st"]
+    )
+    assert same >= 70
+    assert report.blanks == []
+    # 当直の人は終日 1st、夜は当直名付き
+    assert [s.to_text() for s in roster.slots(12, "仲本")] == ["1st", "1st", "当直/1st"]
+    # 岡﨑には当番を付けない
+    assert all(s.role is None for d in range(1, 31) for s in roster.slots(d, "岡﨑"))
+
+
+def test_assign_december_with_january_days():
+    from duty_roster.assign import assign
+    from duty_roster.parse_plan import load_plan
+    from duty_roster.skeleton import load_aliases, merge_next_month
+
+    xlsx = os.path.join(ROOT, "samples", "予定一覧_2026-10_2027-03_記入済.xlsx")
+    plan = merge_next_month(load_plan(xlsx, 2026, 12), load_plan(xlsx, 2027, 1), 3)
+    aliases = load_aliases(os.path.join(ROOT, "data", "aliases.yaml"))
+    skeleton, _ = build_skeleton(plan, aliases, extra_days=3)
+    roster, report = assign(plan, skeleton, ["仲本", "佐々木"], aliases)
+    assert roster.last_day == 34 and roster.day_label(34) == "1/3"
+    assert {29, 30, 31, 32, 33, 34} <= roster.holidays
+    assert report.blanks == []
+    assert abs(report.weighted["仲本"] - report.weighted["佐々木"]) <= 3.0
+    # 1/1〜1/3 は仲本が休みなので佐々木が 1st
+    assert [s.role for s in roster.slots(32, "佐々木")] == ["1st", "1st", "1st"]
+    # 12/8: 仲本は外来 (AM/PM) + 小児科当直 → 夜は 小児科/1st
+    assert roster.slots(8, "仲本")[2].to_text() == "小児科/1st"
+    assert analyze(roster).warnings == []

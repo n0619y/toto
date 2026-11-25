@@ -26,7 +26,7 @@ def roster_from_calendar(cal: ExtractedCalendar, year: int, month: int, holidays
     if holidays is None:
         # 土日以外で、全メンバーの空きコマが水色ならその日は休日とみなす
         holidays = set()
-        for day in range(1, roster.ndays + 1):
+        for day in range(1, roster.last_day + 1):
             if roster.date(day).weekday() >= 5:
                 continue
             frees = [s for m in cal.members for s in cal.slots.get((day, m), []) if s.color in ("W", "B")]
@@ -44,7 +44,7 @@ _MISSING = SlotInfo("?")
 
 def compare_roster_to_calendar(roster: Roster, cal: ExtractedCalendar) -> list[Diff]:
     diffs: list[Diff] = []
-    for day in range(1, roster.ndays + 1):
+    for day in range(1, roster.last_day + 1):
         for member in roster.members:
             got = cal.slots.get((day, member))
             for si in range(3):

@@ -15,6 +15,7 @@ duty_roster/
 │   ├── render_pdf.py       roster → PDF (PyMuPDF 直接描画, 元 PDF と同じ寸法)
 │   ├── render_xlsx.py      roster → Excel (.xlsx) (LibreOffice があれば PDF 化も)
 │   ├── compare.py          生成物と元 PDF のコマ単位比較
+│   ├── assign.py           1st / 2nd call の自動割り当て (ルールはファイル冒頭の docstring)
 │   ├── check.py            集計・整合性チェック
 │   └── cli.py              コマンドライン
 ├── data/recurring.yaml     各月共通の定例予定 (テンプレートに自動入力される)
@@ -58,6 +59,10 @@ python -m duty_roster verify data/2026-09/roster.yaml          samples/Sep_2026_
 
 # 5. 集計と整合性チェック (各コマに 1st が 1 人いるか等)
 python -m duty_roster check data/2026-09/roster.yaml
+
+# 6. 1st / 2nd call の自動割り当て (仲本・佐々木). --extend-days 3 で翌月 1/1〜1/3 も同じ表に含める
+python -m duty_roster assign "samples/予定一覧_2026-10_2027-03_記入済.xlsx" --month 2026-12 --extend-days 3 --aliases data/aliases.yaml -o data/2026-12/roster.yaml
+python -m duty_roster render data/2026-12/roster.yaml -o output/2026-12/Schedule_2026-12
 
 # 予定一覧 (1 枚目) 形式の Excel 入力テンプレート (月ごとにシート, 土日祝は赤, 定例予定を自動入力, 2026-09 を記入例として同梱)
 python -m duty_roster plan-template --start 2026-10 --end 2027-03 --recurring data/recurring.yaml --example data/2026-09/plan.yaml -o "output/予定一覧_2026-10_2027-03.xlsx"
@@ -103,8 +108,15 @@ days:
 * xlsx は同じ結合・色・罫線で作成しています。LibreOffice で PDF 化した場合、9 日夜の補足 `(～19時)` が
   セル幅の都合で一部欠けて描画されることがあります (Excel で開く分には問題ありません)。
 
-## 次段階 (未実装)
+## 1st / 2nd の自動割り当てルール (`assign`)
 
-予定一覧 (plan.yaml) から 1st / 2nd を自動で割り当てる処理。`docs/analysis.md` の 2.5 節に、
-実データから読み取れた制約 (各コマ 1st は 1 人、2nd は 0〜1 人、平日昼 1st は原則佐々木 など) をまとめています。
-NICU / 小児科当直や学会出張など、予定一覧に無い「追加された内容」は別途入力が必要です。
+2026-10 ver.2 / 2026-11 の完成版から読み取ったもの。詳細は `duty_roster/assign.py` の冒頭。
+
+* 担当は `--callers` (既定 仲本, 佐々木)。各コマ 1st は 1 人、もう 1 人は空いていれば 2nd。
+* 当直 (夜) の人は終日 1st (夜は "NICU/1st" のように当直名付き)。日直の人は昼 + 夜も 1st (相手が当直なら夜は相手)。
+* 当直翌日は原則 1st を避ける。「○○前日」は夜の 1st を避ける。「1st不可」はその日 1st にしない。相手が空いていなければ入れる (レポートに列挙)。
+* 外勤・外来・休暇などのコマは 1st / 2nd ともに不可。両者とも予定ありなら 1st は空白。
+* 「休み」「私用」は 1st 不可だが 2nd には入る。心臓カテーテル・検査 (院内) は当番を妨げない。
+* 1st の回数は休日 (土日祝) を 1.3 倍で重み付けして平準化。同じ日はなるべく同じ人が続ける。
+
+11 月の完成版との 1st の一致は 90 コマ中 76 コマ (残りは平準化の取り方の違い)。

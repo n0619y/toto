@@ -20,7 +20,7 @@ class Stats:
 
 def analyze(roster: Roster) -> Stats:
     st = Stats()
-    for day in range(1, roster.ndays + 1):
+    for day in range(1, roster.last_day + 1):
         holiday = roster.is_holiday(day)
         for si in range(3):
             firsts, seconds = [], []
