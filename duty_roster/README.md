@@ -61,7 +61,7 @@ python -m duty_roster verify data/2026-09/roster.yaml          samples/Sep_2026_
 python -m duty_roster check data/2026-09/roster.yaml
 
 # 6. 1st / 2nd call の自動割り当て (仲本・佐々木). --extend-days 3 で翌月 1/1〜1/3 も同じ表に含める
-python -m duty_roster assign "samples/予定一覧_2026-10_2027-03_記入済.xlsx" --month 2026-12 --extend-days 3 --aliases data/aliases.yaml -o data/2026-12/roster.yaml
+python -m duty_roster assign "data/予定一覧_最新.xlsx" --month 2026-12 --extend-days 3 --aliases data/aliases.yaml -o data/2026-12/roster.yaml
 python -m duty_roster render data/2026-12/roster.yaml -o output/2026-12/Schedule_2026-12
 
 # 予定一覧 (1 枚目) 形式の Excel 入力テンプレート (月ごとにシート, 土日祝は赤, 定例予定を自動入力, 2026-09 を記入例として同梱)
@@ -107,6 +107,13 @@ days:
 * `render` で作った PDF は、元 PDF と **90 日分 × 3 名 × 3 コマ = 270 コマ すべてで色・文字が一致** します (`verify` で確認、テストにも含む)。
 * xlsx は同じ結合・色・罫線で作成しています。LibreOffice で PDF 化した場合、9 日夜の補足 `(～19時)` が
   セル幅の都合で一部欠けて描画されることがあります (Excel で開く分には問題ありません)。
+
+## 運用ルール
+
+* **予定表 (予定一覧 xlsx) は常に最新版を使う。** 作成・更新を依頼された時点で添付された最新のファイルを
+  `data/予定一覧_最新.xlsx` に上書きしてから生成する。古い版は残さない。
+* 出力は月ごとに同じファイル名 (`output/YYYY-MM/Schedule_YYYY-MM.pdf` / `.xlsx`) を上書きする。新しい名前のファイルは作らない。
+* 自動割り当てへの手修正は `data/YYYY-MM/overrides.yaml` に書く (再生成しても保持される)。
 
 ## 1st / 2nd の自動割り当てルール (`assign`)
 
