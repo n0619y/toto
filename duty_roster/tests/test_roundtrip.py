@@ -234,7 +234,7 @@ def test_assign_matches_reference_mostly():
     from duty_roster.parse_plan import load_plan
     from duty_roster.skeleton import load_aliases
 
-    xlsx = os.path.join(ROOT, "samples", "予定一覧_2026-10_2027-03_記入済.xlsx")
+    xlsx = os.path.join(ROOT, "data", "予定一覧_最新.xlsx")
     plan = load_plan(xlsx, 2026, 11)
     aliases = load_aliases(os.path.join(ROOT, "data", "aliases.yaml"))
     skeleton, _ = build_skeleton(plan, aliases)
@@ -259,7 +259,7 @@ def test_assign_december_with_january_days():
     from duty_roster.parse_plan import load_plan
     from duty_roster.skeleton import load_aliases, merge_next_month
 
-    xlsx = os.path.join(ROOT, "samples", "予定一覧_2026-10_2027-03_記入済.xlsx")
+    xlsx = os.path.join(ROOT, "data", "予定一覧_最新.xlsx")
     plan = merge_next_month(load_plan(xlsx, 2026, 12), load_plan(xlsx, 2027, 1), 3)
     aliases = load_aliases(os.path.join(ROOT, "data", "aliases.yaml"))
     skeleton, _ = build_skeleton(plan, aliases, extra_days=3)
