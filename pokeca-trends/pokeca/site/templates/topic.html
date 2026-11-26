@@ -1,0 +1,44 @@
+{% extends "base.html" %}{% from "_senti.html" import senti %}
+{% block title %}{{ t.title }}｜{{ site_title }}{% endblock %}
+{% block body %}
+<p class="sub" style="margin-top:20px"><a href="{{ root }}daily/{{ date }}.html">← {{ date }} のランキング</a></p>
+<h1>{{ t.rank }}位　{{ t.title }}</h1>
+<div class="meta" style="margin-bottom:16px">
+  <span class="tag">{{ t.category }}</span><span class="tag">{{ t.region|region }}</span>
+  {% for s in t.sources %}<span class="tag">{{ s|source }}</span>{% endfor %}
+  <span>スコア {{ t.score }}</span>{{ t|trend|safe }}
+</div>
+<div class="card">
+  <p style="margin-top:0">{{ t.summary }}</p>
+  {% if t.key_points %}<ul>{% for k in t.key_points %}<li>{{ k }}</li>{% endfor %}</ul>{% endif %}
+</div>
+
+<h2>コメント欄の反応</h2>
+<div class="card">
+  {{ senti(t.sentiment, True) }}
+  <p>{{ t.sentiment.reaction_summary }}</p>
+  <div class="cols">
+    <div><b><i class="dot" style="background:var(--pos)"></i>好意的な意見</b>
+      <ul>{% for x in t.sentiment.positive_points %}<li>{{ x }}</li>{% else %}<li class="sub">なし</li>{% endfor %}</ul></div>
+    <div><b><i class="dot" style="background:var(--neg)"></i>否定的な意見</b>
+      <ul>{% for x in t.sentiment.negative_points %}<li>{{ x }}</li>{% else %}<li class="sub">なし</li>{% endfor %}</ul></div>
+  </div>
+</div>
+
+{% if related %}
+<h2>関連カードの買取相場</h2>
+<div class="card scroll"><table>
+  <tr><th>カード</th><th class="num">最高買取</th><th class="num">前日比</th><th class="num">7日比</th><th>最高値の店</th></tr>
+  {% for c in related %}<tr><td>{{ c.name }} <span class="tag">{{ c.rarity }}</span> <small class="sub">{{ c.number }}</small></td>
+  <td class="num">{{ c.price|yen }}</td><td class="num">{{ c.chg_1d|pct|safe }}</td><td class="num">{{ c.chg_7d|pct|safe }}</td><td>{{ c.best_shop }}</td></tr>{% endfor %}
+</table></div>
+{% endif %}
+
+<h2>話題の元になった投稿</h2>
+<div class="card"><ul class="posts">
+{% for p in t.top_posts %}
+  <li><span class="tag">{{ p.source|source }}</span> {{ p.text }}
+    <div class="meta">いいね {{ "{:,}".format(p.likes) }}・コメント {{ "{:,}".format(p.comments) }}{% if p.url and p.url != '#' %}・<a href="{{ p.url }}" rel="noopener nofollow" target="_blank">元の投稿を見る</a>{% endif %}</div></li>
+{% endfor %}
+</ul></div>
+{% endblock %}

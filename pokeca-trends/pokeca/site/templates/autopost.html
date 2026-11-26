@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}自動投稿の成績｜{{ site_title }}{% endblock %}
+{% block body %}
+<h1>自動投稿の成績</h1>
+<p class="sub">状態: <b>{{ 'デモ（架空の模擬投稿と架空の反応）' if demo else ('投稿中' if enabled else '下書きのみ（dry-run）') }}</b>／対象: {{ platforms|join('・') }}／
+評価済み {{ (playbook or {}).get('evaluated', 0) }} 件。成績（reward）は同じ媒体の自分の投稿の中での相対評価（0〜1）で、表示回数あたりの反応・返信の好意度から計算しています。</p>
+
+<h2>投稿の型ごとの成績</h2>
+<div class="card">
+{% if arche_rows %}
+  <p class="sub" style="margin:0 0 8px">成績の良い型ほど次のサイクルで選ばれやすくなります（UCBバンディット）</p>
+  <table>
+    <tr><th>型</th><th>平均成績</th><th class="num">評価件数</th></tr>
+    {% for r in arche_rows %}
+    <tr><td>{{ r.label }}</td>
+      <td style="width:55%"><div class="hbar"><span style="width:{{ (r.mean*100)|round(0) }}%"></span><em>{{ '%.2f'|format(r.mean) }}</em></div></td>
+      <td class="num">{{ r.n }}</td></tr>
+    {% endfor %}
+  </table>
+{% else %}<p class="empty">まだ評価済みの投稿がありません（投稿から{{ min_age }}時間後に評価されます）</p>{% endif %}
+</div>
+
+<div class="cols">
+<div><h2>学習したこと（プレイブック）</h2>
+<div class="card">
+{% if playbook %}
+  <b>わかったこと</b><ul>{% for x in playbook.insights %}<li>{{ x }}</li>{% endfor %}</ul>
+  <b>続ける・増やす</b><ul>{% for x in playbook.do %}<li>{{ x }}</li>{% endfor %}</ul>
+  <b>避ける</b><ul>{% for x in playbook.dont %}<li>{{ x }}</li>{% endfor %}</ul>
+{% else %}<p class="empty">評価済みの投稿が3件以上たまると作成されます</p>{% endif %}
+</div></div>
+<div><h2>伸びている投稿の型（スタイルガイド）</h2>
+<div class="card">
+{% if style %}
+  <ul>{% for p in style.patterns %}<li><b>{{ p.name }}</b>：{{ p.structure }}</li>{% endfor %}</ul>
+  <p class="sub" style="margin:0">掴み: {{ style.hooks|join(' / ') }}<br>長さ: {{ style.length_tip }}<br>絵文字・タグ: {{ style.emoji_hashtag_tip }}<br>避ける: {{ style.avoid|join(' / ') }}</p>
+{% else %}<p class="empty">まだありません</p>{% endif %}
+</div></div>
+</div>
+
+<h2>最近の投稿</h2>
+<div class="card scroll"><table>
+<tr><th>日時</th><th>媒体</th><th>状態</th><th>型</th><th style="min-width:280px">本文</th><th class="num">表示</th><th class="num">いいね</th><th class="num">返信</th><th class="num">拡散</th><th>返信の反応</th><th class="num">成績</th></tr>
+{% for p in posts %}
+<tr><td>{{ p.cycle }}</td><td>{{ p.platform|source }}</td><td>{{ status_label[p.status] }}</td><td style="white-space:nowrap">{{ archetypes.get(p.archetype, p.archetype).split('（')[0] }}</td>
+<td style="white-space:pre-wrap">{{ p.text or '（' ~ ((p.review or {}).get('issues') or [''])|join('、') ~ '）' }}</td>
+{% set m = p.metrics or {} %}
+<td class="num">{{ "{:,}".format(m.views) if m.views else '-' }}</td><td class="num">{{ m.likes if m else '-' }}</td><td class="num">{{ m.replies if m else '-' }}</td><td class="num">{{ (m.reposts or 0) + (m.quotes or 0) if m else '-' }}</td>
+<td>{{ (p.reply_sentiment or {}).get('overall', '-') }}</td><td class="num">{{ '%.2f'|format(p.reward) if p.reward is not none else '-' }}</td></tr>
+{% else %}<tr><td colspan="11" class="empty">まだ投稿がありません</td></tr>{% endfor %}
+</table></div>
+{% endblock %}

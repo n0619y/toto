@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}過去の話題｜{{ site_title }}{% endblock %}
+{% block body %}
+<h1>過去の話題</h1>
+<p class="sub">日別のトピックランキング（上位3件）</p>
+<div class="grid">
+{% for d in days %}
+  <div class="card"><b><a href="{{ root }}daily/{{ d.date }}.html">{{ d.date }}</a></b>
+    <ol style="margin:6px 0 0">{% for t in d.top %}<li><a href="{{ root }}topic/{{ d.date }}/{{ t.topic_key }}.html">{{ t.title }}</a> <small class="sub">{{ t.sentiment.overall }}</small></li>{% endfor %}</ol>
+  </div>
+{% endfor %}
+</div>
+{% endblock %}

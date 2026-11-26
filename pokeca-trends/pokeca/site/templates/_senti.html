@@ -1,0 +1,16 @@
+{% macro senti(s, full=False) %}
+<div class="senti">
+  <div class="bar" role="img" aria-label="好意的{{ s.ratio.positive }}% 否定的{{ s.ratio.negative }}% 中立{{ s.ratio.neutral }}%">
+    {% if s.ratio.positive %}<span class="p" style="width:{{ s.ratio.positive }}%"></span>{% endif %}
+    {% if s.ratio.neutral %}<span class="u" style="width:{{ s.ratio.neutral }}%"></span>{% endif %}
+    {% if s.ratio.negative %}<span class="n" style="width:{{ s.ratio.negative }}%"></span>{% endif %}
+  </div>
+  <div class="lbl">
+    <span class="overall">反応: {{ s.overall }}</span>
+    <span><i class="dot" style="background:var(--pos)"></i>好意的 {{ s.ratio.positive }}%</span>
+    <span><i class="dot" style="background:var(--neu)"></i>中立 {{ s.ratio.neutral }}%</span>
+    <span><i class="dot" style="background:var(--neg)"></i>否定的 {{ s.ratio.negative }}%</span>
+    <span>（{{ s.analyzed }}件を分析）</span>
+  </div>
+</div>
+{% endmacro %}
