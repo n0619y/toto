@@ -35,3 +35,6 @@ output/poikatsu/
 # 事業の実数（売上・粗利など）を含む試算は、リポジトリに入れない
 products/kaitori-kit/shisan.py
 products/kaitori-kit/買取率の試算.md
+
+# オーナー個人の作業一覧（注文番号や私的なリンクを含む）は、リポジトリに入れない
+pokeca/psa/todo.html
