@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>パスワード生成｜くらしの計算機</title>
+<meta name="description" content="安全なランダムパスワードをブラウザ内で生成します。長さと文字の種類を選べます。">
+<link rel="canonical" href="https://example.com/password/">
+<link rel="stylesheet" href="/style.css">
+</head><body data-tool="password">
+<header><a href="/">くらしの計算機</a></header>
+<main><h1>パスワード生成</h1><p class="lead">安全なランダムパスワードをブラウザ内で生成します。長さと文字の種類を選べます。</p><div class="card"><label>長さ<input id="len" type="number" inputmode="numeric" value="16" min="4" max="64"></label>
+<label><input id="lower" type="checkbox" checked>英小文字</label><label><input id="upper" type="checkbox" checked>英大文字</label>
+<label><input id="digit" type="checkbox" checked>数字</label><label><input id="symbol" type="checkbox">記号</label>
+<div class="row"><button id="gen">生成する</button><button id="copy">コピー</button></div></div><div class="card" id="result" aria-live="polite"></div><h2>このツールについて</h2><p>パスワードはお使いのブラウザの中で生成され、外部には送信・保存されません。見間違えやすい文字（0とO、1とlなど）は除いています。</p><h2>ほかのツール</h2><ul class="tools"><li><a href="/wareki/"><b>和暦・西暦 変換</b></a></li><li><a href="/age/"><b>年齢計算</b></a></li><li><a href="/school/"><b>入学・卒業年 早見</b></a></li><li><a href="/days/"><b>日数計算</b></a></li><li><a href="/count/"><b>文字数カウント</b></a></li><li><a href="/warikan/"><b>割り勘計算</b></a></li><li><a href="/tax/"><b>消費税計算</b></a></li><li><a href="/discount/"><b>割引・ポイント還元 計算</b></a></li><li><a href="/unit/"><b>単位変換</b></a></li><li><a href="/zenhan/"><b>全角・半角 変換</b></a></li></ul></main>
+<footer><a href="/">ツール一覧</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
+<script type="module" src="/app.js"></script>
+</body></html>
