@@ -313,3 +313,23 @@ Settings → Secrets and variables → Actions に、`.env.example` の `POIKATS
 
 > GitHub Actions 上では台帳をキャッシュで持ち回るため、`done` の記録は手元のPCの台帳とは別になります。
 > 実績まで一元管理したい場合は、手元のPCで cron / タスクスケジューラから `python -m poikatsu run` を動かしてください。
+
+---
+
+# 🃏 ポケカ事業の自動化（`python -m pokeca`）
+
+買取表 → 推奨仕入れ値 → 在庫 → PSA鑑定 → 売り先選定 を1つの台帳でつなぎます。
+設定は `config/pokeca.yaml`（**為替・鑑定料・送料・税率・グレード確率はすべて仮の値**）。
+
+```bash
+python -m pokeca prices import 買取表.csv       # 列: shop,set_code,number,name,grade,price
+python -m pokeca recommend --out 推奨仕入れ.csv # 各カードの推奨仕入れ上限
+python -m pokeca stock add sv2a 201/165 "カード名" 15000 --from 店名
+python -m pokeca psa-export --out 依頼.csv --mark 注文番号   # 鑑定に出す一覧。鑑定中にして費用を按分
+python -m pokeca stock set 1 --status 返却済 --grade PSA10 --cert 12345678
+python -m pokeca sell-plan                      # 在庫ごとの最高値の買取店と利益
+```
+
+推奨仕入れ上限 = (期待売値 − 1枚あたり費用) ÷ (1 + 目標利益率)。
+期待売値は「グレード確率 × そのグレードの最高買取」の合計、費用は鑑定料・往復送料・輸入時の税・諸経費です。
+`pokeca/sample/prices.csv` は動作確認用の架空データです。
