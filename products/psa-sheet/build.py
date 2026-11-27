@@ -197,7 +197,7 @@ def build_guide(wb):
     line(S_LEDGER, "カード1枚ごとの記録。鑑定費用・原価合計・販売手数料・利益・利益率は自動計算です。500行ぶん用意しています。")
     line(S_ORDER, "PSA注文番号ごとの枚数・仕入合計・鑑定費用合計・売却合計・利益。30注文ぶん。")
     line(S_MONTH, "指定した年の、売却月ごとの売上・原価・利益・枚数。あわせてグレード別の枚数と割合(PSA10率)。")
-    line(S_SIM, "仕入れ前の判断用。仕入れ値と、グレードごとの売値・確率から、期待利益・損益分岐の仕入れ値・仕入れ上限を出します。")
+    line(S_SIM, "仕入れ前の判断用。仕入れ値と、グレードごとの売値・確率から、期待利益・損益分岐の仕入れ値・仕入れ上限を出します。仕入れ上限は、目標利益率の2つの定義(売却額に対して / 仕入れ値に対して)それぞれで表示します。")
     r += 1
 
     section("計算のルール")
@@ -206,7 +206,10 @@ def build_guide(wb):
     line("原価合計", "仕入値 + 鑑定費用。")
     line("販売手数料", "売却額 × 販売手数料率(「設定」シート)。1円未満は四捨五入。")
     line("利益", "売却額 − 販売手数料 − 原価合計。状態が「売却済」で売却額が入っている行だけ表示されます。")
-    line("利益率", "利益 ÷ 売却額。このファイルでは利益率はすべて「売却額に対する割合」です(シミュレーターの目標利益率も同じ)。")
+    line("利益率", "利益 ÷ 売却額。在庫台帳・月次集計・シミュレーターの期待利益率は、すべて「売却額に対する割合」です。")
+    line("目標利益率の2つの定義", "シミュレーターは仕入れ上限を2通り出します。(1) 売却額に対する利益率 = 利益 ÷ 売却額(在庫台帳・月次集計と同じ定義)。(2) 仕入れ値に対する利益率 = 利益 ÷ 仕入れ値(無料Webツール「PSA鑑定 仕入れ上限 逆算」と同じ定義)。")
+    line("", "同じ目標 20% でも、(1) は「売却額の 20% を利益として残す」、(2) は「仕入れ値の 20% を利益として乗せる」という意味です。(1) のほうが条件が厳しいので、仕入れ上限は (1) のほうが低く出ます(初期値の例: (1) 14,100円 / (2) 17,900円)。")
+    line("", "どちらが正しいということはありません。使う定義を1つ決めて、いつも同じ行を見てください。シミュレーターの「判定」は (1) の行で判定します。")
     line("月次集計", "状態が「売却済」で、売却日が指定した年月に入る行を集計します。売却日が空欄の行は月次に入りません(月次集計シートのチェック欄に件数が出ます)。")
     r += 1
 
@@ -496,13 +499,17 @@ def build_monthly(wb):
 # ============================================================================
 SIM = {"buy": "B4", "p10": "B8", "p9": "B9", "low": "B10", "q10": "C8", "q9": "C9", "qlow": "C10",
        "target": "B13", "cost": "B17", "esale": "B18", "efee": "B19", "eprofit": "B20", "erate": "B21",
-       "breakeven": "B22", "maxbuy": "B23", "verdict": "B24", "g10": "B28", "g9": "B29", "glow": "B30"}
+       "breakeven": "B22",
+       # 仕入れ上限は目標利益率の定義ごとに1行。B列 = 100円単位に切り下げ、C列 = 切り下げ前(1円未満切り捨て)
+       "maxbuy": "B23", "maxbuy_exact": "C23",              # 売却額に対する利益率(月次集計と同じ定義)
+       "maxbuy_onbuy": "B24", "maxbuy_onbuy_exact": "C24",  # 仕入れ値に対する利益率(無料ツール・core.py recommend と同じ定義)
+       "verdict": "B25", "g10": "B28", "g9": "B29", "glow": "B30"}
 
 
 def build_sim(wb):
     ws = wb.create_sheet(S_SIM)
     ws.sheet_view.showGridLines = False
-    for col, w in zip("ABCD", (34, 16, 12, 70)):
+    for col, w in zip("ABCD", (38, 16, 16, 70)):
         ws.column_dimensions[col].width = w
     s = SIM
     ws["A1"].value, ws["A1"].font = "シミュレーター(仕入れ前の判断用)", FONT_TITLE
@@ -527,7 +534,7 @@ def build_sim(wb):
 
     ws["A13"].value = "目標利益率(%)"
     inp(ws, s["target"], 20, "0.0")
-    ws["D13"].value = "← 利益 ÷ 売値 で考えた目標(在庫台帳の利益率と同じ定義)"
+    ws["D13"].value = "← 下の「仕入れ上限」の2行で使います(売却額に対する利益率 / 仕入れ値に対する利益率 の2通り)"
 
     dv_money = DataValidation(type="decimal", operator="greaterThanOrEqual", formula1="0", allow_blank=False,
                               showErrorMessage=True, errorTitle="入力エラー", error="0以上の数値を入力してください。")
@@ -542,6 +549,7 @@ def build_sim(wb):
 
     head(ws, 16, 1, "結果", formula=True)
     head(ws, 16, 2, "円", formula=True)
+    head(ws, 16, 3, "切り下げ前(円)", formula=True)
     esale_expr = f"({s['p10']}*{s['q10']}+{s['p9']}*{s['q9']}+{s['low']}*{s['qlow']})/100"
     rows = [
         ("cost", "1枚あたりの鑑定費用", "=cfg_cost_per_card", FMT_YEN, "「設定」シートの合計"),
@@ -552,20 +560,28 @@ def build_sim(wb):
         ("erate", "期待利益率", f'=IF({s["esale"]}=0,"",{s["eprofit"]}/{s["esale"]})', FMT_PCT, "期待利益 ÷ 期待売値"),
         ("breakeven", "損益分岐の仕入れ値", f"={s['esale']}-{s['efee']}-{s['cost']}", FMT_YEN,
          "この値より安く仕入れれば期待利益がプラス(マイナス表示なら、いくらで仕入れても期待値は赤字)"),
-        ("maxbuy", "仕入れ上限(目標利益率)",
-         f"=MAX(0,ROUNDDOWN({s['esale']}*(1-cfg_sell_fee_pct/100-{s['target']}/100)-{s['cost']},-2))", FMT_YEN,
-         "期待売値 ×(1 − 手数料率 − 目標利益率)− 鑑定費用。100円単位に切り下げ、マイナスなら 0"),
+        ("maxbuy_exact", None,
+         f"=ROUNDDOWN({s['esale']}*(1-cfg_sell_fee_pct/100-{s['target']}/100)-{s['cost']},0)", FMT_YEN, None),
+        ("maxbuy", "仕入れ上限(売却額に対する利益率)", f"=MAX(0,ROUNDDOWN({s['maxbuy_exact']},-2))", FMT_YEN,
+         "利益 ÷ 売却額 が目標以上になる上限。在庫台帳・月次集計の利益率と同じ定義。"
+         "式: 期待売値 ×(1 − 手数料率 − 目標)− 鑑定費用"),
+        ("maxbuy_onbuy_exact", None, f"=ROUNDDOWN({s['breakeven']}/(1+{s['target']}/100),0)", FMT_YEN, None),
+        ("maxbuy_onbuy", "仕入れ上限(仕入れ値に対する利益率)", f"=MAX(0,ROUNDDOWN({s['maxbuy_onbuy_exact']},-2))", FMT_YEN,
+         "利益 ÷ 仕入れ値 が目標以上になる上限。無料ツール「PSA鑑定 仕入れ上限 逆算」と同じ定義。"
+         "式: 損益分岐の仕入れ値 ÷(1 + 目標)"),
         ("verdict", "判定",
          f'=IF(B11<>"OK","確率を確認",IF({s["buy"]}<={s["maxbuy"]},"目標内",'
          f'IF({s["buy"]}<={s["breakeven"]},"黒字見込み(目標未満)","期待値は赤字")))', None,
-         "仕入れ値を、仕入れ上限・損益分岐と比べた結果"),
+         "仕入れ値を「仕入れ上限(売却額に対する利益率)」・損益分岐と比べた結果"),
     ]
     for key, label, formula, fmt, note in rows:
         r = int(s[key][1:])
-        ws.cell(row=r, column=1, value=label).border = BORDER
         calc(ws, s[key], formula, fmt)
+        if label is None:          # C列(切り下げ前)。見出しと説明は同じ行のB列側で付ける
+            continue
+        ws.cell(row=r, column=1, value=label).border = BORDER
         ws.cell(row=r, column=4, value="← " + note)
-    for k in ("eprofit", "maxbuy", "verdict"):
+    for k in ("eprofit", "maxbuy", "maxbuy_onbuy", "verdict"):
         ws[s[k]].font = FONT_B
     ws[s["verdict"]].alignment = Alignment(horizontal="right")
 
@@ -580,6 +596,8 @@ def build_sim(wb):
 
     ws["A33"].value = "※ 期待値は「同じ条件で何枚も繰り返したときの平均」です。1枚ごとの結果は上の「結果ごとの利益」のどれかになります。"
     ws["A34"].value = "※ 確率と売値はご自身の見立てです。このシートは将来の相場や鑑定結果を予測するものではありません。"
+    ws["A35"].value = ("※ 仕入れ上限は、B列が100円単位に切り下げた値(マイナスなら 0)、C列が切り下げ前の値(1円未満切り捨て)です。"
+                       "2行の違いは目標利益率の定義だけで、「売却額に対する利益率」の行のほうが低く出ます。")
     protect(ws)
 
 

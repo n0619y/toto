@@ -11,6 +11,9 @@
   3. LibreOffice があれば、xlsx を実際に再計算して全セルの値を Python モデルと比べ、
      エラー値(#REF! #NAME? #VALUE! #DIV/0! #N/A, Err:5xx)が1つも無いことを確かめる。
      出荷状態のファイルに加えて、設定を変え、境界ケースの行を足した「負荷シナリオ」でも同じことをする。
+  4. 無料ツールとの突き合わせ: 無料Webツール「PSA鑑定 仕入れ上限 逆算」の初期値をシミュレーターに入れ、
+     「仕入れ上限(仕入れ値に対する利益率)」の行が、ツールの関数(products/tools-site/src/lib.js の
+     psaMaxBuy を node で実行)の結果と一致することを確かめる。lib.js は読むだけで書き換えない。
 
 確かめられないこと
   - Microsoft Excel と Googleスプレッドシートでの実際の表示・再計算(この環境には無い)。
@@ -20,6 +23,8 @@
 from __future__ import annotations
 
 import datetime as dt
+import json
+import math
 import shutil
 import subprocess
 import sys
@@ -63,8 +68,24 @@ HAND_ORDER = {"枚数": 4, "仕入合計": 23000, "鑑定費用合計": 60008, "
               "売却合計": 63000, "販売手数料": 0, "利益": 18996, "未売却の原価": 39004, "PSA10枚数": 1}
 HAND_GRADES = {"PSA10": 1, "PSA9": 2, "PSA8以下": 0}
 # シミュレーター初期値: 仕入 8,000 / 60,000×50% + 15,000×40% + 5,000×10% = 36,500
-HAND_SIM = {"esale": 36500, "efee": 0, "eprofit": 13498, "breakeven": 21498, "maxbuy": 14100,
+#   仕入れ上限(売却額に対する利益率 20%) = 36,500 × (1 − 0 − 0.2) − 15,002 = 14,198 → 100円単位に切り下げ 14,100
+#   仕入れ上限(仕入れ値に対する利益率 20%) = (36,500 − 0 − 15,002) ÷ 1.2 = 17,915 → 17,900
+HAND_SIM = {"esale": 36500, "efee": 0, "eprofit": 13498, "breakeven": 21498,
+            "maxbuy_exact": 14198, "maxbuy": 14100, "maxbuy_onbuy_exact": 17915, "maxbuy_onbuy": 17900,
             "g10": 36998, "g9": -8002, "glow": -18002}
+
+# ---- 無料ツール「PSA鑑定 仕入れ上限 逆算」の初期値(シートの名前, lib.js の引数名, 値) ----
+TOOL_LIB = HERE.parent / "tools-site" / "src" / "lib.js"
+TOOL_CFG = [("cfg_psa_fee_usd", "feeUsd", 79.99), ("cfg_fx", "fx", 155), ("cfg_ship_out_jpy", "shipOut", 7700),
+            ("cfg_ship_back_usd", "shipBack", 69.99), ("cfg_cards_per_box", "cards", 20),
+            ("cfg_us_duty_usd", "duty", 30), ("cfg_import_tax_pct", "taxRate", 10), ("cfg_misc_jpy", "misc", 150)]
+TOOL_SIM = [("p10", "v10", 60000), ("p9", "v9", 20000), ("low", "vLow", 8000),
+            ("q10", "p10", 50), ("q9", "p9", 40), ("target", "target", 20)]
+TOOL_PLOW = 10            # ツールは「それ以下」の確率も入力。シートは 100 − 50 − 40 で自動計算
+# 手計算: 期待売値 60,000×50% + 20,000×40% + 8,000×10% = 38,800
+#   ツール(費用を丸めない): (38,800 − 15,002.45975) ÷ 1.2 = 19,831.28… → 19,800
+#   シート(費用を1円に四捨五入): (38,800 − 15,002) ÷ 1.2 = 19,831.66… → 19,800
+HAND_TOOL_MAXBUY = 19800
 
 results: list[tuple[str, str, str]] = []
 
@@ -173,15 +194,18 @@ def model(inp: dict) -> dict:
     qlow = 100 - s["q10"] - s["q9"]
     esale = (s["p10"] * s["q10"] + s["p9"] * s["q9"] + s["low"] * qlow) / 100
     efee = esale * fee_pct / 100
-    import math
-    raw_max = esale * (1 - fee_pct / 100 - s["target"] / 100) - cost
-    maxbuy = max(0, math.trunc(round(raw_max, 6) / 100) * 100)
     breakeven = esale - efee - cost
+    # 切り下げ前(1円未満切り捨て。0方向)→ 100円単位に切り下げ、マイナスなら 0
+    exact = math.trunc(round(esale * (1 - fee_pct / 100 - s["target"] / 100) - cost, 6))    # 売却額に対する利益率
+    exact_onbuy = math.trunc(round(breakeven / (1 + s["target"] / 100), 6))                 # 仕入れ値に対する利益率
+    maxbuy = max(0, math.trunc(exact / 100) * 100)
+    maxbuy_onbuy = max(0, math.trunc(exact_onbuy / 100) * 100)
     verdict = "目標内" if s["buy"] <= maxbuy else ("黒字見込み(目標未満)" if s["buy"] <= breakeven else "期待値は赤字")
     g = lambda p: p - rhu(p * fee_pct / 100) - cost - s["buy"]
     sim = {"cost": cost, "qlow": qlow, "esale": esale, "efee": efee, "eprofit": esale - efee - cost - s["buy"],
            "erate": (esale - efee - cost - s["buy"]) / esale if esale else None, "breakeven": breakeven,
-           "maxbuy": maxbuy, "verdict": verdict, "g10": g(s["p10"]), "g9": g(s["p9"]), "glow": g(s["low"])}
+           "maxbuy_exact": exact, "maxbuy": maxbuy, "maxbuy_onbuy_exact": exact_onbuy, "maxbuy_onbuy": maxbuy_onbuy,
+           "verdict": verdict, "g10": g(s["p10"]), "g9": g(s["p9"]), "glow": g(s["low"])}
     return {"cost": cost, "ledger": led, "orders": orders, "months": months, "year": year,
             "checks": checks, "grades": grades, "sim": sim}
 
@@ -399,7 +423,8 @@ def compare_recalc(label: str, calc_path: Path, m: dict, inp: dict) -> None:
     ws = wb[B.S_SIM]
     bad = [f"{k}={ws[B.SIM[k]].value!r} want {v!r}" for k, v in m["sim"].items() if not close(ws[B.SIM[k]].value, v)]
     check(f"{label}: シミュレーター(期待利益・損益分岐・仕入れ上限・判定ほか)", bad,
-          f"期待利益 {m['sim']['eprofit']:,.0f} / 分岐 {m['sim']['breakeven']:,.0f} / 上限 {m['sim']['maxbuy']:,}")
+          f"期待利益 {m['sim']['eprofit']:,.0f} / 分岐 {m['sim']['breakeven']:,.0f} / "
+          f"上限 売却額基準 {m['sim']['maxbuy']:,} ・ 仕入れ値基準 {m['sim']['maxbuy_onbuy']:,}")
 
 
 def make_stress(path: Path) -> None:
@@ -442,6 +467,75 @@ def make_stress(path: Path) -> None:
     wb.save(path)
 
 
+# ============================================================================
+# 4. 無料ツール(lib.js の psaMaxBuy)との突き合わせ
+# ============================================================================
+def tool_max_buy() -> dict | None:
+    """lib.js の psaMaxBuy をツールの初期値で実行する。node か lib.js が無ければ None。"""
+    node = shutil.which("node")
+    if not node or not TOOL_LIB.exists():
+        return None
+    args = {js: v for _, js, v in TOOL_CFG + TOOL_SIM}
+    args["pLow"] = TOOL_PLOW
+    # lib.js を書き換えずに使うため、読んだ中身の後ろに1行足して標準入力から ES モジュールとして実行する
+    src = TOOL_LIB.read_text(encoding="utf-8") + f"\nconsole.log(JSON.stringify(psaMaxBuy({json.dumps(args)})));\n"
+    out = subprocess.run([node, "--input-type=module", "-"], input=src, capture_output=True, text=True,
+                         timeout=60, check=True)
+    return json.loads(out.stdout.strip().splitlines()[-1])
+
+
+def make_tool_case(path: Path) -> None:
+    """ツールの初期値を入れたファイルを作る(数式はそのまま)。ツールには販売手数料の欄が無いので 0。"""
+    wb = load_workbook(XLSX)
+    for name, _, v in TOOL_CFG:
+        wb[B.S_CFG][f"B{B.CFG_ROW[name]}"].value = v
+    wb[B.S_CFG][f"B{B.CFG_ROW['cfg_sell_fee_pct']}"].value = 0
+    for key, _, v in TOOL_SIM:
+        wb[B.S_SIM][B.SIM[key]].value = v
+    wb.save(path)
+
+
+def tool_checks(td: Path | None) -> None:
+    name = "無料ツールの初期値: 仕入れ上限(仕入れ値に対する利益率)= lib.js psaMaxBuy の結果"
+    try:
+        tool = tool_max_buy()
+    except Exception as e:  # noqa: BLE001
+        record("NG", name, f"lib.js の実行に失敗: {e}")
+        return
+    if tool is None:
+        record("SKIP", name, "node または products/tools-site/src/lib.js が無い。ツールとの一致は未確認")
+        return
+    case = (td or Path(tempfile.mkdtemp())) / "toolcase.xlsx"
+    make_tool_case(case)
+    inp = read_inputs(load_workbook(case))
+    m = model(inp)
+    bad = []
+    if tool["maxBuy"] != HAND_TOOL_MAXBUY:
+        bad.append(f"ツール {tool['maxBuy']} != 手計算 {HAND_TOOL_MAXBUY}")
+    if m["sim"]["maxbuy_onbuy"] != tool["maxBuy"]:
+        bad.append(f"Python モデル {m['sim']['maxbuy_onbuy']} != ツール {tool['maxBuy']}")
+    if m["sim"]["qlow"] != TOOL_PLOW or not close(m["sim"]["esale"], tool["expected"]):
+        bad.append(f"期待売値 {m['sim']['esale']} != ツール {tool['expected']}")
+    # 切り下げ前は、シートが費用を1円に四捨五入するぶん 1円未満の差が出うる(100円単位の結果が一致すればよい)
+    if abs(m["sim"]["maxbuy_onbuy_exact"] - tool["exact"]) > 1:
+        bad.append(f"切り下げ前 {m['sim']['maxbuy_onbuy_exact']} とツール {tool['exact']} の差が1円超")
+    sheet = "LibreOffice 無しのため Python モデルのみ"
+    if td is not None:
+        calc_path = recalc(case, td)
+        ws = load_workbook(calc_path, data_only=True)[B.S_SIM]
+        got, got_exact = ws[B.SIM["maxbuy_onbuy"]].value, ws[B.SIM["maxbuy_onbuy_exact"]].value
+        if got != tool["maxBuy"]:
+            bad.append(f"シート {B.SIM['maxbuy_onbuy']}={got!r} != ツール {tool['maxBuy']}")
+        if got_exact != m["sim"]["maxbuy_onbuy_exact"]:
+            bad.append(f"シート {B.SIM['maxbuy_onbuy_exact']}={got_exact!r} != モデル {m['sim']['maxbuy_onbuy_exact']}")
+        other = ws[B.SIM["maxbuy"]].value
+        if other != m["sim"]["maxbuy"]:
+            bad.append(f"シート {B.SIM['maxbuy']}={other!r} != モデル {m['sim']['maxbuy']}")
+        sheet = (f"シート(LibreOffice 再計算){B.SIM['maxbuy_onbuy']}={got:,} / 切り下げ前 {got_exact:,} / "
+                 f"売却額基準の行は {other:,}")
+    check(name, bad, f"ツール maxBuy={tool['maxBuy']:,} (切り下げ前 {tool['exact']:.2f}) / {sheet}")
+
+
 def main() -> int:
     if not XLSX.exists():
         print(f"{XLSX} がありません。先に build.py を実行してください。")
@@ -472,6 +566,9 @@ def main() -> int:
             s_inp = read_inputs(load_workbook(stress))
             s_calc = recalc(stress, td)
             compare_recalc("負荷シナリオ", s_calc, model(s_inp), s_inp)
+
+        print("\n== 4. 無料ツール(lib.js psaMaxBuy)との突き合わせ ==")
+        tool_checks(td if calc_path is not None else None)
 
     record("SKIP", "Microsoft Excel での表示・再計算", "この環境に Excel が無いため未確認")
     record("SKIP", "Googleスプレッドシートへのインポートと再計算", "ネットワーク・アカウントを使わないため未確認")
