@@ -28,6 +28,8 @@ p{margin:0}.lead{color:var(--mut)}
 section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:12px;min-width:0}
 .step{font-family:var(--head);font-size:.75rem;letter-spacing:.08em;color:var(--accent);font-weight:700}
 ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:6px}
+select{font:inherit;color:var(--fg);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%}
+label{font-size:.85rem;color:var(--mut);margin-bottom:-6px}
 textarea,.out{font-family:var(--mono);font-size:.9rem;background:var(--code);color:var(--fg);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%;box-sizing:border-box}
 textarea{min-height:130px}.out{overflow-wrap:anywhere;min-height:2.6em}
 #bm{max-height:5.5em;overflow:auto;font-size:.7rem;color:var(--mut)}
@@ -40,7 +42,7 @@ code{font-family:var(--mono);background:var(--code);padding:1px 5px;border-radiu
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Space+Grotesk:wght@700&display=swap">
 <main>
 <header><h1>PSA入力アシスト</h1>
-<p class="lead">PSAの「Enter Items」画面で、カードの検索・選択・枚数入力・Saveを順番に自動で行います。Proceed to Checkout と Place Order、規約のチェックは押しません。</p></header>
+<p class="lead">PSAの申込画面で、鑑定プランの選択から、カードの検索・選択・枚数入力・Saveまでを順番に自動で行います。Proceed to Checkout と Place Order、規約のチェックは押しません。</p></header>
 
 <section><div class="step">初回だけ</div><h2>ブックマークに登録する(Android の Chrome)</h2>
 <ol><li>下のボタンでコードをコピーする。</li>
@@ -52,6 +54,9 @@ code{font-family:var(--mono);background:var(--code);padding:1px 5px;border-radiu
 
 <section><div class="step">毎回 1</div><h2>入力リストを作る</h2>
 <p>1行に1種類。「セット記号 カード番号 x枚数」の順で書きます。記号と番号はカード左下に印刷されています。枚数が1なら省略できます。</p>
+<label for="plan">鑑定プラン</label>
+<select id="plan"><option value="">PSAの画面で選ぶ</option><option>Value (1980-Present)</option><option>Standard</option><option selected>Priority</option><option>Express</option><option>Super Express</option></select>
+<label for="list">カード</label>
 <textarea id="list" aria-label="入力リスト">M3 061
 M3 045 x2
 M6a 012</textarea>
@@ -60,9 +65,10 @@ M6a 012</textarea>
 <p class="note">上の3行は記入例です。消して自分のカードを書いてください。</p></section>
 
 <section><div class="step">毎回 2</div><h2>PSAの画面で実行する</h2>
-<ol><li>PSAで Start Submission → Grade with PSA → Classic Submission → Trading Cards → Grading → プランを選び、「Enter Items」まで進む。</li>
+<ol><li>PSAで Start Submission → Grade with PSA → New Submission → Classic Submission と進み、「Select Item Type」の画面を出す。</li>
 <li>アドレスバーをタップして <code>psa</code> と打ち、候補に出る ☆ 付きの「psa」をタップする。</li>
-<li>出てきた入力欄にリストを貼り付けて OK を押す。</li>
+<li>出てきた入力欄にリストを貼り付けて OK を押す。Trading Cards → Grading → 鑑定プランの順に自動で進み、カードの入力が始まる。</li>
+<li>リストでプランを「PSAの画面で選ぶ」にした場合は、プランの一覧が番号付きで出るので、番号を入れて選ぶ。</li>
 <li>終わると「追加 ◯件 / 飛ばした ◯件」と表示される。飛ばしたカードは手で入力する。</li>
 <li>一覧と枚数を確認してから、自分で Proceed to Checkout に進む。</li></ol>
 <p class="note">候補が1件に絞れないカード(同じ番号で通常版とミラー版があるなど)は、間違いを避けるため選ばずに飛ばします。</p>
@@ -77,9 +83,10 @@ function copy(text,box,doneEl){
 }
 function normalize(){
   const rows=$("list").value.split(/[\\n;]+/).map(s=>s.trim().replace(/\\s+/g," ")).filter(Boolean);
+  if($("plan").value)rows.unshift("plan="+$("plan").value);
   $("line").textContent=rows.join("; ");
 }
-$("list").addEventListener("input",normalize);normalize();
+$("list").addEventListener("input",normalize);$("plan").addEventListener("change",normalize);normalize();
 $("copyBm").addEventListener("click",()=>copy($("bm").textContent,$("bm"),$("bmDone")));
 $("copyList").addEventListener("click",()=>copy($("line").textContent,$("line"),$("listDone")));
 </script>

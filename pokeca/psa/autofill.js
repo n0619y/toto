@@ -1,10 +1,13 @@
-// PSA の「Enter Items」画面でカードを順番に入力するブックマークレット本体。
+// PSA の申込画面でカードを順番に入力するブックマークレット本体。
 //
-// やること: リストの各行について 検索欄に入力 → 候補が1件に絞れたら選択 → 枚数を入れる → Save。
+// 始める場所: 「Select Item Type」の画面（Classic Submission を選んだ直後）か、それ以降の画面。
+// やること: Trading Cards → Grading → 鑑定プランの選択（選択肢を出して選んでもらう）→
+//           各カードを 検索 → 候補が1件に絞れたら選択 → 枚数 → Save。
 // やらないこと: Proceed to Checkout / Review Order / Place Order / 規約のチェックは押さない。
 // 候補が0件または複数件のカードは選ばずに飛ばし、最後にまとめて知らせる（誤ったカードを入れないため）。
 //
-// リストの書き方: 「M3 061 x1; M3 045 x2」のように ; か改行で区切る。x枚数 は省略すると1。
+// リストの書き方: 「plan=Priority; M3 061 x1; M3 045 x2」。; か改行で区切る。
+// plan= を省くとプランの選択肢を表示する。x枚数 は省略すると1。
 (async () => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const until = async (fn, ms = 8000) => {
@@ -33,7 +36,7 @@
     return null;
   };
   const button = (text) =>
-    [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === text && !b.disabled);
+    [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === text && !b.disabled && b.offsetParent !== null);
   const itemCount = () => {
     const m = document.body.innerText.match(/Items\s*\((\d+)\)/i);
     return m ? Number(m[1]) : 0;
@@ -49,16 +52,65 @@
     return tokens.every((t) => new RegExp("(^|[^a-z0-9])" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "([^a-z0-9]|$)").test(text));
   };
 
-  if (!searchBox()) {
-    alert("PSA の「Enter Items」画面で実行してください（検索欄が見つかりません）。");
+  const screenIs = (title) => [...document.querySelectorAll("h1, h2, h3, div, p")].some(
+    (e) => e.children.length === 0 && e.textContent.trim() === title && e.offsetParent !== null);
+  const leaf = (text) => [...document.querySelectorAll("label, span, div, p, td, button")].find(
+    (e) => e.children.length === 0 && e.textContent.trim() === text && e.offsetParent !== null);
+  const next = async (fromTitle) => {
+    const b = await until(() => button("Select & Continue"));
+    if (!b) return false;
+    b.click();
+    return !!(await until(() => !screenIs(fromTitle)));
+  };
+  const PLAN_RE = /^(Value|Standard|Priority|Express|Super Express|Premier|Premium \d+)( \(.*\))?$/;
+  const planNames = () => [...new Set([...document.querySelectorAll("label, span, div, p, td")]
+    .filter((e) => e.children.length === 0 && e.offsetParent !== null && PLAN_RE.test(e.textContent.trim()))
+    .map((e) => e.textContent.trim()))];
+
+  const onFlow = () => ["Select Item Type", "Select Submission Type", "Select Service Level"].some(screenIs) || searchBox();
+  if (!onFlow()) {
+    alert("PSA の申込画面（Select Item Type 〜 Enter Items）で実行してください。");
     return;
   }
-  const raw = prompt("PSA入力リストを貼り付けてください\n例: M3 061 x1; M3 045 x2");
+  const raw = prompt("PSA入力リストを貼り付けてください\n例: plan=Priority; M3 061 x1; M3 045 x2");
   if (!raw) return;
-  const items = raw.split(/[;\n]+/).map((s) => s.trim()).filter(Boolean).map((s) => {
-    const m = s.match(/^(.*?)(?:\s*[x×]\s*(\d+))?$/i);
-    return { query: m[1].trim(), qty: Number(m[2] || 1) };
-  });
+  let plan = "";
+  const items = [];
+  for (const part of raw.split(/[;\n]+/).map((s) => s.trim()).filter(Boolean)) {
+    const pm = part.match(/^plan\s*=\s*(.+)$/i);
+    if (pm) { plan = pm[1].trim(); continue; }
+    const m = part.match(/^(.*?)(?:\s*[x×]\s*(\d+))?$/i);
+    items.push({ query: m[1].trim(), qty: Number(m[2] || 1) });
+  }
+
+  // --- カード入力の前の3画面を進める ---
+  if (screenIs("Select Item Type")) {
+    (leaf("Trading Cards") || {click() {}}).click();
+    if (!(await next("Select Item Type"))) { alert("Item Type の画面から進めませんでした。手で進めてからもう一度実行してください。"); return; }
+  }
+  if (screenIs("Select Submission Type")) {
+    (leaf("Grading") || {click() {}}).click();
+    if (!(await next("Select Submission Type"))) { alert("Submission Type の画面から進めませんでした。手で進めてからもう一度実行してください。"); return; }
+  }
+  if (screenIs("Select Service Level")) {
+    const names = await until(() => { const n = planNames(); return n.length ? n : null; });
+    if (!names) { alert("鑑定プランの一覧を読み取れませんでした。手で選んでからもう一度実行してください。"); return; }
+    let chosen = names.find((n) => n.toLowerCase() === plan.toLowerCase());
+    if (!chosen) {
+      const answer = prompt((plan ? `「${plan}」というプランが見つかりません。\n` : "") + "鑑定プランを番号で選んでください\n" +
+        names.map((n, i) => `${i + 1}. ${n}`).join("\n"));
+      chosen = names[Number(answer) - 1];
+      if (!chosen) return;                              // キャンセルや範囲外なら何もしない
+    }
+    leaf(chosen).click();
+    await sleep(300);
+    if (!(await next("Select Service Level"))) { alert("Service Level の画面から進めませんでした。手で進めてからもう一度実行してください。"); return; }
+  }
+  if (!(await until(searchBox))) {
+    alert("「Enter Items」画面の検索欄が見つかりません。");
+    return;
+  }
+  if (!items.length) { alert("プランを選びました。カードのリストが空なので、ここで終わります。"); return; }
 
   const added = [], skipped = [];
   for (const item of items) {
