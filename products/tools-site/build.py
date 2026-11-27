@@ -20,15 +20,19 @@ def _n(id_, label, value="", mode="decimal", lo=' min="0"'):
     return f'<label>{label}<input id="{id_}" type="number" inputmode="{mode}"{lo} step="any"{v}></label>'
 
 
+# PSA系ツールの初期値（一例）。解説記事の計算例もこの数字から作るので、ツールと記事がずれない。
+DEF = {"feeUsd": 79.99, "fx": 155, "shipOut": 7700, "shipBack": 69.99, "cards": 20, "duty": 30, "taxRate": 10, "misc": 150,
+       "p10": 50, "p9": 40, "pLow": 10, "target": 20}
+
 PSA_SALE = f"""<p class="lead">鑑定後の売値と、そのグレードになる確率（合計100%）</p>
-<div class="row">{_n("v10", "PSA10の売値（円）")}{_n("p10", "PSA10の確率（%）", 50)}</div>
-<div class="row">{_n("v9", "PSA9の売値（円）")}{_n("p9", "PSA9の確率（%）", 40)}</div>
-<div class="row">{_n("vLow", "それ以下の売値（円）")}{_n("pLow", "それ以下の確率（%）", 10)}</div>"""
+<div class="row">{_n("v10", "PSA10の売値（円）")}{_n("p10", "PSA10の確率（%）", DEF["p10"])}</div>
+<div class="row">{_n("v9", "PSA9の売値（円）")}{_n("p9", "PSA9の確率（%）", DEF["p9"])}</div>
+<div class="row">{_n("vLow", "それ以下の売値（円）")}{_n("pLow", "それ以下の確率（%）", DEF["pLow"])}</div>"""
 PSA_COST = f"""<p class="lead">鑑定にかかる費用（初期値は一例です。実際の料金は各自でご確認ください）</p>
-<div class="row">{_n("feeUsd", "鑑定料（USD/枚）", 79.99)}{_n("fx", "為替（円/ドル）", 155)}</div>
-<div class="row">{_n("shipOut", "往路送料（円/箱）", 7700)}{_n("shipBack", "復路送料（USD/箱）", 69.99)}</div>
-<div class="row">{_n("cards", "1箱の枚数", 20, "numeric")}{_n("duty", "米国関税（USD/箱）", 30)}</div>
-<div class="row">{_n("taxRate", "輸入時の税率（%）", 10)}{_n("misc", "諸経費（円/枚）", 150)}</div>"""
+<div class="row">{_n("feeUsd", "鑑定料（USD/枚）", DEF["feeUsd"])}{_n("fx", "為替（円/ドル）", DEF["fx"])}</div>
+<div class="row">{_n("shipOut", "往路送料（円/箱）", DEF["shipOut"])}{_n("shipBack", "復路送料（USD/箱）", DEF["shipBack"])}</div>
+<div class="row">{_n("cards", "1箱の枚数", DEF["cards"], "numeric")}{_n("duty", "米国関税（USD/箱）", DEF["duty"])}</div>
+<div class="row">{_n("taxRate", "輸入時の税率（%）", DEF["taxRate"])}{_n("misc", "諸経費（円/枚）", DEF["misc"])}</div>"""
 PSA_NOTE = ("費用は1枚あたりに直して合計します。鑑定料＝鑑定料(USD)×為替、往路送料＝往路送料÷1箱の枚数、復路送料＝復路送料(USD)×為替÷1箱の枚数、"
             "輸入時の税＝(鑑定料＋復路送料)×税率、米国関税＝関税(USD)×為替÷1箱の枚数、これに諸経費（スリーブ・梱包材・国内の発送費など）を足します。\n"
             "期待売値は「各グレードの売値×そのグレードになる確率」の合計です。売値には、販売手数料や送料を引いたあとの手取り額、または買取店の買取価格を入れてください。\n"
@@ -46,15 +50,15 @@ CARD_TOOLS = [
      "「PSA10だった場合」「PSA9だった場合」「それ以下だった場合」は、そのグレードの売値から費用の合計と仕入れ値を引いた額です。期待値がプラスでも、PSA9以下では赤字になることがよくあります。\n"
      + PSA_NOTE),
     ("psa-max-buy", "PSA鑑定 仕入れ上限 逆算", "PSA鑑定の費用と目標利益率から「この値段までなら仕入れてよい」上限額を逆算します。",
-     f"""{_n("target", "目標利益率（%・仕入れ値に対して）", 20)}
+     f"""{_n("target", "目標利益率（%・仕入れ値に対して）", DEF["target"])}
 {PSA_SALE}
 {PSA_COST}""",
      "仕入れ上限＝(期待売値−費用の合計)÷(1＋目標利益率)です。この金額で仕入れると、期待利益が仕入れ値のちょうど目標利益率ぶんになります。"
      "表示は100円単位に切り下げた額と、切り下げ前の額（1円未満切り捨て）の両方です。目標利益率を0%にすると損益分岐の仕入れ値になります。\n"
      + PSA_NOTE),
     ("grading-fee", "鑑定料の円換算", "ドル建ての鑑定料を、枚数・為替・送料から1枚あたりと合計の円額に換算します。",
-     f"""<div class="row">{_n("count", "枚数", 20, "numeric")}{_n("unitUsd", "鑑定料の単価（USD/枚）", 79.99)}</div>
-{_n("fx", "為替（円/ドル）", 155)}
+     f"""<div class="row">{_n("count", "枚数", DEF["cards"], "numeric")}{_n("unitUsd", "鑑定料の単価（USD/枚）", DEF["feeUsd"])}</div>
+{_n("fx", "為替（円/ドル）", DEF["fx"])}
 <div class="row">{_n("shipOut", "往路送料の合計（円）", 0)}{_n("shipBack", "復路送料の合計（USD）", 0)}</div>""",
      "合計＝枚数×単価(USD)×為替＋往路送料(円)＋復路送料(USD)×為替。送料は枚数で均等に割って1枚あたりに按分します。\n"
      "初期値は一例です。鑑定料はプランや申告価格で変わり、為替も日々動きます。実際の料金と、カード会社などが適用する換算レートはご自身で確認してください。"
