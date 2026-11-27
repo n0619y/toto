@@ -38,11 +38,12 @@ class Costs:
     ship_out: float
     ship_back: float
     import_tax: float
+    us_duty: float
     misc: float
 
     @property
     def total(self) -> float:
-        return self.grading + self.ship_out + self.ship_back + self.import_tax + self.misc
+        return self.grading + self.ship_out + self.ship_back + self.import_tax + self.us_duty + self.misc
 
 
 def per_card_costs(cfg: dict) -> Costs:
@@ -54,6 +55,7 @@ def per_card_costs(cfg: dict) -> Costs:
         ship_out=float(c["outbound_shipping_jpy"]) / n,
         ship_back=ship_back,
         import_tax=(grading + ship_back) * float(c["import_tax_rate"]),
+        us_duty=float(c.get("us_duty_per_shipment_usd", 0)) * fx / n,
         misc=float(c["misc_per_card_jpy"]),
     )
 

@@ -26,11 +26,16 @@ def test_normalization():
 
 def test_costs_per_card():
     c = per_card_costs(CFG)
+    cfg = {"usd_jpy": 155, "costs": {
+        "psa_fee_usd": 25, "cards_per_shipment": 20, "outbound_shipping_jpy": 8000, "return_shipping_usd": 60,
+        "us_duty_per_shipment_usd": 30, "import_tax_rate": 0.10, "misc_per_card_jpy": 150}}
+    c = per_card_costs(cfg)
     assert c.grading == 25 * 155
     assert c.ship_out == 8000 / 20
     assert c.ship_back == 60 * 155 / 20
     assert c.import_tax == pytest.approx((3875 + 465) * 0.10)
-    assert c.total == pytest.approx(3875 + 400 + 465 + 434 + 150)
+    assert c.us_duty == 30 * 155 / 20
+    assert c.total == pytest.approx(3875 + 400 + 465 + 434 + 232.5 + 150)
 
 
 def test_recommend_uses_best_shop_and_margin(db):

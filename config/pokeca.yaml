@@ -5,11 +5,13 @@
 
 usd_jpy: 155                 # 為替（円/ドル）。実勢に合わせて更新
 
+# 出どころ: 2026-11 に Gmail の PSA 領収書・FedEx 請求メールから読み取った値（本文のみ。PDF明細は未確認）
 costs:
-  psa_fee_usd: 25            # PSA 鑑定料（1枚あたり・利用するサービス等級の料金）
-  cards_per_shipment: 20     # 1回の発送に入れる枚数（送料を按分する）
-  outbound_shipping_jpy: 8000   # 日本 → PSA USA の送料（1箱）
-  return_shipping_usd: 60       # PSA USA → 日本 の返送料（1箱）
+  psa_fee_usd: 79.99         # PSA 領収書の多くが 79.99 の倍数（例: $1,599.80 = 20枚）。$59.99 の注文もあり
+  cards_per_shipment: 20     # 直近の注文は 1件あたり 14〜20枚
+  outbound_shipping_jpy: 7700   # FedEx 請求 1件 7,700円（2026-11-24 発行分）
+  return_shipping_usd: 69.99    # PSA に返送を任せた場合の提示額。自分の FedEx アカウント払いなら実費に直す
+  us_duty_per_shipment_usd: 30  # 米国側の輸入関税。2026-09-29 発送分で $30 の請求あり
   import_tax_rate: 0.10      # 返送時の輸入消費税等。鑑定料+返送料に掛ける仮の計算（税理士に要確認）
   misc_per_card_jpy: 150     # スリーブ・梱包材・振込手数料・売却時送料の按分など
 
