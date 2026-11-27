@@ -353,4 +353,11 @@ assert.equal(L.passwordError(16, []), "文字の種類を1つ以上選んでく�
 assert.equal(L.password(16, [], mr), "");
 const p4 = L.password(4, ["abc", "XYZ", "123", "!#"], mr);                       // 4種類・4文字: 各種類が1文字ずつ
 assert.ok(["abc", "XYZ", "123", "!#"].every((s) => [...p4].some((c) => s.includes(c))), p4);
+
+// 桁の上限と、ごく小さい数での桁あふれ
+assert.ok(!L.tooLarge(L.MAX_ABS) && !L.tooLarge(-L.MAX_ABS) && !L.tooLarge(0) && L.tooLarge(L.MAX_ABS * 2) && L.tooLarge(-1e308) && L.tooLarge(Infinity));
+assert.equal(L.psaProfit({ ...COST, ...SALE, buy: 1e-320 }).marginOnBuy, null);   // 以前は Infinity
+assert.equal(L.cardRoi(1e-320, 5, 10, 0).roi, null);
+assert.equal(L.cardRoi(5, 1e-320, 10, 0).marginOnSell, null);
+assert.equal(L.changeRate(1e-320, 5), null);
 console.log("lib ok");

@@ -2,7 +2,7 @@ import * as L from "./lib.js";
 
 const $ = (id) => document.getElementById(id);
 const num = (id) => Number($(id).value);
-const yen = (n) => n.toLocaleString("ja-JP") + "円";
+const yen = (n) => (n + 0).toLocaleString("ja-JP") + "円"; // + 0 は -0 を 0 にするため
 const fmt = (a) => `${a[0]}年${a[1]}月${a[2]}日（${L.weekday(a)}）`;
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const show = (html) => { $("result").innerHTML = html; };
@@ -16,7 +16,7 @@ const dateErr = (name) => err(`${name}は実在する日付を、西暦1〜9999�
 function read(id) {
   const s = $(id).value.trim();
   if (s === "") return $(id).validity.badInput ? NaN : null;
-  return Number(s);
+  return Number(s) + 0; // + 0 は "-0" を 0 にするため
 }
 const copy = (text) => { if (text && navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {}); };
 function today() {
@@ -26,18 +26,22 @@ function today() {
 const iso = (a) => `${a[0]}-${String(a[1]).padStart(2, "0")}-${String(a[2]).padStart(2, "0")}`;
 // 空欄・数値でない入力は null（Number("") が 0 になるのを避ける）
 function val(id) {
-  const s = $(id).value.trim(), n = Number(s);
+  const s = $(id).value.trim(), n = Number(s) + 0;
   return s !== "" && Number.isFinite(n) ? n : null;
 }
+const TOO_LARGE = "数値は±1,000兆以内で入力してください。";
+// 全欄を読む。空欄があれば結果を消し、桁が大きすぎる欄があればエラー文を出して、どちらも null を返す。
 function vals(ids) {
   const o = {};
-  for (const id of ids) if ((o[id] = val(id)) === null) return null;
+  for (const id of ids) if ((o[id] = val(id)) === null) return show(""), null;
+  if (Object.values(o).some(L.tooLarge)) return err(TOO_LARGE), null;
   return o;
 }
 const on = (ids, run) => ids.forEach((id) => $(id).addEventListener("input", run));
 const yenR = (n) => yen(Math.round(n) || 0); // || 0 は -0 を 0 にするため
-const n6 = (v) => (Number(v.toPrecision(12)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 });
-const pct = (v) => (v === null ? "—" : (Number(v.toFixed(2)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 2 }) + "%");
+// 小数6桁まで。丸めて 0 になる負の数が "-0" と表示されないようにする。
+const n6 = (v) => { const s = Number(v.toPrecision(12)).toLocaleString("ja-JP", { maximumFractionDigits: 6 }); return s === "-0" ? "0" : s; };
+const pct = (v) => (v === null || !Number.isFinite(v) ? "—" : (Number(v.toFixed(2)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 2 }) + "%");
 // 0 以上 n 未満の一様な整数（剰余の偏りが出ないよう、範囲外の値は引き直す）
 const rand = (n) => {
   const limit = Math.floor(0x100000000 / n) * n, buf = new Uint32Array(1);
@@ -187,9 +191,10 @@ const TOOLS = {
       const x = read("value");
       if (x === null) return show("");
       if (!Number.isFinite(x)) return err("数値は半角の数字で入力してください。");
+      if (L.tooLarge(x)) return err(TOO_LARGE);
       const v = L.convert($("group").value, x, $("from").value, $("to").value);
       if (v === null) return err("数値が大きすぎます。桁数を減らしてください。");
-      show(rows([[`${n6(x)} ${$("from").value}`, `${(Number(v.toPrecision(8)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} ${$("to").value}`]]));
+      show(rows([[`${n6(x)} ${$("from").value}`, `${n6(Number(v.toPrecision(8)))} ${$("to").value}`]]));
     };
     $("group").innerHTML = Object.keys(L.UNITS).map((g) => `<option>${g}</option>`).join("");
     $("group").addEventListener("change", fill);
@@ -221,7 +226,7 @@ const TOOLS = {
     const ids = ["buy", ...PSA_SALE, ...PSA_COST];
     const run = () => {
       const v = vals(ids);
-      if (!v) return show("");
+      if (!v) return;
       const r = L.psaProfit(v);
       if (!r) return err(psaProbErr(v));
       show(rows([
@@ -239,7 +244,7 @@ const TOOLS = {
     const ids = [...PSA_SALE, ...PSA_COST, "target"];
     const run = () => {
       const v = vals(ids);
-      if (!v) return show("");
+      if (!v) return;
       const r = L.psaMaxBuy(v);
       if (!r) return err(v.target < 0 ? "目標利益率は0%以上で入力してください。" : psaProbErr(v));
       show(rows([
@@ -256,7 +261,7 @@ const TOOLS = {
     const ids = ["count", "unitUsd", "fx", "shipOut", "shipBack"];
     const run = () => {
       const v = vals(ids);
-      if (!v) return show("");
+      if (!v) return;
       const r = L.gradingFee(v.count, v.unitUsd, v.fx, v.shipOut, v.shipBack);
       if (!r) return err("枚数は1以上の整数、為替は0より大きい数、金額は0以上で入力してください。");
       show(rows([
@@ -271,7 +276,7 @@ const TOOLS = {
     const ids = ["buy", "sell", "fee", "ship"];
     const run = () => {
       const v = vals(ids);
-      if (!v) return show("");
+      if (!v) return;
       const r = L.cardRoi(v.buy, v.sell, v.fee, v.ship);
       if (!r) return err("金額は0以上、手数料率は0%以上100%未満で入力してください。");
       show(rows([
@@ -285,12 +290,12 @@ const TOOLS = {
   percent() {
     const run = () => {
       const v = vals(["a", "b"]);
-      if (!v) return show("");
+      if (!v) return;
       const f = (x, unit, why) => (x === null ? why : n6(x) + unit);
       show(rows([
-        [`${n6(v.a)} は ${n6(v.b)} の何%`, f(L.percentOf(v.a, v.b), "%", "計算できません（Bが0）")],
+        [`${n6(v.a)} は ${n6(v.b)} の何%`, f(L.percentOf(v.a, v.b), "%", v.b === 0 ? "計算できません（Bが0）" : "計算できません（数が大きすぎます）")],
         [`${n6(v.a)} の ${n6(v.b)}%`, f(L.percentage(v.a, v.b), "", "計算できません（数が大きすぎます）")],
-        [`${n6(v.a)} から ${n6(v.b)} への増減率`, f(L.changeRate(v.a, v.b), "%", "計算できません（Aが0）")],
+        [`${n6(v.a)} から ${n6(v.b)} への増減率`, f(L.changeRate(v.a, v.b), "%", v.a === 0 ? "計算できません（Aが0）" : "計算できません（数が大きすぎます）")],
       ]));
     };
     on(["a", "b"], run);
@@ -317,7 +322,7 @@ const TOOLS = {
   "hourly-wage"() {
     const run = () => {
       const v = vals(["amount", "hours", "days"]);
-      if (!v) return show("");
+      if (!v) return;
       const r = L.wageConvert(v.amount, $("kind").value, v.hours, v.days);
       if (!r) return err("金額は0以上、1日の労働時間は0より大きく24以下、月の勤務日数は0より大きく31以下で入力してください。");
       show(rows([["時給", yenR(r.hourly)], ["日給", yenR(r.daily)], ["月給", yenR(r.monthly)], ["年収（月給×12）", yenR(r.yearly)],
@@ -359,13 +364,14 @@ const TOOLS = {
   aspect() {
     const run = () => {
       const v = vals(["w", "h"]);
-      if (!v) return show("");
+      if (!v) return;
       const r = L.aspectRatio(v.w, v.h);
       if (!r) return err("幅と高さは0より大きい数で入力してください。");
       const out = [["比率", r.rw ? `${r.rw}:${r.rh}` : `${n6(r.decimal)}:1`], ["幅÷高さ", n6(r.decimal)]];
       for (const [id, key, name, other] of [["newW", "width", "幅", "高さ"], ["newH", "height", "高さ", "幅"]]) {
         if ($(id).value.trim() === "") continue;
         const x = val(id), y = x === null ? null : L.aspectScale(v.w, v.h, { [key]: x });
+        if (x !== null && L.tooLarge(x)) return err(TOO_LARGE);
         if (y === null) return err(`新しい${name}は0より大きい数で入力してください。`);
         out.push([`${name} ${n6(x)} のときの${other}`, Number.isInteger(Number(y.toPrecision(12))) ? n6(y) : `${n6(Number(y.toFixed(2)))}（整数にすると ${n6(Math.round(y))}）`]);
       }

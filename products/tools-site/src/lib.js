@@ -211,8 +211,12 @@ export function password(len, sets, rand) {
 }
 
 // ---- ここから下: トレカ・PSA鑑定 ----
+// 画面の数値欄で受け付ける絶対値の上限（これを超えると桁あふれや極端に長い表示になる）
+export const MAX_ABS = 1e15;
+export const tooLarge = (v) => Math.abs(v) > MAX_ABS;
 const fin = (...a) => a.every((v) => typeof v === "number" && Number.isFinite(v));
 const nonNeg = (...a) => fin(...a) && a.every((v) => v >= 0);
+const finOrNull = (v) => (fin(v) ? v : null);
 
 // 1枚あたりの鑑定費用（円）。pokeca/core.py の per_card_costs と同じ式。
 // c: { feeUsd, fx, shipOut(円/箱), shipBack(USD/箱), cards, duty(USD/箱), taxRate(%), misc(円/枚) }
@@ -246,8 +250,8 @@ export function psaProfit(c) {
   const profit = expected - spend;
   return {
     costs, expected, profit,
-    marginOnBuy: c.buy > 0 ? (profit / c.buy) * 100 : null,   // 仕入れ値に対する利益率（core.py の目標利益率と同じ分母）
-    marginOnSpend: spend > 0 ? (profit / spend) * 100 : null, // 仕入れ値＋費用に対する利益率
+    marginOnBuy: c.buy > 0 ? finOrNull((profit / c.buy) * 100) : null,   // 仕入れ値に対する利益率（core.py の目標利益率と同じ分母）
+    marginOnSpend: spend > 0 ? finOrNull((profit / spend) * 100) : null, // 仕入れ値＋費用に対する利益率
     breakevenBuy: expected - costs.total,
     if10: c.v10 - spend, if9: c.v9 - spend, ifLow: c.vLow - spend,
   };
@@ -281,14 +285,13 @@ export function cardRoi(buy, sell, feePercent, shipping = 0) {
   if (!fin(profit, breakevenSell)) return null;
   return {
     fee, net: sell - fee - shipping, profit,
-    marginOnSell: sell > 0 ? (profit / sell) * 100 : null,
-    roi: buy > 0 ? (profit / buy) * 100 : null,
+    marginOnSell: sell > 0 ? finOrNull((profit / sell) * 100) : null,
+    roi: buy > 0 ? finOrNull((profit / buy) * 100) : null,
     breakevenSell,
   };
 }
 
 // ---- くらし・仕事 ----
-const finOrNull = (v) => (fin(v) ? v : null);
 export const percentOf = (a, b) => (fin(a, b) && b !== 0 ? finOrNull((a / b) * 100) : null); // A は B の何%
 export const percentage = (a, b) => (fin(a, b) ? finOrNull((a * b) / 100) : null);            // A の B%
 export const changeRate = (a, b) => (fin(a, b) && a !== 0 ? finOrNull(((b - a) / Math.abs(a)) * 100) : null); // A→B の増減率
