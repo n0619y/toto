@@ -11,11 +11,11 @@ import time
 
 import requests
 
-from . import shinsoku
+from . import shinsoku, toreca_lounge, torecabank, torecaclub
 
 log = logging.getLogger("pokeca")
 
-SHOPS = {shinsoku.SHOP: shinsoku}
+SHOPS = {m.SHOP: m for m in (shinsoku, toreca_lounge, torecaclub, torecabank)}
 
 USER_AGENT = "Mozilla/5.0 (compatible; pokeca-price-check; personal use)"
 DELAY_SECONDS = 1.5   # 1店あたりの連続アクセス間隔（相手サーバーに負荷をかけない）

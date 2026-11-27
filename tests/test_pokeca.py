@@ -118,6 +118,87 @@ def test_shinsoku_parser():
     assert shinsoku.total_pages(page) == 71
 
 
+def test_toreca_lounge_parser():
+    from pokeca.shops import toreca_lounge
+    row = lambda span: ('<div class="flex items-end justify-between"><span class="shrink-0">%s:</span>'
+                        '<span class="min-w-0 text-right">%s</span></div>') % span
+    card = lambda pid, name, number, kind, price, series="": (
+        f'<a href="/product/{pid}"><div class="rounded-xl"><div><img alt="{name}" loading="lazy" src="/_next/image?url=x"/></div>'
+        f'<div class="shrink-0 text-base font-semibold">{name}</div><div class="flex flex-col">'
+        + row(("型番", number)) + row(("レアリティ/種別", kind)) + (row(("収録弾", series)) if series else "")
+        + f'</div><div><span class="text-sm font-medium">買取価格:</span><span class="text-base">{price}</span></div></div></a>')
+    page = "<div>全<!-- -->212<!-- -->件</div>" + "".join([
+        card("P1", "おくるだけ買取※ポケカのみ", "-", "-<!-- --> /<!-- --> <!-- -->PSA10,9,8", "¥1"),
+        card("P2", "ハナコ", "401/SM-P", "-<!-- --> /<!-- --> <!-- -->PSA10", "¥123,000",
+             "プロモーションカード<!-- -->(<!-- -->PROMO<!-- -->)"),
+        card("P3", "ヒトカゲex", "132/106", "SAR<!-- --> /<!-- --> <!-- -->素体, PSA10", "～¥7,900"),
+        card("P4", "ヒトカゲex", "132/106", "SAR<!-- --> /<!-- --> <!-- -->素体", "¥5,000"),
+        card("P5", "ゼニガメ", "007/165", "C<!-- --> /<!-- --> <!-- -->PSA9", "¥2,300", "テスト弾<!-- -->(<!-- -->SV0<!-- -->)"),
+    ])
+    rows = toreca_lounge.parse(page)
+    assert [(r["number"], r["name"], r["grade"], r["price"]) for r in rows] == [
+        ("401/SM-P", "ハナコ", "PSA10", 123000), ("132/106", "ヒトカゲex", "", 5000), ("007/165", "ゼニガメ", "PSA9", 2300)]
+    assert toreca_lounge.total_pages(page) == 3
+
+
+def test_torecaclub_parser():
+    from pokeca.shops import torecaclub
+    item = lambda slug, alt, name, code, price: (
+        f'<li><a class="flex items-center gap-3 p-3" href="/pokemon/cards/psa10/{slug}/"><img src="https://example.com/c.png" '
+        f'alt="{alt}" class="h-16 w-12"/><span class="min-w-0 flex-1"><span class="block truncate font-medium">{name}</span>'
+        f'<span class="text-xs text-gray-500">{code}<!-- -->・PSA10</span></span><span class="block text-right " '
+        f'data-testid="rank-price-display"><strong class="block font-bold">{price}</strong><small class="flex">'
+        'ランク会員最大<!-- -->2%UP</small></span></a></li>')
+    page = "<ul>" + "".join([
+        item("401-SM-P", "ハナコ 401/SM-P PSA10", "ハナコ", "401/SM", "¥1,230,000"),
+        item("077-070-SV0-B", "タケシの勇気 077/070 PSA10", "タケシの勇気", "077/070", "¥45,000"),
+        item("009-SV-P-CH", "ゼニガメex(中国語版） 009/SV PSA10", "ゼニガメex(中国語版）", "009/SV", "¥65,000"),
+        item("XY-P", "ヒトカゲ 記念 XY/P PSA10", "ヒトカゲ 記念", "XY/P", "¥32,000"),
+    ]) + ('</ul><nav aria-label="ページネーション" class="mt-6"><span>1<!-- --> / <!-- -->6</span>'
+          '<a href="/pokemon/psa10/?page=2">次のページ</a></nav>')
+    rows = torecaclub.parse(page)
+    assert [(r["number"], r["name"], r["grade"], r["price"]) for r in rows] == [
+        ("401/SM-P", "ハナコ", "PSA10", 1230000), ("077/070", "タケシの勇気", "PSA10", 45000),
+        ("009/SV-P", "ゼニガメex(中国語版）", "PSA10", 65000)]
+    assert torecaclub.total_pages(page) == 6
+
+
+def test_torecabank_parsers():
+    from pokeca.shops import torecabank
+    rec = lambda name, key1, key2, kind, cat, price: {
+        "product_master_name": name, "product_master_key1": key1, "product_master_key2": key2,
+        "product_type_name": kind, "product_type_id": "1", "category_id": cat, "image_path": "uploads/x.jpg",
+        "buy_price": price, "remaining_quantity": "3", "tag_ids": [4], "image_url": "https://example.com/x.jpg"}
+    store = ("<script>\n    const showBuyList = true;\n    if (showBuyList) {\n        const perPage = 60;\n"
+             "        const allProducts = " + json.dumps([
+                 rec("(PSA10)ハナコ(テスト大会)", "PROMO", "401/SM-P", "PSA10", "1", "1060000"),
+                 rec("(PSA10)タケシの勇気[SV0]", "SR", "077/070", "PSA10", "1", "45000"),
+                 rec("(PSA10)ヒトカゲ LV.10(テストCD)", "★", "No.004", "PSA10", "1", "70000"),
+                 rec("テスト拡張パック【未開封BOX】", "", "", "未開封BOX（シュリンク付き）", "1", "42000"),
+                 rec("(PSA10)テスト船長(パラレル)", "SR", "OP99-001", "PSA10", "2", "26000"),
+             ], ensure_ascii=False).replace("/", "\\/") + ";\n        let filtered = [];\n    }\n</script>")
+    assert [(r["shop"], r["number"], r["name"], r["grade"], r["price"]) for r in torecabank.parse_store(store)] == [
+        ("トレカバンク店頭", "401/SM-P", "ハナコ(テスト大会)", "PSA10", 1060000),
+        ("トレカバンク店頭", "077/070", "タケシの勇気[SV0] SR", "PSA10", 45000)]
+
+    item = lambda pid, name, tag, price: (
+        f'<li class="item " data-id="{pid}" data-max="3" data-is-custom-item="0">\n<p class="card"><img src="https://example.com/x.jpg" '
+        f'alt="{name}"></p>\n<p class="name">{name}</p>\n<p class="tag">{tag}</p>\n<p class="price">{price}<span>円</span></p>\n'
+        '<p class="stock">残り3点</p>\n<a class="add-btn btn btn--red" href="https://store.torecabank.com/line">追加</a>\n</li>')
+    items = [item(2, "ハナコ(テスト大会) PROMO 401/SM-P", "PSA10", "1,054,000"),
+             item(7, "タケシの勇気[SV0] SR 077/070", "PSA10", "44,000"),
+             item(8, "ヒトカゲ LV.10(テストCD) ★ No.004", "PSA10", "70,000"),
+             item(9, "テスト拡張パック(SV0)【未開封BOX】", "未開封BOX（シュリンク付き）", "42,000"),
+             item(10, "テスト船長(パラレル) SR★ OP99-001", "PSA10", "26,000")]
+    mail = ('<ul class="tab__body list list--card">' + "".join(items) + '</ul><ul class="tab__body list list--list">' + "".join(items)
+            + '</ul><a href="https://store.torecabank.com/mail_buy_list?category=1&amp;page=1">1</a>'
+              '<a href="https://store.torecabank.com/mail_buy_list?category=1&amp;page=2">2</a>')
+    assert [(r["shop"], r["number"], r["name"], r["grade"], r["price"]) for r in torecabank.parse_mail(mail)] == [
+        ("トレカバンク郵送", "401/SM-P", "ハナコ(テスト大会)", "PSA10", 1054000),
+        ("トレカバンク郵送", "077/070", "タケシの勇気[SV0] SR", "PSA10", 44000)]
+    assert torecabank.total_pages(mail) == 2
+
+
 # 実際の投稿文の形（2024〜2026年の公開投稿から、形式確認用に抜粋）
 POST_NUMBERED = """📢＃スニダンポケカ買取情報📢
 ただいまポケカサポートPSA10の買取大募集‼
