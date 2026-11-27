@@ -1,0 +1,54 @@
+# =============================================================================
+# ポケカ事業 設定
+# ★ 金額・料率・確率はすべて仮の値です。実際の請求額と実績に合わせて直してください。
+# =============================================================================
+
+usd_jpy: 155                 # 為替（円/ドル）。実勢に合わせて更新
+
+# 下の値は例です。自分の領収書・請求書の実額に合わせて直してください。
+costs:
+  psa_fee_usd: 79.99         # 鑑定料（1枚あたり・利用するプランの料金）
+  cards_per_shipment: 20     # 1回の発送に入れる枚数（送料を按分する）
+  outbound_shipping_jpy: 7700   # 日本 → 鑑定会社 の送料（1箱）
+  return_shipping_usd: 69.99    # 鑑定会社 → 日本 の返送料（1箱）
+  us_duty_per_shipment_usd: 30  # 米国側の輸入関税（1箱）
+  import_tax_rate: 0.10      # 返送時の輸入消費税等。鑑定料+返送料に掛ける仮の計算（税理士に要確認）
+  misc_per_card_jpy: 150     # スリーブ・梱包材・振込手数料・売却時送料の按分など
+
+target_margin: 0.25          # 仕入れ値に対する目標利益率（0.25 = 25%）
+
+# 未鑑定カードを出したときのグレード分布の見立て（合計 1.0）。
+# 自分の鑑定結果がたまったら実績値に置き換える。
+grade_probabilities:
+  PSA10: 0.50
+  PSA9: 0.40
+  LOW: 0.10                  # PSA8 以下
+
+# 買取表に載っていないグレードの価値の置き方（未鑑定買取価格に対する倍率）
+fallback:
+  psa9_of_raw: 0.9
+  low_of_raw: 0.5
+
+# --- X（旧Twitter）で買取情報を出している店 -------------------------------------
+# 公式 X API で読む（python -m pokeca prices fetch-x）。アカウント名は 2026-11 に検索結果から
+# 拾ったもので、実際のプロフィールは未確認。違っていれば直してください。
+x_accounts:
+  スニダントレカ秋葉原店: snkrdunk_akiba
+  TORECA ROOM: toreca_room
+  トレカラウンジ店頭買取: torecalounge
+  カードショップAlice 秋葉原店: TCGshop_alice
+  PDG Collector's Shop 名古屋駅前店: PDG_nagoya
+  トレカ専門店 リプレイ 名古屋大須店: replay_oosu
+  MEETS 大阪日本橋本店: MEETS_tcg_osaka
+  トレカ モトーショップ 池袋: motosancard
+  Vault名古屋: Vault_Nagoya
+  KoDuckYa 大須店: KoDuckYa
+  カードショップ GOTCHA!: cardshop_gotcha
+  Blue Rocket 秋葉原LAOX店: BR_akihabara
+  BIGトレカ秋葉原店: TCG_BIGTOREKA
+  トレカキャンプ: torecacamp
+  ウサギカードサロン: usagicardsalon
+
+# 投稿で使われる通称 → カード。番号が書かれていない投稿を照合するために、確認できたものから足す。
+aliases: {}
+#  エクバリーリエ: {number: "397/SM-P", name: "リーリエ"}

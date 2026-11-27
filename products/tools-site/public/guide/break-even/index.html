@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方｜くらしの計算機</title>
+<meta name="description" content="期待売値から費用を引いて損益分岐の仕入れ値を出す考え方と、PSA9以下だった場合の損益の見方、期待値で考える意味と限界を説明します。">
+<link rel="canonical" href="https://n0619y.github.io/toto/guide/break-even/">
+<meta property="og:url" content="https://n0619y.github.io/toto/guide/break-even/">
+<meta property="og:title" content="損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方">
+<meta property="og:description" content="期待売値から費用を引いて損益分岐の仕入れ値を出す考え方と、PSA9以下だった場合の損益の見方、期待値で考える意味と限界を説明します。">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="くらしの計算機">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#fafaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151614" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/toto/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/toto/style.css"><script type="application/ld+json">{"@context": "https://schema.org", "@type": "Article", "headline": "損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方", "description": "期待売値から費用を引いて損益分岐の仕入れ値を出す考え方と、PSA9以下だった場合の損益の見方、期待値で考える意味と限界を説明します。", "url": "https://n0619y.github.io/toto/guide/break-even/", "mainEntityOfPage": "https://n0619y.github.io/toto/guide/break-even/", "inLanguage": "ja", "isPartOf": {"@type": "WebSite", "name": "くらしの計算機", "url": "https://n0619y.github.io/toto/"}}</script><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "トップ", "item": "https://n0619y.github.io/toto/"}, {"@type": "ListItem", "position": 2, "name": "解説記事", "item": "https://n0619y.github.io/toto/guide/"}, {"@type": "ListItem", "position": 3, "name": "損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方", "item": "https://n0619y.github.io/toto/guide/break-even/"}]}</script>
+</head><body data-tool="">
+<header><a href="/toto/">くらしの計算機</a></header>
+<main><nav aria-label="パンくずリスト"><ol class="crumbs"><li><a href="/toto/">トップ</a></li><li><a href="/toto/guide/">解説記事</a></li><li aria-current="page">損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方</li></ol></nav><h1>損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方</h1><p>未鑑定のカードを「いくらまでなら仕入れてよいか」は、鑑定後の売値・費用・グレードの出方の3つで決まります。
+ここでは損益分岐の仕入れ値の出し方と、その数字だけでは見えない下振れの見方を説明します。</p>
+<h2>期待売値を出す</h2>
+<p>鑑定結果は出してみるまで分からないので、グレードごとに「その場合の売値」と「そうなる確率」を置き、掛けて足します。これが期待売値です。
+売値には、販売手数料や送料を引いたあとの手取り額を入れます。</p>
+<p>仮の数字で、PSA10なら60,000円・PSA9なら15,000円・それ以下なら5,000円、確率は50%・40%・10%（ツールの初期値）とすると、
+期待売値は36,500円です。売値は説明のために置いた一例で、相場ではありません。</p>
+<h2>損益分岐の仕入れ値</h2>
+<div class="card note"><p>損益分岐の仕入れ値 ＝ 期待売値 − 1枚あたりの費用</p></div>
+<p>1枚あたりの費用が15,002円（ツールの初期値で計算した一例。数え方は <a href="/toto/guide/grading-cost/">1枚あたり費用の数え方</a>）なら、
+損益分岐は21,498円です。これより安く仕入れると、期待値のうえでは利益が残ります。</p>
+<p>利益の目標があるときは、仕入れ上限 ＝（期待売値 − 費用）÷（1 ＋ 目標利益率）で逆算します。目標を仕入れ値に対して20%とすると、
+上の例では17,900円（100円単位に切り下げ）です。利益率を「仕入れ値に対して」と「売値に対して」のどちらで考えるかで上限は変わるので、どちらかに決めて揃えます。
+計算は <a href="/toto/psa-max-buy/">PSA鑑定 仕入れ上限 逆算</a> でできます。</p>
+<h2>グレードが下振れしたときの損益</h2>
+<p>期待値は平均の話なので、1枚ごとの結果は別に見ます。上の例のカードを8,000円で仕入れた場合です。</p>
+<div class="card note"><table><tr><th>期待利益</th><td>13,498円</td></tr><tr><th>PSA10だった場合</th><td>36,998円</td></tr><tr><th>PSA9だった場合</th><td>-8,002円</td></tr><tr><th>それ以下だった場合</th><td>-18,002円</td></tr></table></div>
+<p>期待利益はプラスですが、この置き方では50%の確率で1枚あたり赤字になります。期待値のプラスは、PSA10の利益がそれ以外の赤字を埋めることで成り立っています。
+グレード別の損益は <a href="/toto/psa-profit/">PSA鑑定 損益シミュレーター</a> に表示されます。</p>
+<h2>期待値で考える意味と限界</h2>
+<p>似た条件の仕入れを何度も繰り返すと、平均の結果は期待値に近づいていきます。1枚ごとの当たり外れに左右されない仕入れの基準を持てるのが、期待値で考える意味です。一方で、次の限界があります。</p>
+<ul><li><b>枚数が少ないうちは大きくぶれる</b>: 数枚では、全部が下のグレードになることも普通に起こります。その場合の赤字の合計に資金が耐えられるかを、期待値とは別に確かめます。</li>
+<li><b>確率は自分で置いた仮定</b>: 式が予測してくれるわけではありません。カードの状態の見立てが外れれば、期待値そのものが変わります。自分の実績の割合も、枚数が少ないうちは当てになりません。</li>
+<li><b>売値は動く</b>: 鑑定から返ってくるまでのあいだに相場が変わることがあります。</li>
+<li><b>時間と資金の拘束は入っていない</b>: 売れるまでの期間や、そのあいだ資金が動かせないことは、この式には出てきません。</li></ul>
+<p>確率や売値を悪い側にずらしても成り立つかどうかを見てから、仕入れ値を決めるのが堅実です。</p>
+<p>この記事は計算の考え方を説明するもので、税務・法律の助言ではありません。税や関税の扱いは、税理士・税務署・税関などにご確認ください。</p><h2>関連するツール</h2><ul class="tools"><li><a href="/toto/psa-profit/"><b>PSA鑑定 損益シミュレーター</b><span>トレカをPSA鑑定に出したときの1枚あたりの費用・期待利益・利益率・損益分岐の仕入れ値を計算します。PSA10・PSA9になった場合の損益も表示。</span></a></li><li><a href="/toto/psa-max-buy/"><b>PSA鑑定 仕入れ上限 逆算</b><span>PSA鑑定の費用と目標利益率から「この値段までなら仕入れてよい」上限額を逆算します。</span></a></li></ul><h2>記録用のシートと、ほかの解説</h2><ul class="tools"><li><a href="/toto/sheet/"><b>PSA鑑定 収支管理シート（商品紹介）</b><span>在庫台帳・注文別集計・月次集計・シミュレーターが入った、Excel / Googleスプレッドシート用のシートです。</span></a></li><li><a href="/toto/guide/grading-cost/"><b>鑑定に出すときの1枚あたり費用の数え方</b><span>鑑定料・往復送料・輸入時にかかる費用・諸経費を、1枚あたりに直して足す考え方を、計算例つきで説明します。</span></a></li><li><a href="/toto/guide/records/"><b>鑑定転売の記録の付け方（1枚ごとに何を残すか）</b><span>カード1枚を1行で記録するときに、どの項目を残しておくと注文別・月別・グレード別に後で集計できるかを説明します。</span></a></li></ul></main>
+<footer><a href="/toto/">ツール一覧</a> ・ <a href="/toto/born/">生まれ年の早見表</a> ・ <a href="/toto/era/">和暦の年の早見</a> ・ <a href="/toto/guide/">解説記事</a> ・ <a href="/toto/privacy/">プライバシーポリシー・運営者情報</a><br>
+計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
+<script type="module" src="/toto/app.js"></script>
+</body></html>

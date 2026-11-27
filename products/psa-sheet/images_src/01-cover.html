@@ -1,0 +1,47 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>01 表紙</title>
+<link rel="stylesheet" href="style.css">
+<style>
+body { background: #24427a; color: #fff; }
+.page { padding: 64px 64px 0; }
+.kicker { color: #c9d6f0; font-size: 20px; }
+h1 { font-size: 76px; line-height: 1.2; margin-top: 18px; letter-spacing: .02em; }
+.lead { color: #e6ecf8; font-size: 25px; margin-top: 22px; }
+.badges { display: flex; gap: 16px; margin-top: 34px; flex-wrap: wrap; }
+.badge { font-size: 22px; padding: 11px 22px; border-radius: 6px; font-weight: bold; }
+.badge.a { background: #fff2cc; color: #1f2733; }
+.badge.b { background: transparent; color: #fff; border: 2px solid #fff; }
+.mock { position: absolute; left: 64px; right: 64px; bottom: 104px; color: #1f2733; }
+.mock table { width: 100%; }
+.mock th, .mock td { height: 40px; font-size: 17px; }
+.mock .tabs { margin-top: 0; }
+.mock .sheet { border: 1px solid #c3c9d3; background: #fff; }
+.footer { background: #1b3260; border-top: 1px solid #3a5591; color: #c9d6f0; }
+.ver { position: absolute; right: 64px; top: 64px; font-size: 18px; color: #c9d6f0; }
+</style></head><body><div class="page">
+<div class="ver">v1.0</div>
+<div class="kicker">トレカをPSA鑑定に出して売る個人向け</div>
+<h1>PSA鑑定<br>収支管理シート</h1>
+<p class="lead">1枚ごとの仕入値・鑑定費用・売却額を記録し、原価と利益を自動で集計する表計算シート</p>
+<div class="badges">
+  <span class="badge a">Excel / Googleスプレッドシート対応</span>
+  <span class="badge b">非公式(PSA社とは関係ありません)</span>
+</div>
+<div class="mock">
+  <div class="sheet"><table>
+    <colgroup><col style="width:11%"><col style="width:10%"><col style="width:19%"><col style="width:11%"><col style="width:11%"><col style="width:12%"><col style="width:12%"><col style="width:14%"></colgroup>
+    <tr><th>管理番号</th><th>状態</th><th>カード名</th><th>仕入値</th><th>グレード</th><th class="f">原価合計</th><th>売却額</th><th class="f">利益</th></tr>
+    <tr><td class="in">S-003</td><td class="in">返却済</td><td class="in">サンプルカードC</td><td class="in n">4,000</td><td class="in">PSA9</td><td class="f n">19,002</td><td class="in n"></td><td class="f n"></td></tr>
+    <tr><td class="in">S-004</td><td class="in">売却済</td><td class="in">サンプルカードD</td><td class="in n">8,000</td><td class="in">PSA10</td><td class="f n">23,002</td><td class="in n">45,000</td><td class="f n">21,998</td></tr>
+    <tr><td class="in">S-005</td><td class="in">売却済</td><td class="in">サンプルカードE</td><td class="in n">6,000</td><td class="in">PSA9</td><td class="f n">21,002</td><td class="in n">18,000</td><td class="f n neg">-3,002</td></tr>
+  </table></div>
+  <div class="tabs" style="margin-top:6px">
+    <span class="tab" style="border:1px solid #c3c9d3;border-top:none;border-radius:0 0 6px 6px">使い方</span>
+    <span class="tab" style="border:1px solid #c3c9d3;border-top:none;border-radius:0 0 6px 6px">設定</span>
+    <span class="tab on" style="border:1px solid #c3c9d3;border-top:none;border-radius:0 0 6px 6px">在庫台帳</span>
+    <span class="tab" style="border:1px solid #c3c9d3;border-top:none;border-radius:0 0 6px 6px">注文別集計</span>
+    <span class="tab" style="border:1px solid #c3c9d3;border-top:none;border-radius:0 0 6px 6px">月次集計</span>
+    <span class="tab" style="border:1px solid #c3c9d3;border-top:none;border-radius:0 0 6px 6px">シミュレーター</span>
+  </div>
+</div>
+<div class="footer"><span>※ 画像内のカード名・金額はすべて架空のサンプルです(在庫台帳の一部の列を抜粋)</span><span>マクロ不使用 / シート6枚</span></div>
+</div></body></html>

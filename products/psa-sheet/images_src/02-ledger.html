@@ -1,0 +1,36 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>02 在庫台帳</title>
+<link rel="stylesheet" href="style.css">
+<style> table { width: 1120px; } </style></head><body><div class="page">
+<div class="kicker">シート「在庫台帳」の見本</div>
+<h1>カード1枚を1行で記録する台帳</h1>
+<div class="legend">
+  <span class="chip"><span class="sw in"></span>黄色 = 自分で入力するセル</span>
+  <span class="chip"><span class="sw f"></span>灰色 = 自動計算のセル(数式)</span>
+  <span style="color:#5b6470">状態・グレードはプルダウンで選択</span>
+</div>
+
+<div class="tlabel">A〜J列:仕入れと鑑定の記録(横に長い表を2段に分けて表示しています)</div>
+<table>
+<colgroup><col style="width:92px"><col style="width:82px"><col style="width:168px"><col style="width:92px"><col style="width:116px"><col style="width:128px"><col style="width:88px"><col style="width:132px"><col style="width:108px"><col style="width:114px"></colgroup>
+<tr><th>管理番号</th><th>状態</th><th>カード名</th><th>番号</th><th>仕入日</th><th>仕入先</th><th>仕入値</th><th>PSA注文番号</th><th>認定番号</th><th>グレード</th></tr>
+<tr><td class="in">S-001</td><td class="in">在庫</td><td class="in">サンプルカードA</td><td class="in">001/100</td><td class="in">2026/01/10</td><td class="in">サンプル店A</td><td class="in n">3,000</td><td class="in"></td><td class="in"></td><td class="in">未鑑定</td></tr>
+<tr><td class="in">S-002</td><td class="in">鑑定中</td><td class="in">サンプルカードB</td><td class="in">002/100</td><td class="in">2026/01/10</td><td class="in">サンプル店A</td><td class="in n">5,000</td><td class="in">SAMPLE-001</td><td class="in"></td><td class="in">未鑑定</td></tr>
+<tr><td class="in">S-003</td><td class="in">返却済</td><td class="in">サンプルカードC</td><td class="in">003/100</td><td class="in">2026/01/12</td><td class="in">サンプル店B</td><td class="in n">4,000</td><td class="in">SAMPLE-001</td><td class="in">00000003</td><td class="in">PSA9</td></tr>
+<tr><td class="in">S-004</td><td class="in">売却済</td><td class="in">サンプルカードD</td><td class="in">004/100</td><td class="in">2026/01/12</td><td class="in">サンプル店B</td><td class="in n">8,000</td><td class="in">SAMPLE-001</td><td class="in">00000004</td><td class="in">PSA10</td></tr>
+<tr><td class="in">S-005</td><td class="in">売却済</td><td class="in">サンプルカードE</td><td class="in">005/100</td><td class="in">2026/01/15</td><td class="in">サンプル店A</td><td class="in n">6,000</td><td class="in">SAMPLE-001</td><td class="in">00000005</td><td class="in">PSA9</td></tr>
+</table>
+
+<div class="tlabel">K〜R列:原価・売却・利益(同じ5行の続き)</div>
+<table>
+<colgroup><col style="width:122px"><col style="width:116px"><col style="width:116px"><col style="width:124px"><col style="width:176px"><col style="width:112px"><col style="width:124px"><col style="width:116px"><col style="width:114px"></colgroup>
+<tr><th style="background:#8a93a3">(管理番号)</th><th class="f">鑑定費用</th><th class="f">原価合計</th><th>売却日</th><th>売却先</th><th>売却額</th><th class="f">販売手数料</th><th class="f">利益</th><th class="f">利益率</th></tr>
+<tr><td class="plain" style="color:#5b6470">S-001</td><td class="f n">0</td><td class="f n">3,000</td><td class="in"></td><td class="in"></td><td class="in"></td><td class="f"></td><td class="f"></td><td class="f"></td></tr>
+<tr><td class="plain" style="color:#5b6470">S-002</td><td class="f n">15,002</td><td class="f n">20,002</td><td class="in"></td><td class="in"></td><td class="in"></td><td class="f"></td><td class="f"></td><td class="f"></td></tr>
+<tr><td class="plain" style="color:#5b6470">S-003</td><td class="f n">15,002</td><td class="f n">19,002</td><td class="in"></td><td class="in"></td><td class="in"></td><td class="f"></td><td class="f"></td><td class="f"></td></tr>
+<tr><td class="plain" style="color:#5b6470">S-004</td><td class="f n">15,002</td><td class="f n">23,002</td><td class="in">2026/03/15</td><td class="in">サンプル売却先A</td><td class="in n">45,000</td><td class="f n">0</td><td class="f n">21,998</td><td class="f n">48.9%</td></tr>
+<tr><td class="plain" style="color:#5b6470">S-005</td><td class="f n">15,002</td><td class="f n">21,002</td><td class="in">2026/04/10</td><td class="in">サンプル売却先B</td><td class="in n">18,000</td><td class="f n">0</td><td class="f n neg">-3,002</td><td class="f n neg">-16.7%</td></tr>
+</table>
+
+<p class="note" style="margin-top:14px">鑑定費用(この見本では 15,002円/枚)は「設定」シートの為替・鑑定料・送料などから計算されます。利益 = 売却額 − 販売手数料 − 原価合計。数式は500行ぶん入っています。</p>
+<div class="footer"><span>※ カード名・店名・金額・番号はすべて架空のサンプルです。設定値(為替・鑑定料など)も一例です。</span><span>2 / 5</span></div>
+</div></body></html>

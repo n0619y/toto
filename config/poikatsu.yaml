@@ -1,0 +1,60 @@
+# =============================================================================
+# ポイ活カンパニー 設定
+#
+# ★ ポイント数・所要時間・円換算レートは「仮の値」です。実態に合わせて直してください。
+# ★ automation は既定で未設定（= 本人が操作）。サイトの利用規約が自動操作を
+#    明示的に許可している場合だけ、次の2行を両方書くと法務部が AUTO にします。
+#        automation: allowed
+#        tos_checked: "2026-11-27 規約第X条を確認"
+#    category: medical_portal のサイトは、これを書いても常に本人操作です。
+# =============================================================================
+
+daily_budget_minutes: 15      # 1日にポイ活へ使ってよい時間（分）
+min_yen_per_minute: 3        # これ未満の時間単価（円/分）の案件はルートに入れない
+default_entry_ev_yen: 5       # 懸賞1件あたりの控えめな期待値（円）
+
+sites:
+  m3.com:
+    category: medical_portal
+    yen_per_point: 1
+    mail_from: ["m3.com"]
+  日経メディカル:
+    category: medical_portal
+    yen_per_point: 1
+    mail_from: ["nikkeibp.co.jp"]
+  CareNet:
+    category: medical_portal
+    yen_per_point: 1
+    mail_from: ["carenet.com", "carenet.co.jp"]
+  MedPeer:
+    category: medical_portal
+    yen_per_point: 1
+    mail_from: ["medpeer.jp"]
+  # --- 一般のポイントサイト・アンケートサイト ---------------------------------
+  # 2026-11 時点の調査では、自動操作を規約で明示的に許可しているサイトも、会員向けの
+  # 公式APIも見つからなかったため、すべて本人操作（automation 未設定）です。
+  # 案内メールの案件は自動で拾い、時間単価の高い順に朝報へ並べます。
+  # mail_from は公式サイトのドメインからの推定です。届くメールの送信元と違えば直してください。
+  モッピー:               {category: point_site,  yen_per_point: 1,   mail_from: ["moppy.jp"]}
+  ハピタス:               {category: point_site,  yen_per_point: 1,   mail_from: ["hapitas.jp"]}
+  ポイントインカム:       {category: point_site,  yen_per_point: 0.1, mail_from: ["pointi.jp"]}
+  ECナビ:                 {category: point_site,  yen_per_point: 0.1, mail_from: ["ecnavi.jp"]}
+  げん玉:                 {category: point_site,  yen_per_point: 0.1, mail_from: ["gendama.jp"]}
+  ちょびリッチ:           {category: point_site,  yen_per_point: 0.5, mail_from: ["chobirich.com"]}
+  ワラウ:                 {category: point_site,  yen_per_point: 0.1, mail_from: ["warau.jp"]}
+  ニフティポイントクラブ: {category: point_site,  yen_per_point: 1,   mail_from: ["lifemedia.jp"]}
+  ポイントタウン:         {category: point_site,  yen_per_point: 1,   mail_from: ["pointtown.com"]}
+  マクロミル:             {category: survey_site, yen_per_point: 1,   mail_from: ["macromill.com"]}
+  リサーチパネル:         {category: survey_site, yen_per_point: 0.1, mail_from: ["research-panel.jp"]}
+  infoQ:                  {category: survey_site, yen_per_point: 1,   mail_from: ["infoq.jp"]}
+
+# 毎日の定番タスク（案内メールが来なくても毎朝ルート候補に入る）
+routines:
+  - {site: m3.com,        title: "ログインして今日の新着を確認", url: "https://www.m3.com/",              task_type: login, points: 5, minutes: 1}
+  - {site: 日経メディカル, title: "今日のクイズ・新着記事",       url: "https://medical.nikkeibp.co.jp/", task_type: quiz,  points: 5, minutes: 2}
+  - {site: CareNet,       title: "新着コンテンツの確認",         url: "https://www.carenet.com/",        task_type: read,  points: 5, minutes: 2}
+  - {site: MedPeer,       title: "ログインして新着を確認",       url: "https://medpeer.jp/",             task_type: login, points: 5, minutes: 1}
+
+# 公開RSS/Atom（キャンペーン・懸賞情報など）。読むだけです。
+feeds: []
+#  - {site: 懸賞情報, url: "https://example.com/feed.xml", task_type: entry, max_items: 20}

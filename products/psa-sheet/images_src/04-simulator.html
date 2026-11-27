@@ -1,0 +1,66 @@
+<!doctype html><html lang="ja"><head><meta charset="utf-8"><title>04 シミュレーター</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.cols { display: flex; gap: 36px; margin-top: 22px; align-items: flex-start; }
+.col.l, .col.l table { width: 500px; }
+.col.r, .col.r table { width: 584px; }
+.def { margin-top: 12px; padding: 10px 14px; font-size: 15px; line-height: 1.55; }
+.def b { color: #305496; }
+.h2 { font-size: 19px; font-weight: bold; color: #305496; margin-bottom: 8px; }
+</style></head><body><div class="page">
+<div class="kicker">シート「シミュレーター」の見本</div>
+<h1>仕入れ前に、損益分岐と仕入れ上限を試算</h1>
+<div class="legend">
+  <span class="chip"><span class="sw in"></span>黄色 = 自分の見立てを入力</span>
+  <span class="chip"><span class="sw f"></span>灰色 = 自動計算</span>
+</div>
+<div class="cols">
+<div class="col l">
+  <div class="h2">入力するもの</div>
+  <table>
+  <colgroup><col style="width:240px"><col style="width:140px"><col style="width:120px"></colgroup>
+  <tr><td class="plain">仕入れ値(円)</td><td class="in n">8,000</td><td class="plain"></td></tr>
+  </table>
+  <table style="margin-top:12px">
+  <colgroup><col style="width:240px"><col style="width:140px"><col style="width:120px"></colgroup>
+  <tr><th>鑑定結果</th><th>売値(円)</th><th>確率(%)</th></tr>
+  <tr><td class="plain">PSA10 だった場合</td><td class="in n">60,000</td><td class="in n">50.0</td></tr>
+  <tr><td class="plain">PSA9 だった場合</td><td class="in n">15,000</td><td class="in n">40.0</td></tr>
+  <tr><td class="plain">それ以下だった場合</td><td class="in n">5,000</td><td class="f n">10.0</td></tr>
+  </table>
+  <table style="margin-top:12px">
+  <colgroup><col style="width:240px"><col style="width:140px"><col style="width:120px"></colgroup>
+  <tr><td class="plain">目標利益率(%)</td><td class="in n">20.0</td><td class="plain"></td></tr>
+  </table>
+  <p class="note" style="margin-top:12px">売値と確率は、ご自身の見立てを入れます。「それ以下」の確率は 100 − PSA10 − PSA9 で自動計算。</p>
+  <div class="callout def">仕入れ上限は、目標利益率の定義ごとに2行出ます。<br>
+  <b>売却額に対する利益率</b> = 利益 ÷ 売却額<br>(このシートの月次集計と同じ定義)<br>
+  <b>仕入れ値に対する利益率</b> = 利益 ÷ 仕入れ値<br>(無料ツール「PSA鑑定 仕入れ上限 逆算」と同じ定義)</div>
+</div>
+<div class="col r">
+  <div class="h2">出てくるもの</div>
+  <table>
+  <colgroup><col style="width:304px"><col style="width:140px"><col style="width:140px"></colgroup>
+  <tr><th class="f">結果</th><th class="f">円</th><th class="f">切り下げ前(円)</th></tr>
+  <tr><td class="plain">1枚あたりの鑑定費用</td><td class="f n">15,002</td><td class="plain"></td></tr>
+  <tr><td class="plain">期待売値</td><td class="f n">36,500</td><td class="plain"></td></tr>
+  <tr><td class="plain">期待販売手数料</td><td class="f n">0</td><td class="plain"></td></tr>
+  <tr><td class="plain">期待利益</td><td class="f n b">13,498</td><td class="plain"></td></tr>
+  <tr><td class="plain">期待利益率</td><td class="f n">37.0%</td><td class="plain"></td></tr>
+  <tr><td class="plain">損益分岐の仕入れ値</td><td class="f n">21,498</td><td class="plain"></td></tr>
+  <tr><td class="plain">仕入れ上限(売却額に対する利益率)</td><td class="f n b">14,100</td><td class="f n">14,198</td></tr>
+  <tr><td class="plain">仕入れ上限(仕入れ値に対する利益率)</td><td class="f n b">17,900</td><td class="f n">17,915</td></tr>
+  <tr><td class="plain">判定</td><td class="f n b">目標内</td><td class="plain"></td></tr>
+  </table>
+  <table style="margin-top:12px">
+  <colgroup><col style="width:304px"><col style="width:280px"></colgroup>
+  <tr><th class="f">結果ごとの利益</th><th class="f">円</th></tr>
+  <tr><td class="plain">PSA10 だった場合の利益</td><td class="f n">36,998</td></tr>
+  <tr><td class="plain">PSA9 だった場合の利益</td><td class="f n neg">-8,002</td></tr>
+  <tr><td class="plain">それ以下だった場合の利益</td><td class="f n neg">-18,002</td></tr>
+  </table>
+</div>
+</div>
+<p class="note" style="position:absolute;left:40px;right:40px;bottom:58px">期待値は「同じ条件で何枚も繰り返したときの平均」です。1枚ごとの結果は「結果ごとの利益」のどれかになります。このシートは将来の相場や鑑定結果を予測するものではありません。</p>
+<div class="footer"><span>※ 売値・確率・費用はすべて架空のサンプルです。利益が出ることを示すものではありません。</span><span>4 / 5</span></div>
+</div></body></html>
