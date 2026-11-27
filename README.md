@@ -333,3 +333,23 @@ python -m pokeca sell-plan                      # 在庫ごとの最高値の買
 推奨仕入れ上限 = (期待売値 − 1枚あたり費用) ÷ (1 + 目標利益率)。
 期待売値は「グレード確率 × そのグレードの最高買取」の合計、費用は鑑定料・往復送料・輸入時の税・諸経費です。
 `pokeca/sample/prices.csv` は動作確認用の架空データです。
+
+## 買取表を取得できる店（`python -m pokeca prices fetch`）
+
+公開されている買取表のページを読むだけで、ログインはしません。アクセスは 1.5 秒間隔、1店 100 ページまで
+（`--max-pages` で絞れます）。`--shop 店名` で店を絞れます。カード番号が読めない行、BOX・パック、
+ポケモンカード以外は保存しません。
+
+| 店（`--shop` の名前） | 読むページ | 取れるもの |
+|---|---|---|
+| シンソク | `shinsoku-tcg.com/yuso-kaitori` | 郵送買取。PSA 鑑定品と未鑑定 |
+| トレカラウンジ | `kaitori.toreca-lounge.com/products/pokemon/single` | 郵送買取。PSA10・PSA9・未鑑定（グレードごとに取得） |
+| トレカクラブ | `torecaclub.com/pokemon/psa10/` | 郵送買取。PSA10 のみ（ランク会員の上乗せ前の価格） |
+| トレカバンク | `store.torecabank.com/kaitori_list` と `/mail_buy_list` | 店頭と郵送。保存時の店名は「トレカバンク店頭」「トレカバンク郵送」。掲載はほぼ PSA10 |
+
+対応できなかった店（2026-11-27 に確認）:
+
+- **Clove Base**（`base.clove.jp`）: `robots.txt` も買取価格のページも、プログラムからのアクセスには
+  ボット判定の画面（HTTP 429）が返り、中身を読めません。判定を回避する方法は取りません。
+- **トレカバース**（`www.torecabirth.jp`）: `/page/pk_purchase` は無くなっており（404）、買取表は別サイト
+  `toreca-birth.com` に移ったと案内されています。そのサイトは未確認で、取得プログラムはありません。
