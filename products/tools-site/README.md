@@ -26,11 +26,24 @@ PSA鑑定の費用の式は `pokeca/core.py`（`per_card_costs`・`recommend`）
 |---|---|
 | `/` | ツール一覧。「トレカ・PSA鑑定」の下に、解説記事3本と商品紹介ページへのリンクがある |
 | `/<slug>/` | 各ツール（23個）。トレカ向けの5ツールだけ、下部に関連する解説記事と商品紹介ページへのリンクが出る |
+| `/guide/` | 解説記事の一覧 |
 | `/guide/grading-cost/` | 解説: 鑑定に出すときの1枚あたり費用の数え方 |
 | `/guide/break-even/` | 解説: 損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方 |
 | `/guide/records/` | 解説: 鑑定転売の記録の付け方 |
 | `/sheet/` | 売り切りのデジタル商品「PSA鑑定 収支管理シート」（`products/psa-sheet/`）の紹介ページ |
 | `/privacy/` | プライバシーポリシー・運営者情報 |
+| `/404.html` | 存在しないURL用のページ（トップと全ツールへのリンクつき）。検索には載せない（noindex、sitemap にも入れない） |
+
+トップと 404 以外の各ページには、上部にパンくず（トップ › 解説記事 › 記事名 など）が出ます。
+
+### 検索・SNS 向けの情報（`build.py` の `page` が全ページに出す）
+
+- `<head>`: `description`（ページごとに別の文。空や重複があるとビルドが止まる）、`canonical`、OGP（`og:title` / `og:description` / `og:type` / `og:url` / `og:site_name`）、
+  `twitter:card`、`theme-color`（ライト/ダーク。色は `src/style.css` の `--bg` から取る）、favicon（`public/favicon.svg` をビルド時に生成）。
+  `canonical` と `og:url` は `site.json` の `url` から作ります。
+- `og:image` は、`site.json` に `og_image` を足したときだけ出ます。値は `https://` のURLか、`src/` に置いた画像のファイル名（ビルド時に `public/` へコピー）。
+- 構造化データ（JSON-LD）: トップに `WebSite`、各ツールに `WebApplication`（無料であることだけ）、解説記事に `Article`、トップ以外に `BreadcrumbList`。
+  評価（`aggregateRating`）・公開日・著者など、確かめられない値は入れていません。
 
 無料のトレカ向けツール → 解説記事 → 商品紹介ページ → 外部の販売サイト、という流れです。このサイトでは販売・決済をせず、
 購入者とのやりとりも発生しない前提です（紹介ページに「サポートなし」「返金は販売サイトの規定」と明記）。
@@ -54,13 +67,24 @@ PSA鑑定の費用の式は `pokeca/core.py`（`per_card_costs`・`recommend`）
 
 ## 公開の手順（本人のアカウントが必要な部分）
 
-1. **ドメインを決める**（任意だが広告審査には独自ドメインが必要）。
-2. `site.json` の `url`（公開URL）、`operator`（運営者名・ペンネーム可）、`contact`（連絡先）を書き換えて `python build.py`。
-3. **Cloudflare Pages** などの静的ホスティングにこのリポジトリを接続し、
-   公開ディレクトリを `products/tools-site/public` に設定する（ビルドコマンドは不要）。
-4. Google Search Console にサイトを登録し、`/sitemap.xml` を送信する。
-5. **Google アドセンス**に申請する。承認されたら `site.json` の `adsense_client` に
-   `ca-pub-...` を入れて `python build.py` → 全ページに広告枠が入る。
+チェックリストです。`python build.py --check` が、`site.json` のうち公開前に直すべき項目を一覧にします
+（警告を表示するだけで、エラーでは止まりません。`python build.py` の最後にも件数が出ます）。
+
+- [ ] **ドメインを決める**（任意だが広告審査には独自ドメインが必要）。
+- [ ] `site.json` の `url` を公開URL（`https://` から、末尾の `/` なし）に書き換える。初期値の `https://example.com` のままだと、
+      canonical・og:url・sitemap.xml・robots.txt がすべて example.com を指します。
+- [ ] `site.json` の `operator` を運営者名（ペンネーム可）に書き換える。
+- [ ] `site.json` の `contact` に連絡先を入れる（プライバシーポリシーのページに表示されます）。
+- [ ] （任意）SNS で共有されたときの画像を用意し、`site.json` に `og_image` を足す。
+- [ ] `python build.py` を実行し、`python build.py --check` の［要対応］が 0 件になったことを確かめる。
+- [ ] **Cloudflare Pages** などの静的ホスティングにこのリポジトリを接続し、
+      公開ディレクトリを `products/tools-site/public` に設定する（ビルドコマンドは不要）。
+      存在しないURLで `404.html` が返ることを確かめる（Cloudflare Pages はドメイン直下の `404.html` を自動で使います。ほかのホスティングでは設定が要ることがあります）。
+- [ ] Google Search Console にサイトを登録し、`/sitemap.xml` を送信する。
+- [ ] **Google アドセンス**に申請する。承認されたら `site.json` の `adsense_client` に
+      `ca-pub-...` を入れて `python build.py` → 全ページに広告枠が入る。
+
+`--check` の［任意］は、空のままでも公開できる項目です（広告ID、`og_image`、商品の販売URL・動作確認の環境）。
 
 審査には数日〜数週間かかり、落ちることもあります。検索からの流入が増えるまで数か月は収益ゼロの想定です。
 
@@ -69,6 +93,7 @@ PSA鑑定の費用の式は `pokeca/core.py`（`per_card_costs`・`recommend`）
 ```bash
 node src/test.mjs     # 計算ロジックのテスト
 python build.py       # public/ を再生成
+python build.py --check   # 公開前に直すべき項目の一覧（生成はしない）
 ```
 
 ツールを増やすときは `src/lib.js`（計算）・`src/test.mjs`（手計算した期待値のテスト）・`src/app.js`（画面）に足し、
