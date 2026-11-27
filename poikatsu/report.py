@@ -63,14 +63,27 @@ def to_html(ctx: DayContext, opps: list[Opportunity]) -> str:
             rows.append(f"<li><b>{e(o.site)}</b> {title}<br><small>{e(_line(o))} · {o.id}</small></li>")
         return "<ul>" + "".join(rows) + "</ul>"
 
+    def route_buttons(group):
+        rows = [
+            f'<li><a href="{e(o.url)}">{e(o.site)}｜{e(o.title)}</a>'
+            f"<small>{e(_line(o))} · {o.id}</small></li>"
+            for o in group
+        ]
+        return '<ol class="route">' + "".join(rows) + "</ol>"
+
     parts = [
         "<!doctype html><html lang='ja'><meta charset='utf-8'>",
         "<meta name='viewport' content='width=device-width,initial-scale=1'>",
         f"<title>ポイ活朝報 {ctx.today}</title>",
         "<style>body{font-family:sans-serif;max-width:640px;margin:auto;padding:16px;line-height:1.6}"
-        "li{margin:10px 0}small{color:#666}a{font-size:1.05em}</style>",
+        "li{margin:10px 0}small{color:#666}a{font-size:1.05em}"
+        "ol.route{list-style:none;padding:0;counter-reset:n}"
+        "ol.route a{display:block;padding:14px 16px;border-radius:12px;background:#1a73e8;"
+        "color:#fff;text-decoration:none;font-weight:bold}"
+        "ol.route a::before{counter-increment:n;content:counter(n) '. '}"
+        "ol.route a:visited{background:#9aa0a6}</style>",
         f"<h1>ポイ活朝報 {ctx.today}</h1><p>{e(ctx.briefing)}</p>",
-        f"<h2>今日のルート（{len(route)}件・約{sum(o.minutes for o in route):.0f}分）</h2>", items(route),
+        f"<h2>今日のルート（{len(route)}件・約{sum(o.minutes for o in route):.0f}分）</h2>", route_buttons(route),
     ]
     if ctx.executed:
         parts.append("<h2>自動実行済み</h2><ul>" + "".join(f"<li>{e(x)}</li>" for x in ctx.executed) + "</ul>")

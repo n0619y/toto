@@ -19,6 +19,7 @@ from .models import Opportunity
 
 POINT_RE = re.compile(r"(\d[\d,]*)\s*(?:ポイント|pt|ｐｔ|P\b|円相当|円分)", re.I)
 URL_RE = re.compile(r"https://[^\s\"'<>）)]+")
+GRANT_RE = re.compile(r"(付与|加算|進呈|獲得)\s*(のお知らせ|しました|されました|いたしました|完了)")
 DEADLINE_RE = re.compile(r"(\d{1,2})[/月](\d{1,2})日?\s*(?:まで|締切|〆切)")
 
 
@@ -90,13 +91,16 @@ def _body_text(msg) -> str:
     return "\n".join(chunks)
 
 
-def from_mail(cfg: dict, today: date) -> list[Opportunity]:
-    """案内メールを読み取り専用で走査する。未設定なら何もしない。"""
+def from_mail(cfg: dict, today: date) -> tuple[list[Opportunity], list[dict]]:
+    """案内メールを読み取り専用で走査する。未設定なら何もしない。
+
+    戻り値は (案件, ポイント付与通知)。付与通知は経理部が実績として記帳する。
+    """
     host = os.getenv("POIKATSU_IMAP_HOST")
     user = os.getenv("POIKATSU_IMAP_USER")
     password = os.getenv("POIKATSU_IMAP_PASSWORD")
     if not (host and user and password):
-        return []
+        return [], []
 
     senders = {
         pat.lower(): name
@@ -104,6 +108,7 @@ def from_mail(cfg: dict, today: date) -> list[Opportunity]:
         for pat in site.get("mail_from", [])
     }
     out: list[Opportunity] = []
+    grants: list[dict] = []
     imap = imaplib.IMAP4_SSL(host)
     try:
         imap.login(user, password)
@@ -119,6 +124,10 @@ def from_mail(cfg: dict, today: date) -> list[Opportunity]:
                 continue
             subject = str(make_header(decode_header(msg.get("Subject", "")))).strip()
             body = _body_text(msg)
+            if GRANT_RE.search(subject):
+                grants.append({"site": site, "title": subject,
+                               "points": parse_points(subject) or parse_points(body[:2000])})
+                continue
             link = URL_RE.search(body)
             out.append(Opportunity(
                 site=site, title=subject, url=link.group(0) if link else "",
@@ -131,7 +140,7 @@ def from_mail(cfg: dict, today: date) -> list[Opportunity]:
             imap.logout()
         except Exception:
             pass
-    return out
+    return out, grants
 
 
 def demo(today: date) -> list[Opportunity]:

@@ -57,3 +57,28 @@ def test_done_items_are_not_offered_again():
     again, _ = CEO().run_day(ctx)
     assert target.id not in {o.id for o in again}
     assert ctx.store.month_total("2026-11")[0] == 1
+
+
+def test_grant_mail_closes_matching_offer_once():
+    ctx = make_ctx(budget=30)
+    opps, _ = CEO().run_day(ctx)
+    survey = next(o for o in opps if o.task_type == "survey")
+    assert ctx.store.record_grant("2026-11-28", survey.site, "300ポイント付与のお知らせ", 300)
+    assert survey.id in ctx.store.done_ids()
+    assert not ctx.store.record_grant("2026-11-28", survey.site, "300ポイント付与のお知らせ", 300)
+    assert ctx.store.month_grants("2026-11") == (1, 300)
+
+
+def test_low_yield_items_are_cut():
+    ctx = make_ctx(budget=30)
+    ctx.cfg["min_yen_per_minute"] = 3
+    opps, _ = CEO().run_day(ctx)
+    click = next(o for o in opps if o.task_type == "click")   # 1円/0.5分 = 2円/分
+    assert not click.selected
+
+
+def test_grant_subject_detection():
+    from poikatsu.sources import GRANT_RE
+    assert GRANT_RE.search("【m3.com】ポイント付与のお知らせ")
+    assert GRANT_RE.search("300ポイントを進呈しました")
+    assert not GRANT_RE.search("アンケートご協力のお願い（謝礼300ポイント）")

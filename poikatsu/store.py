@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import sqlite3
 from pathlib import Path
 
@@ -22,6 +23,13 @@ CREATE TABLE IF NOT EXISTS offers (
     selected INTEGER DEFAULT 0,
     done_at TEXT,
     actual_yen REAL
+);
+CREATE TABLE IF NOT EXISTS grants (
+    id TEXT PRIMARY KEY,
+    day TEXT NOT NULL,
+    site TEXT NOT NULL,
+    title TEXT NOT NULL,
+    yen REAL
 );
 """
 
@@ -71,6 +79,32 @@ class Store:
             )
         self.db.commit()
         return cur.rowcount
+
+    def record_grant(self, day: str, site: str, title: str, yen: float) -> bool:
+        """ポイント付与通知を記帳する。新規なら True。同額の未完了案件があれば完了にする。"""
+        gid = hashlib.sha1(f"{site}|{title}|{day}".encode("utf-8")).hexdigest()[:8]
+        cur = self.db.execute(
+            "INSERT OR IGNORE INTO grants (id, day, site, title, yen) VALUES (?,?,?,?,?)",
+            (gid, day, site, title, yen),
+        )
+        if cur.rowcount and yen:
+            row = self.db.execute(
+                """SELECT id FROM offers WHERE site=? AND done_at IS NULL
+                   AND ABS(value_yen - ?) < 0.01 ORDER BY last_day DESC LIMIT 1""",
+                (site, yen),
+            ).fetchone()
+            if row:
+                self.db.execute("UPDATE offers SET done_at=?, actual_yen=? WHERE id=?",
+                                (day, yen, row["id"]))
+        self.db.commit()
+        return bool(cur.rowcount)
+
+    def month_grants(self, month: str) -> tuple[int, float]:
+        r = self.db.execute(
+            "SELECT COUNT(*) AS n, COALESCE(SUM(yen), 0) AS yen FROM grants WHERE day LIKE ?",
+            (month + "%",),
+        ).fetchone()
+        return r["n"], r["yen"]
 
     def site_stats(self, since_day: str) -> dict[str, dict]:
         """サイト別の「選定数・完了数・実績円」。経理部→経営企画部のフィードバック用。"""

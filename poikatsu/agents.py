@@ -32,6 +32,7 @@ class DayContext:
     demo: bool = False
     warnings: list[str] = field(default_factory=list)
     executed: list[str] = field(default_factory=list)
+    grants: list[dict] = field(default_factory=list)
     briefing: str = ""
 
 
@@ -48,7 +49,10 @@ class Scout:
                              ("feeds", sources.from_feeds),
                              ("mail", sources.from_mail)):
                 try:
-                    found += fn(ctx.cfg, ctx.today)
+                    got = fn(ctx.cfg, ctx.today)
+                    if name == "mail":
+                        got, ctx.grants = got
+                    found += got
                 except Exception as exc:  # 1つの情報源の不調で全体を止めない
                     ctx.warnings.append(f"リサーチ部: 情報源 {name} の取得に失敗 ({exc})")
         done = ctx.store.done_ids()
@@ -168,10 +172,12 @@ class Strategist:
                 if rate < 0.3:
                     o.notes.append("最近あまり消化されていないサイト")
         budget = float(ctx.cfg.get("daily_budget_minutes", 15))
+        floor = float(ctx.cfg.get("min_yen_per_minute", 0))
         for o in sorted(opps, key=lambda x: -x.score):
             if o.verdict == AUTO:
                 o.selected = True
-            elif o.verdict == HUMAN and o.score > 0 and o.minutes <= budget:
+            elif (o.verdict == HUMAN and o.score > 0 and o.score >= floor
+                  and o.minutes <= budget):
                 o.selected = True
                 budget -= o.minutes
 
@@ -208,14 +214,23 @@ class Operator:
 class Auditor:
     """経理部: 台帳への記録と実績集計。"""
 
+    def reconcile(self, ctx: DayContext) -> None:
+        """ポイント付与メールを実績として記帳する（同額の未完了案件は自動で完了に）。"""
+        for g in ctx.grants:
+            site = ctx.cfg.get("sites", {}).get(g["site"], {})
+            yen = g["points"] * float(site.get("yen_per_point", 1))
+            ctx.store.record_grant(ctx.today.isoformat(), g["site"], g["title"], yen)
+
     def feedback(self, ctx: DayContext) -> dict:
         since = (ctx.today - timedelta(days=14)).isoformat()
         return ctx.store.site_stats(since)
 
     def close(self, ctx: DayContext, opps: list[Opportunity]) -> dict:
         ctx.store.record_offers(ctx.today.isoformat(), opps)
-        n, yen = ctx.store.month_total(ctx.today.strftime("%Y-%m"))
-        return {"month_done": n, "month_yen": yen}
+        month = ctx.today.strftime("%Y-%m")
+        n, yen = ctx.store.month_total(month)
+        gn, gyen = ctx.store.month_grants(month)
+        return {"month_done": n, "month_yen": yen, "grant_count": gn, "grant_yen": gyen}
 
 
 # --------------------------------------------------------------------------- #
@@ -232,6 +247,7 @@ class CEO:
         strategist, operator, auditor = Strategist(), Operator(), Auditor()
 
         opps = scout.run(ctx)
+        auditor.reconcile(ctx)                        # 付与メール → 実績（手入力不要）
         analyst.run(ctx, opps)
         legal.run(ctx, opps)
         operator.run(ctx, opps)                       # AUTO を実行（不可なら HUMAN に戻る）
@@ -250,7 +266,8 @@ class CEO:
             f"発見 {summary['found']}件 / 今日のルート {summary['route_count']}件・"
             f"約{summary['route_minutes']:.0f}分・見込み約{summary['route_yen']:.0f}円相当 / "
             f"自動実行 {len(ctx.executed)}件 / 本人判断待ち {summary['hold']}件 / "
-            f"今月の実績 {summary['month_done']}件・約{summary['month_yen']:.0f}円相当"
+            f"今月の完了 {summary['month_done']}件・約{summary['month_yen']:.0f}円相当 / "
+            f"今月メールで付与を確認 {summary['grant_count']}件・約{summary['grant_yen']:.0f}円相当"
         )
         top = "\n".join(f"- [{o.site}] {o.title}" for o in route[:5])
         ctx.briefing = ctx.llm.ask(self.SYSTEM, f"{facts}\n上位案件:\n{top}", 600) or facts

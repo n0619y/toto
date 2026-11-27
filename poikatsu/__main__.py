@@ -50,8 +50,10 @@ def main(argv=None) -> int:
         print(f"{n}件を完了として記録しました")
         return 0
     if args.cmd == "stats":
-        n, yen = Store(db_path).month_total(today.strftime("%Y-%m"))
-        print(f"{today:%Y-%m}: 完了 {n}件 / 約{yen:.0f}円相当")
+        store = Store(db_path)
+        n, yen = store.month_total(today.strftime("%Y-%m"))
+        gn, gyen = store.month_grants(today.strftime("%Y-%m"))
+        print(f"{today:%Y-%m}: 完了 {n}件・約{yen:.0f}円相当 / メールで付与確認 {gn}件・約{gyen:.0f}円相当")
         return 0
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding="utf-8")) or {}
