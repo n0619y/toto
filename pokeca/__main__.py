@@ -1,7 +1,8 @@
 """使い方:
-  python -m pokeca prices import 買取表.csv          買取表を取り込む
+  python -m pokeca prices fetch [--shop シンソク]     買取表を各店のサイトから取得する
+  python -m pokeca prices import 買取表.csv          買取表を CSV から取り込む（列: shop,number,name,grade,price）
   python -m pokeca recommend [--out 推奨.csv]        推奨仕入れ上限の一覧
-  python -m pokeca stock add SET 番号 名前 仕入れ値 [--from 店] [--on 日付]
+  python -m pokeca stock add 番号 名前 仕入れ値 [--from 店] [--on 日付]
   python -m pokeca stock list [--status 在庫]
   python -m pokeca stock set ID [--status ..] [--grade PSA10] [--cert ..] [--sold-to 店 --sold-price 円]
   python -m pokeca psa-export [--out 依頼.csv] [--mark 注文番号]   鑑定に出す在庫の一覧
@@ -44,16 +45,20 @@ def main(argv=None) -> int:
     p.add_argument("--config", default=str(ROOT / "config" / "pokeca.yaml"))
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    pr = sub.add_parser("prices").add_subparsers(dest="sub", required=True).add_parser("import")
+    prs = sub.add_parser("prices").add_subparsers(dest="sub", required=True)
+    pr = prs.add_parser("import")
     pr.add_argument("csv")
     pr.add_argument("--day")
+    fe = prs.add_parser("fetch")
+    fe.add_argument("--shop", action="append", help="店を絞る（省略時は対応している全店）")
+    fe.add_argument("--max-pages", type=int, help="動作確認用にページ数を制限する")
 
     rec = sub.add_parser("recommend")
     rec.add_argument("--out")
 
     st = sub.add_parser("stock").add_subparsers(dest="sub", required=True)
     add = st.add_parser("add")
-    for a in ("set_code", "number", "name"):
+    for a in ("number", "name"):
         add.add_argument(a)
     add.add_argument("buy_price", type=float)
     add.add_argument("--from", dest="bought_from", default="")
@@ -78,7 +83,11 @@ def main(argv=None) -> int:
     db = DB(args.db)
     today = datetime.now(ZoneInfo("Asia/Tokyo")).date().isoformat()
 
-    if args.cmd == "prices":
+    if args.cmd == "prices" and args.sub == "fetch":
+        from .shops import fetch_all
+        failed = fetch_all(db, today, args.shop, args.max_pages)
+        return 1 if failed else 0
+    elif args.cmd == "prices":
         print(f"{db.import_prices(args.csv, args.day or today)}行を取り込みました")
     elif args.cmd == "recommend":
         best = best_offers(db.latest_prices())
@@ -86,7 +95,7 @@ def main(argv=None) -> int:
         rows.sort(key=lambda r: -r["max_buy"])
         write_csv(args.out, [{k: (round(v) if isinstance(v, float) else v) for k, v in r.items()} for r in rows])
     elif args.cmd == "stock" and args.sub == "add":
-        i = db.add_stock(args.set_code, args.number, args.name, args.buy_price, args.on or today, args.bought_from)
+        i = db.add_stock(args.number, args.name, args.buy_price, args.on or today, args.bought_from)
         print(f"在庫ID {i} で登録しました")
     elif args.cmd == "stock" and args.sub == "list":
         write_csv(None, db.stock(args.status))

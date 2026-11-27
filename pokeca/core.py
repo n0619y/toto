@@ -7,10 +7,23 @@ import unicodedata
 from dataclasses import dataclass
 
 
-def card_key(set_code: str, number: str) -> str:
-    """店ごとの表記ゆれを吸収するカード識別キー。例: ("sv2a", "201/165") -> "SV2A-201/165" """
-    norm = lambda s: re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(s))).upper()
-    return f"{norm(set_code)}-{norm(number)}"
+RARITIES = r"(?:SAR|CSR|CHR|SSR|RRR|ACE|BWR|SR|AR|UR|HR|MA|RR|PR|TR|S|A|K|H)"
+
+
+def card_key(number: str, name: str) -> str:
+    """店ごとの表記ゆれを吸収するカード識別キー。
+
+    例: ("096/071", "ナンジャモ SAR（SV2D）") -> "096/071|ナンジャモ"
+    番号だけでは別の弾と重なることがあるので、カード名（レアリティ・括弧書きを除く）を添える。
+    """
+    norm = lambda s: unicodedata.normalize("NFKC", str(s or "")).upper()
+    num = re.sub(r"\s+", "", norm(number))
+    nm = re.sub(r"[(\[【].*?[)\]】]", "", norm(name))          # 括弧書き（弾の記号など）を除く
+    nm = nm.replace(num, "") if num else nm
+    nm = re.sub(rf"(?<![A-Z0-9]){RARITIES}(?![A-Z0-9])", "", nm)  # 単独のレアリティ表記を除く
+    nm = re.sub(r"PSA\s*\d{1,2}", "", nm)
+    nm = re.sub(r"[\s・/\-]+", "", nm)
+    return f"{num}|{nm}"
 
 
 def normalize_grade(text: str) -> str:
@@ -88,7 +101,8 @@ def recommend(card: str, best: dict, cfg: dict, probs: dict | None = None) -> di
         "max_buy": max(0.0, max_buy // 100 * 100),          # 100円単位に切り下げ
         "breakeven_buy": expected - costs,
         "profit_if_psa10": p10["price"] - costs,             # ここから仕入れ値を引く
-        "worth_grading": max_buy > raw,                      # 未鑑定のまま売るより得か
+        # 未鑑定のまま売るより得か。未鑑定の買取価格が無いカードは比べられないので None
+        "worth_grading": (max_buy > raw) if raw else None,
     }
 
 

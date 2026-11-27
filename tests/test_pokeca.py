@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -23,7 +24,7 @@ def test_shipped_config_is_valid():
     cfg = yaml.safe_load((ROOT / "config" / "pokeca.yaml").read_text(encoding="utf-8"))
     assert per_card_costs(cfg).total > 0
     assert sum(cfg["grade_probabilities"].values()) == pytest.approx(1.0)
-A = "SV2A-201/165"
+A = "201/165|サンプルカード甲"
 
 
 @pytest.fixture
@@ -34,7 +35,9 @@ def db():
 
 
 def test_normalization():
-    assert card_key("sv2a", "201/165") == card_key("SV2a", "２０１/１６５") == A
+    assert card_key("201/165", "サンプルカード甲 SAR") == card_key("２０１/１６５", "サンプルカード甲") == A
+    assert card_key("096/071", "ナンジャモ SAR（SV2D）") == card_key("096/071", "ナンジャモ SAR 096/071") == "096/071|ナンジャモ"
+    assert card_key("096/071", "ナンジャモ") != card_key("096/071", "別のカード")   # 番号が同じ別弾は区別する
     assert normalize_grade("PSA 10") == normalize_grade("psa１０") == "PSA10"
     assert normalize_grade("") == normalize_grade("美品") == "RAW"
 
@@ -63,15 +66,15 @@ def test_recommend_uses_best_shop_and_margin(db):
 
 def test_recommend_fallbacks_and_skips(db):
     best = best_offers(db.latest_prices())
-    r = recommend("SV4A-350/190", best, CFG)          # PSA9 の買取なし → 未鑑定×0.9
+    r = recommend("350/190|サンプルカード乙", best, CFG)          # PSA9 の買取なし → 未鑑定×0.9
     assert r["psa9_value"] == pytest.approx(6500 * 0.9)
     assert not r["worth_grading"]                      # 費用負けするカード
-    assert recommend("SV1-100/078", best, CFG) is None  # PSA10 買取が無い
+    assert recommend("100/078|サンプルカード丙", best, CFG) is None  # PSA10 買取が無い
 
 
 def test_latest_prices_are_per_shop(db, tmp_path):
     newer = tmp_path / "p.csv"
-    newer.write_text("shop,set_code,number,name,grade,price\nショップB,sv2a,201/165,甲,PSA10,40000\n", encoding="utf-8")
+    newer.write_text("shop,number,name,grade,price\nショップB,201/165,サンプルカード甲,PSA10,40000\n", encoding="utf-8")
     db.import_prices(newer, "2026-11-28")
     best = best_offers(db.latest_prices())
     assert best[(A, "PSA10")]["shop"] == "ショップA"     # B は最新表で 40000 に下がった
@@ -79,7 +82,7 @@ def test_latest_prices_are_per_shop(db, tmp_path):
 
 
 def test_stock_flow_and_sell_plan(db):
-    i = db.add_stock("sv2a", "201/165", "甲", 15000, "2026-11-27", "ショップA")
+    i = db.add_stock("201/165", "サンプルカード甲 SAR", 15000, "2026-11-27", "ショップA")
     db.update_stock(i, status="鑑定中", extra_cost=5324)
     db.update_stock(i, status="返却済", grade="psa 10", cert="12345678")
     item = db.stock("返却済")[0]
@@ -90,3 +93,25 @@ def test_stock_flow_and_sell_plan(db):
         db.update_stock(i, status="紛失")
     with pytest.raises(KeyError):
         db.update_stock(999, status="在庫")
+
+
+def test_shinsoku_parser():
+    from pokeca.shops import shinsoku
+    rec = lambda **k: json.dumps({"id": k["item_id"], **k, "buy_boost": False}, ensure_ascii=False, separators=(",", ":"))
+    psa = [{"id": 1, "slug": "psa10", "label": "PSA10", "category_label": "鑑定品"}]
+    page = "x".join([
+        rec(item_id="IA1", name="ナンジャモ", type="NORMAL", rarity="SAR", tags=[], is_postal_buy_target=True,
+            postal_purchase_price_s=31000, modelno="096/071"),
+        rec(item_id="IA2", name="メガリザードンXex", type="PSA", rarity="MA", tags=psa, is_postal_buy_target=True,
+            postal_purchase_price_s=8900, modelno="223/193"),
+        rec(item_id="IA3", name="拡張パック", type="BOX", rarity="", tags=[], is_postal_buy_target=True,
+            postal_purchase_price_s=9800, modelno="$undefined"),
+        rec(item_id="IA4", name="PSA10保証AR以上", type="PSA", rarity="", tags=psa, is_postal_buy_target=True,
+            postal_purchase_price_s=3600, modelno="対象レアリティ AR SR"),
+        rec(item_id="IA5", name="対象外", type="NORMAL", rarity="", tags=[], is_postal_buy_target=False,
+            postal_purchase_price_s=100, modelno="001/001"),
+    ]).replace('"', '\\"') + " 2,832 件"
+    rows = shinsoku.parse(page)
+    assert [(r["number"], r["name"], r["grade"], r["price"]) for r in rows] == [
+        ("096/071", "ナンジャモ SAR", "", 31000), ("223/193", "メガリザードンXex", "PSA10", 8900)]
+    assert shinsoku.total_pages(page) == 71

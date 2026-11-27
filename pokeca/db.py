@@ -35,22 +35,27 @@ class DB:
         self.db.executescript(SCHEMA)
 
     # ---- 買取表 -----------------------------------------------------------
-    def import_prices(self, csv_path: str | Path, day: str) -> int:
-        """CSV 列: shop, set_code, number, name, grade, price"""
+    def save_prices(self, rows, day: str) -> int:
+        """rows: shop, number, name, grade, price を持つ辞書の列。"""
         n = 0
-        with open(csv_path, encoding="utf-8-sig", newline="") as f:
-            for row in csv.DictReader(f):
-                price = float(str(row["price"]).replace(",", "").replace("円", "") or 0)
-                if price <= 0:
-                    continue
-                self.db.execute(
-                    "INSERT OR REPLACE INTO prices VALUES (?,?,?,?,?,?)",
-                    (day, row["shop"].strip(), card_key(row["set_code"], row["number"]),
-                     row.get("name", "").strip(), normalize_grade(row.get("grade", "")), price),
-                )
-                n += 1
+        for row in rows:
+            price = float(str(row["price"]).replace(",", "").replace("円", "") or 0)
+            if price <= 0 or not str(row.get("number") or "").strip():
+                continue
+            name = str(row.get("name") or "").strip()
+            self.db.execute(
+                "INSERT OR REPLACE INTO prices VALUES (?,?,?,?,?,?)",
+                (day, row["shop"].strip(), card_key(row["number"], name), name,
+                 normalize_grade(row.get("grade", "")), price),
+            )
+            n += 1
         self.db.commit()
         return n
+
+    def import_prices(self, csv_path: str | Path, day: str) -> int:
+        """CSV 列: shop, number, name, grade, price"""
+        with open(csv_path, encoding="utf-8-sig", newline="") as f:
+            return self.save_prices(csv.DictReader(f), day)
 
     def latest_prices(self) -> list[dict]:
         """各店の「その店の最新取得日」の行だけを返す。"""
@@ -62,10 +67,10 @@ class DB:
         return [dict(r) for r in rows]
 
     # ---- 在庫 -------------------------------------------------------------
-    def add_stock(self, set_code, number, name, buy_price, bought_on, bought_from="") -> int:
+    def add_stock(self, number, name, buy_price, bought_on, bought_from="") -> int:
         cur = self.db.execute(
             "INSERT INTO stock (card_key, name, buy_price, bought_on, bought_from) VALUES (?,?,?,?,?)",
-            (card_key(set_code, number), name, float(buy_price), bought_on, bought_from),
+            (card_key(number, name), name, float(buy_price), bought_on, bought_from),
         )
         self.db.commit()
         return cur.lastrowid
