@@ -332,6 +332,7 @@ const TOOLS = {
       show(rows(out));
     };
     on(["w", "h", "newW", "newH"], run);
+    run();
   },
 };
 
