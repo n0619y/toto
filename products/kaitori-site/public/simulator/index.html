@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>手取りシミュレーター（フリマと買取の比較）｜未鑑定カードの郵送買取</title>
+<meta name="description" content="相場・フリマの販売手数料率と送料・買取率を入れると、フリマで売った場合の手取りと、この買取の手取り、差額を計算します。フリマのほうが多い条件ではそのとおり表示します。">
+<link rel="canonical" href="https://example.com/simulator/">
+<meta property="og:url" content="https://example.com/simulator/">
+<meta property="og:title" content="手取りシミュレーター（フリマと買取の比較）">
+<meta property="og:description" content="相場・フリマの販売手数料率と送料・買取率を入れると、フリマで売った場合の手取りと、この買取の手取り、差額を計算します。フリマのほうが多い条件ではそのとおり表示します。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="未鑑定カードの郵送買取">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#fafaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151614" media="(prefers-color-scheme: dark)">
+<meta name="site-config" content="541db28680d5eb1c">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head><body>
+<header><a class="brand" href="/">未鑑定カードの郵送買取</a><nav aria-label="サイト内"><a href="/simulator/">手取りシミュレーター</a><a href="/rules/">買取ルール</a><a href="/condition/">状態基準</a><a href="/flow/">買取の流れ</a><a href="/faq/">よくある質問</a><a href="/about/">運営者情報</a></nav></header>
+<main><nav aria-label="パンくずリスト"><ol class="crumbs"><li><a href="/">トップ</a></li><li aria-current="page">手取りシミュレーター（フリマと買取の比較）</li></ol></nav><h1>手取りシミュレーター</h1><p class="lead">同じカードを、フリマで売った場合と、この買取に出した場合の手取りを比べます。数字はすべて書き換えられます。</p><div class="card" id="sim"><label>相場価格（円）<input id="soba" type="number" inputmode="numeric" min="0" step="any" value="10000"></label><div class="row"><label>フリマの販売手数料率（%）<input id="tesuryo" type="number" inputmode="decimal" min="0" step="any" value="10"></label><label>フリマの送料（円）<input id="fsoryo" type="number" inputmode="numeric" min="0" step="any" value="210"></label></div><label>買取率（%）<input id="ritsu" type="number" inputmode="decimal" min="0" step="any"></label><p class="lead">この買取の買取率は<span class="tbd">準備中</span>です。数字を入れると計算できます。</p><details><summary>買取で、ご自身が負担する費用がある場合</summary><div class="row"><label>買取で負担する送料（円）<input id="usoryo" type="number" inputmode="numeric" min="0" step="any" value="0"></label><label>買取で負担する振込手数料（円）<input id="ufuri" type="number" inputmode="numeric" min="0" step="any" value="0"></label></div></details></div><div class="card" id="result" aria-live="polite"><p>相場価格と買取率を入れると計算します。</p></div><h2>計算の式</h2><ul><li>フリマの手取り ＝ 相場 − 販売手数料（相場 × 手数料率、1円未満切り捨て） − フリマの送料</li><li>この買取の手取り ＝ 買取額（相場 × 買取率、1円未満切り捨て） − ご自身が負担する送料 − ご自身が負担する振込手数料</li><li>手取りが同じになる買取率 ＝（フリマの手取り ＋ ご自身が負担する送料・振込手数料）÷ 相場</li></ul><p>買取率が「手取りが同じになる買取率」より低いときは、フリマで売るほうが手取りは多くなります。その場合は、結果の欄にそのとおり表示します。</p><h2>初期値について</h2><p>販売手数料率 10%・送料 210円は一例です。手数料率と送料は、お使いのサービスと発送方法で変わります。お使いのサービスの表示で確かめて書き換えてください。この買取の送料の扱いは「<span class="tbd">準備中</span>」、振込手数料の扱いは「<span class="tbd">準備中</span>」です。ご自身の負担がある場合は、上の欄を開いて金額を入れてください。</p><h2>この計算に入っていないもの</h2><ul><li>フリマで売れるまでの日数、値下げの交渉、梱包材の費用、売上金を引き出すときの手数料</li><li>状態 B になった場合の減額（状態 B は<span class="tbd">準備中</span>）</li><li>仮査定からカードが届く日までの相場の動き（買取額は到着日の基準相場で確定します）</li><li>フリマでは相場どおりの価格で売れるものとして計算しています</li></ul><p>結果は入力した数字をそのまま計算した参考値です。入力内容は外部に送信されません。</p></main>
+<footer><a href="/simulator/">手取りシミュレーター</a> ・ <a href="/rules/">買取ルール</a> ・ <a href="/condition/">状態基準</a> ・ <a href="/flow/">買取の流れ</a> ・ <a href="/faq/">よくある質問</a> ・ <a href="/about/">運営者情報</a><br>
+古物商許可: <span class="tbd">準備中</span><br>
+当店は鑑定会社の公認店・提携店ではありません。状態の区分は当店の基準によるものです。</footer>
+<script type="module" src="/app.js"></script>
+</body></html>
