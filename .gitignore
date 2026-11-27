@@ -27,3 +27,7 @@ output/review/*
 # OS
 .DS_Store
 Thumbs.db
+
+# ポイ活カンパニーの台帳・朝報（個人の利用状況が入るためコミットしない）
+data/
+output/poikatsu/

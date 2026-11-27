@@ -1,0 +1,44 @@
+name: ポイ活カンパニー 朝報
+
+on:
+  schedule:
+    - cron: "7 21 * * *"   # 毎朝 6:07 (日本時間)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: poikatsu-daily
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install anthropic python-dotenv PyYAML requests
+      - name: 台帳を復元
+        uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: poikatsu-db-${{ github.run_id }}
+          restore-keys: poikatsu-db-
+      - name: 朝報を作成
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          POIKATSU_IMAP_HOST: ${{ secrets.POIKATSU_IMAP_HOST }}
+          POIKATSU_IMAP_USER: ${{ secrets.POIKATSU_IMAP_USER }}
+          POIKATSU_IMAP_PASSWORD: ${{ secrets.POIKATSU_IMAP_PASSWORD }}
+          POIKATSU_SMTP_HOST: ${{ secrets.POIKATSU_SMTP_HOST }}
+          POIKATSU_SMTP_USER: ${{ secrets.POIKATSU_SMTP_USER }}
+          POIKATSU_SMTP_PASSWORD: ${{ secrets.POIKATSU_SMTP_PASSWORD }}
+          POIKATSU_REPORT_TO: ${{ secrets.POIKATSU_REPORT_TO }}
+        run: python -m poikatsu run > /dev/null   # 内容は公開ログに出さずメールで届ける
+      - name: 台帳を保存
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data
+          key: poikatsu-db-${{ github.run_id }}
