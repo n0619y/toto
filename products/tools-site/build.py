@@ -202,6 +202,9 @@ TOOLS = CARD_TOOLS + LIFE_TOOLS
 GROUPS = [("トレカ・PSA鑑定", CARD_TOOLS), ("くらし・仕事", LIFE_TOOLS)]
 
 e = html.escape
+# Google Search Console の所有権確認（site.json の google_site_verification に content の値を入れる）
+_GSV = str(SITE.get("google_site_verification", "")).strip()
+GSV_HEAD = f'<meta name="google-site-verification" content="{e(_GSV)}">\n' if _GSV else ""
 AD_HEAD = (f'<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client={e(SITE["adsense_client"])}" '
            'crossorigin="anonymous"></script>') if SITE["adsense_client"] else ""
 AD_SLOT = ('<div class="ad"><ins class="adsbygoogle" style="display:block" data-ad-format="auto" '
@@ -592,7 +595,7 @@ def page(path, title, desc, body, tool="", crumbs=(), ld=(), og_type="website", 
 <meta property="og:site_name" content="{e(SITE['name'])}">
 <meta property="og:locale" content="ja_JP">{image}
 <meta name="twitter:card" content="{'summary_large_image' if OG_IMAGE_URL else 'summary'}">
-<meta name="theme-color" content="{THEME_LIGHT}" media="(prefers-color-scheme: light)">
+{GSV_HEAD}<meta name="theme-color" content="{THEME_LIGHT}" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="{THEME_DARK}" media="(prefers-color-scheme: dark)">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="/style.css">{AD_HEAD}{ld}
