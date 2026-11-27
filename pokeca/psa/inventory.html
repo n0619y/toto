@@ -1,0 +1,206 @@
+<title>ポケカ在庫とPSA提出</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Space+Grotesk:wght@700&display=swap">
+<style>
+/* 1カラム。上から「在庫の一覧(選ぶ) → PSA用リスト → 状態の更新 → カードの追加」 */
+:root{--bg:#f6f7f9;--card:#ffffff;--fg:#16202b;--mut:#5a6878;--line:#d6dce4;--accent:#c8102e;--ok:#0f7a4f;--code:#eef1f5;--sel:#fdeef0;
+  --body:"Inter",system-ui,"Hiragino Sans","Noto Sans JP",sans-serif;--head:"Space Grotesk","Inter",system-ui,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161c;--card:#1a2129;--fg:#e8edf2;--mut:#9aa8b8;--line:#2e3945;--accent:#ff5a73;--ok:#4fd19c;--code:#232c36;--sel:#3a2229;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#11161c;--card:#1a2129;--fg:#e8edf2;--mut:#9aa8b8;--line:#2e3945;--accent:#ff5a73;--ok:#4fd19c;--code:#232c36;--sel:#3a2229;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+main{max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-family:var(--head);font-size:1.5rem;line-height:1.25;margin:0;text-wrap:balance}
+h2{font-family:var(--head);font-size:1.05rem;margin:0;text-wrap:balance}
+p{margin:0}.mut{color:var(--mut);font-size:.9rem}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{background:var(--code);color:var(--fg);font-weight:400;padding:6px 12px;border-radius:999px;font-size:.9rem}
+.tabs button[aria-pressed="true"]{background:var(--fg);color:var(--bg);font-weight:700}
+ul#cards{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+ul#cards li{display:flex;gap:10px;align-items:flex-start;padding:10px 6px;border-bottom:1px solid var(--line);cursor:pointer;min-width:0}
+ul#cards li.on{background:var(--sel)}
+ul#cards li input{width:20px;height:20px;margin-top:3px;flex:none}
+.info{min-width:0;flex:1}.name{font-weight:700;overflow-wrap:anywhere}
+.sub{color:var(--mut);font-size:.85rem;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.code{font-family:var(--mono)}
+.pill{flex:none;font-size:.75rem;border:1px solid var(--line);border-radius:999px;padding:2px 8px;color:var(--mut)}
+label{font-size:.85rem;color:var(--mut);display:flex;flex-direction:column;gap:4px;min-width:0}
+input[type=text],input[type=number],select{font:inherit;color:var(--fg);background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px;width:100%;box-sizing:border-box;min-width:0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.grid .wide{grid-column:1/-1}
+.out{font-family:var(--mono);font-size:.9rem;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:10px;overflow-wrap:anywhere;min-height:2.6em}
+button{font:inherit;font-weight:700;background:var(--accent);color:var(--card);border:0;border-radius:8px;padding:12px 16px;cursor:pointer}
+button.sec{background:var(--code);color:var(--fg);border:1px solid var(--line)}
+button:disabled{opacity:.45;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--ok);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.msg{color:var(--ok);font-weight:700;min-height:1.4em}.err{color:var(--accent)}
+</style>
+<main>
+<header><h1>ポケカ在庫とPSA提出</h1>
+<p class="mut">出したいカードにチェックを入れ、鑑定プランを選ぶと、PSAの画面に貼り付けるリストができます。</p></header>
+
+<section aria-labelledby="hList">
+  <h2 id="hList">在庫</h2>
+  <div class="tabs" id="tabs" role="group" aria-label="状態で絞り込み"></div>
+  <p class="mut" id="state">読み込み中…</p>
+  <ul id="cards"></ul>
+  <div class="row"><button class="sec" id="selAll" type="button">表示中をすべて選ぶ</button><button class="sec" id="selNone" type="button">選択を外す</button><span class="mut" id="count"></span></div>
+</section>
+
+<section aria-labelledby="hPsa">
+  <h2 id="hPsa">PSA用リスト</h2>
+  <label>鑑定プラン
+    <select id="plan"><option value="">PSAの画面で選ぶ</option><option>Value (1980-Present)</option><option>Standard</option><option selected>Priority</option><option>Express</option><option>Super Express</option></select></label>
+  <div class="out" id="line" aria-live="polite"></div>
+  <button id="copy" type="button" disabled>リストをコピー</button>
+  <div class="msg" id="copyMsg" role="status"></div>
+  <p class="mut">コピーしたら、PSAの「Select Item Type」画面でブックマーク「psa」を呼び出して貼り付けます。セット記号か番号が空のカードはリストに入りません。</p>
+</section>
+
+<section aria-labelledby="hUpd">
+  <h2 id="hUpd">選んだカードの状態を変える</h2>
+  <div class="grid">
+    <label>新しい状態<select id="newStatus"><option>鑑定中</option><option>提出準備</option><option>在庫</option><option>返却済</option><option>売却済</option></select></label>
+    <label>PSA注文番号(任意)<input id="order" type="text" inputmode="numeric" autocomplete="off"></label>
+  </div>
+  <div class="row"><button id="apply" type="button" disabled>状態を変える</button>
+    <button class="sec" id="del" type="button" disabled>選んだカードを削除</button>
+    <button id="delYes" type="button" hidden>本当に削除する</button></div>
+  <div class="msg" id="updMsg" role="status"></div>
+</section>
+
+<section aria-labelledby="hAdd">
+  <h2 id="hAdd">カードを追加</h2>
+  <form id="add" class="grid">
+    <label class="wide">カード名<input id="fName" type="text" required autocomplete="off"></label>
+    <label>セット記号(例 M3)<input id="fSet" type="text" autocomplete="off" autocapitalize="characters"></label>
+    <label>番号(例 061)<input id="fNum" type="text" inputmode="numeric" autocomplete="off"></label>
+    <label>枚数<input id="fQty" type="number" min="1" value="1" inputmode="numeric"></label>
+    <label>仕入値(円・1枚)<input id="fPrice" type="number" min="0" inputmode="numeric"></label>
+    <label class="wide">仕入先<input id="fFrom" type="text" autocomplete="off"></label>
+    <button class="wide" type="submit" id="addBtn">追加する</button>
+  </form>
+  <div class="msg" id="addMsg" role="status"></div>
+  <p class="mut">カードやレシートの写真をClaudeに送れば、読み取ってここに登録します。</p>
+</section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const STATUSES = ["在庫", "提出準備", "鑑定中", "返却済", "売却済"];
+let db = null, cards = [], filter = "在庫";
+const selected = new Set();
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+const str = (v) => (v == null ? "" : String(v));
+const visible = () => cards.filter((c) => filter === "すべて" || (c.status || "在庫") === filter);
+
+function renderTabs() {
+  const box = $("tabs"); box.replaceChildren();
+  for (const s of [...STATUSES, "すべて"]) {
+    const n = s === "すべて" ? cards.length : cards.filter((c) => (c.status || "在庫") === s).length;
+    const b = el("button", "", `${s} ${n}`); b.type = "button"; b.setAttribute("aria-pressed", String(s === filter));
+    b.addEventListener("click", () => { filter = s; render(); });
+    box.append(b);
+  }
+}
+function render() {
+  renderTabs();
+  const list = $("cards"); list.replaceChildren();
+  const rows = visible();
+  if (db && !cards.length) $("state").textContent = "まだカードがありません。下の「カードを追加」から登録するか、カードの写真をClaudeに送ってください。";
+  else if (db) $("state").textContent = rows.length ? "" : `「${filter}」のカードはありません。`;
+  for (const c of rows) {
+    const li = el("li", selected.has(c.id) ? "on" : "");
+    const cb = el("input"); cb.type = "checkbox"; cb.id = "cb-" + c.id; cb.checked = selected.has(c.id);
+    cb.setAttribute("aria-label", str(c.name) + " を選ぶ");
+    const info = el("div", "info");
+    info.append(el("div", "name", str(c.name) || "(名前なし)"));
+    const code = [str(c.set), str(c.number)].filter(Boolean).join(" ");
+    const sub = el("div", "sub");
+    const codeSpan = el("span", "code", code || "記号・番号なし");
+    sub.append(codeSpan, ` ・ ${Number(c.qty) || 1}枚` + (c.buyPrice ? ` ・ 仕入 ${Number(c.buyPrice).toLocaleString("ja-JP")}円` : "") +
+      (c.boughtFrom ? ` ・ ${str(c.boughtFrom)}` : "") + (c.psaOrder ? ` ・ 注文 ${str(c.psaOrder)}` : "") + (c.grade ? ` ・ ${str(c.grade)}` : ""));
+    info.append(sub);
+    li.append(cb, info, el("span", "pill", str(c.status) || "在庫"));
+    const toggle = () => { selected.has(c.id) ? selected.delete(c.id) : selected.add(c.id); render(); };
+    li.addEventListener("click", (e) => { if (e.target !== cb) toggle(); });
+    cb.addEventListener("change", toggle);
+    list.append(li);
+  }
+  renderLine();
+}
+function renderLine() {
+  const picked = cards.filter((c) => selected.has(c.id));
+  const parts = [];
+  if ($("plan").value) parts.push("plan=" + $("plan").value);
+  const merged = new Map(); let skipped = 0;
+  for (const c of picked) {
+    const set = str(c.set).trim(), num = str(c.number).trim().split("/")[0];
+    if (!set || !num) { skipped++; continue; }
+    const key = `${set} ${num}`;
+    merged.set(key, (merged.get(key) || 0) + (Number(c.qty) || 1));
+  }
+  for (const [key, qty] of merged) parts.push(qty > 1 ? `${key} x${qty}` : key);
+  $("line").textContent = merged.size ? parts.join("; ") : "";
+  $("count").textContent = picked.length ? `${picked.length}件を選択中` + (skipped ? `（うち${skipped}件は記号か番号がなくリスト対象外）` : "") : "";
+  $("copy").disabled = !merged.size;
+  $("apply").disabled = $("del").disabled = !picked.length || !db;
+  $("delYes").hidden = true;
+}
+function flash(id, text, isErr) { const m = $(id); m.textContent = text; m.classList.toggle("err", !!isErr); if (!isErr) setTimeout(() => { if (m.textContent === text) m.textContent = ""; }, 3000); }
+
+$("plan").addEventListener("change", renderLine);
+$("selAll").addEventListener("click", () => { visible().forEach((c) => selected.add(c.id)); render(); });
+$("selNone").addEventListener("click", () => { selected.clear(); render(); });
+$("copy").addEventListener("click", () => {
+  const text = $("line").textContent;
+  const fallback = () => { const r = document.createRange(); r.selectNodeContents($("line")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); flash("copyMsg", "選択しました。長押しでコピーしてください"); };
+  try { navigator.clipboard.writeText(text).then(() => flash("copyMsg", "コピーしました"), fallback); } catch (e) { fallback(); }
+});
+$("apply").addEventListener("click", async () => {
+  const ids = [...selected], status = $("newStatus").value, order = $("order").value.trim();
+  $("apply").disabled = true;
+  try {
+    for (const id of ids) { const patch = { status }; if (order) patch.psaOrder = order; await db.doc("cards/" + id).update(patch); }
+    selected.clear(); flash("updMsg", `${ids.length}件を「${status}」にしました`);
+  } catch (e) { flash("updMsg", "変更できませんでした。もう一度試してください。", true); }
+  renderLine();
+});
+$("del").addEventListener("click", () => { $("delYes").hidden = false; });
+$("delYes").addEventListener("click", async () => {
+  const ids = [...selected];
+  try { for (const id of ids) await db.doc("cards/" + id).delete(); selected.clear(); flash("updMsg", `${ids.length}件を削除しました`); }
+  catch (e) { flash("updMsg", "削除できませんでした。もう一度試してください。", true); }
+  renderLine();
+});
+$("add").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!db) return flash("addMsg", "この画面では保存できません。Claudeにサインインして開いてください。", true);
+  const name = $("fName").value.trim(); if (!name) return;
+  $("addBtn").disabled = true;
+  try {
+    await db.collection("cards").add({
+      name, set: $("fSet").value.trim().toUpperCase().replace(/^(M\d+)A$/, "$1a"), number: $("fNum").value.trim(),
+      qty: Math.max(1, Number($("fQty").value) || 1), buyPrice: Number($("fPrice").value) || 0,
+      boughtFrom: $("fFrom").value.trim(), status: "在庫", createdAt: new Date().toISOString(),
+    });
+    for (const id of ["fName", "fNum", "fPrice"]) $(id).value = ""; $("fQty").value = "1";
+    flash("addMsg", "追加しました");
+  } catch (err) { flash("addMsg", "追加できませんでした。もう一度試してください。", true); }
+  $("addBtn").disabled = false;
+});
+
+render();
+(async () => {
+  const timer = setTimeout(() => { if (!db) $("state").textContent = "在庫を読み込めませんでした。Claudeにサインインした状態で開き直してください。"; }, 10000);
+  db = await window.claude?.use?.("db") ?? null;
+  if (!db) { clearTimeout(timer); $("state").textContent = "この画面では在庫を読み込めません。Claudeにサインインした状態で開いてください。"; return; }
+  db.collection("cards").onSnapshot((snap) => {
+    clearTimeout(timer);
+    cards = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => str(b.createdAt).localeCompare(str(a.createdAt)));
+    for (const id of [...selected]) if (!cards.some((c) => c.id === id)) selected.delete(id);
+    render();
+  }, () => { clearTimeout(timer); $("state").textContent = "在庫の読み込みでエラーが起きました。開き直してください。"; });
+})();
+</script>
