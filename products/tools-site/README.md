@@ -45,6 +45,7 @@ PSA鑑定の費用の式は `pokeca/core.py`（`per_card_costs`・`recommend`）
 - `<head>`: `description`（ページごとに別の文。空や重複があるとビルドが止まる）、`canonical`、OGP（`og:title` / `og:description` / `og:type` / `og:url` / `og:site_name`）、
   `twitter:card`、`theme-color`（ライト/ダーク。色は `src/style.css` の `--bg` から取る）、favicon（`public/favicon.svg` をビルド時に生成）。
   `canonical` と `og:url` は `site.json` の `url` から作ります。
+  CSS・JavaScript・favicon と内部リンクは、`url` のパス部分（ベースパス。いまは `/toto`）を前に付けた絶対パスで出します。
 - `og:image` は、`site.json` に `og_image` を足したときだけ出ます。値は `https://` のURLか、`src/` に置いた画像のファイル名（ビルド時に `public/` へコピー）。
 - 構造化データ（JSON-LD）: トップに `WebSite`、各ツールに `WebApplication`（無料であることだけ）、解説記事に `Article`、トップ以外に `BreadcrumbList`（早見ページはこれだけ）。
   評価（`aggregateRating`）・公開日・著者など、確かめられない値は入れていません。
@@ -96,24 +97,48 @@ PSA鑑定の費用の式は `pokeca/core.py`（`per_card_costs`・`recommend`）
 無ければ画像なしのページになります。紹介ページの文章（同梱物・対応環境・注意書き・FAQ抜粋）は `products/psa-sheet/` の
 `listing.md`・`README.md`・`FAQ.md`・`make_zip.py` に合わせて手で書いたもので、自動では同期しません。商品側を変えたら `sheet_body` と `SHEET_FAQ` も直してください。
 
-## 公開の手順（本人のアカウントが必要な部分）
+## 公開の手順（GitHub Pages）
 
-チェックリストです。`python build.py --check` が、`site.json` のうち公開前に直すべき項目を一覧にします
-（警告を表示するだけで、エラーでは止まりません。`python build.py` の最後にも件数が出ます）。
+公開先は GitHub Pages のプロジェクトページ **https://n0619y.github.io/toto/** です（`site.json` の `url` に設定済み）。
+`.github/workflows/pages.yml` が、既定ブランチに `products/tools-site/` の変更が push されるたびに、
+テスト（`node src/test.mjs`）→ ビルド（`python build.py`）→ 公開 を自動で行います。ビルドした `public/` をコミットし直すことはしません。
 
-- [ ] **ドメインを決める**（任意だが広告審査には独自ドメインが必要）。
-- [ ] `site.json` の `url` を公開URL（`https://` から、末尾の `/` なし）に書き換える。初期値の `https://example.com` のままだと、
-      canonical・og:url・sitemap.xml・robots.txt がすべて example.com を指します。
-- [ ] `site.json` の `operator` を運営者名（ペンネーム可）に書き換える。
-- [ ] `site.json` の `contact` に連絡先を入れる（プライバシーポリシーのページに表示されます）。
-- [ ] （任意）SNS で共有されたときの画像を用意し、`site.json` に `og_image` を足す。
-- [ ] `python build.py` を実行し、`python build.py --check` の［要対応］が 0 件になったことを確かめる。
-- [ ] **Cloudflare Pages** などの静的ホスティングにこのリポジトリを接続し、
-      公開ディレクトリを `products/tools-site/public` に設定する（ビルドコマンドは不要）。
-      存在しないURLで `404.html` が返ることを確かめる（Cloudflare Pages はドメイン直下の `404.html` を自動で使います。ほかのホスティングでは設定が要ることがあります）。
-- [ ] Google Search Console にサイトを登録し、`/sitemap.xml` を送信する。
-- [ ] **Google アドセンス**に申請する。承認されたら `site.json` の `adsense_client` に
-      `ca-pub-...` を入れて `python build.py` → 全ページに広告枠が入る。
+本人のアカウントで行うのは次の2つだけです（どちらもスマホのブラウザでできます）。
+
+- [ ] リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にする（最初の1回だけ）。
+      無料プランでは、Pages を使えるのは公開（public）リポジトリだけです。
+- [ ] 変更を既定ブランチに入れる（または **Actions → 「tools-site を GitHub Pages に公開」→ Run workflow** で手動実行）。
+      数分後に https://n0619y.github.io/toto/ で開けることと、存在しないURL（例: `/toto/nai/`）で 404 ページが出ることを確かめる。
+
+そのあと、任意で:
+
+- [ ] `site.json` の `operator`（運営者名。ペンネーム可）と `contact`（連絡先。プライバシーポリシーのページに表示）を入れる。
+      いまは `operator` が初期値、`contact` が空のままで、`python build.py --check` が［要対応］として知らせます（公開そのものは止まりません）。
+- [ ] SNS で共有されたときの画像を用意し、`site.json` に `og_image` を足す。
+- [ ] Google Search Console に `https://n0619y.github.io/toto/` を「URL プレフィックス」で登録し、`https://n0619y.github.io/toto/sitemap.xml` を送信する。
+- [ ] **Google アドセンス**は独自ドメインが前提です（`github.io` のままでは申請できない想定）。独自ドメインに切り替えてから申請し、
+      承認されたら `site.json` の `adsense_client` に `ca-pub-...` を入れる → 全ページに広告枠が入る。
+
+### 置き場所の階層（ベースパス）
+
+`build.py` は、`site.json` の `url` のパス部分をベースパスとして使います。`https://n0619y.github.io/toto` なら `/toto`、
+`https://example.com` なら空（ドメイン直下）です。内部リンク・CSS・JavaScript・画像・favicon の参照（`/toto/style.css` など）、
+canonical・og:url・sitemap.xml・構造化データのURLは、すべてここから作られます。`404.html` もベースパスつきの絶対パスで出すので、
+どの階層のURLで表示されても壊れません。`public/.nojekyll` は GitHub Pages に Jekyll の処理をさせないためのファイルです。
+
+注意: クローラーが読む `robots.txt` はドメイン直下（`https://n0619y.github.io/robots.txt`）だけなので、プロジェクトページでは
+`/toto/robots.txt` は読まれません（sitemap は Search Console から送信します）。独自ドメインにすれば読まれます。
+
+### 独自ドメインに切り替える場合
+
+`site.json` の `url` を新しいURL（`https://` から、末尾の `/` なし。例: `https://example.jp`）に書き換えて再ビルドするだけです
+（push すればワークフローが再ビルドします）。リンクやファイルの参照は自動で `/` 始まりに戻ります。
+GitHub Pages のまま独自ドメインを使うなら Settings → Pages の Custom domain に設定します。
+Cloudflare Pages などに移すなら、公開ディレクトリを `products/tools-site/public` にします（その場合はホスティング側で
+`pip install pillow && python build.py` を実行するか、ビルド済みの `public/` をコミットします）。
+
+手元で確かめるときは、`url` のパスと同じ名前のディレクトリの下に `public/` を置いて配信します
+（例: `toto` → `public` のリンクを作り、その親で `python -m http.server`、`http://localhost:8000/toto/` を開く）。
 
 `--check` の［任意］は、空のままでも公開できる項目です（広告ID、`og_image`、商品の販売URL・動作確認の環境）。
 

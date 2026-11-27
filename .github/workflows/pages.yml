@@ -1,0 +1,60 @@
+name: tools-site を GitHub Pages に公開
+
+# products/tools-site/ をテスト・ビルドして、public/ を https://n0619y.github.io/toto/ に公開する。
+# 先にリポジトリの Settings → Pages → Source を「GitHub Actions」にしておく（最初の1回だけ）。
+# ビルドした public/ をコミットし直すことはしない（書き込み権限は付けていない）。
+
+on:
+  push:
+    # 既定ブランチの名前を決め打ちしないため branches では絞らず、下の if で既定ブランチのときだけ動かす
+    paths:
+      - "products/tools-site/**"
+      - "products/psa-sheet/dist/images/**"   # build.py が /sheet/ の商品画像として読む
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開は1つずつ。途中の公開は打ち切らず、待っているものだけ最新に置き換える
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Tokyo   # 早見ページの「今年」を日本時間で決める
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 依存を入れる（build.py が外部で使うのは、商品画像を縮小する Pillow だけ）
+        run: pip install pillow
+      - name: 計算ロジックのテスト
+        run: node products/tools-site/src/test.mjs
+      - name: サイトを生成
+        run: python products/tools-site/build.py
+      - name: 公開前チェック（表示だけ。警告では止めない）
+        run: python products/tools-site/build.py --check
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: products/tools-site/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

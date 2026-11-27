@@ -1,6 +1,7 @@
 """静的サイトを public/ に生成する。  使い方: python build.py
 
 site.json を書き換えて再実行すると、サイト名・URL・広告IDが全ページに反映される。
+url にパスがあれば（例: https://n0619y.github.io/toto）、内部リンクとファイルの参照はその階層（/toto）つきで出す。
 python build.py --check は、公開前に直すべき項目を一覧表示する（生成はしない。警告だけで、エラーでは止めない）。
 """
 
@@ -12,11 +13,15 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
+from urllib.parse import urlsplit
 
 ROOT = Path(__file__).parent
 SITE = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
 OUT = ROOT / "public"
 BASE = str(SITE["url"]).strip().rstrip("/")   # 公開URL。canonical・og:url・sitemap・構造化データはすべてここから作る
+# 置き場所の階層（ベースパス）。url のパス部分から決める: https://n0619y.github.io/toto → "/toto"、https://example.com → ""（ドメイン直下）。
+# HTML の中では内部リンクや CSS・JS・画像を href="/..." / src="/..." と書いておき、page() が最後にまとめてベースパスを前に付ける（with_base_path）。
+BASE_PATH = urlsplit(BASE).path.rstrip("/")
 DEFAULT_URL = "https://example.com"           # site.json の初期値。このままなら --check が警告する
 DEFAULT_OPERATOR = "くらしの計算機 運営"
 OG_IMAGE = str(SITE.get("og_image", "")).strip()   # SNS で共有されたときの画像。https:// のURLか、src/ に置いたファイル名。空なら og:image を出さない
@@ -549,6 +554,18 @@ def crumbs_ld(crumbs):
         {"@type": "ListItem", "position": i, "name": n, "item": f"{BASE}/{p}"} for i, (n, p) in enumerate(names, 1)]}
 
 
+_ROOT_REF = re.compile(r'\b(href|src)="/(?!/)')
+
+
+def with_base_path(html_text):
+    """href="/..." と src="/..." の前にベースパスを付ける（//example.com のような外部の参照は対象外）。ベースパスが空なら何も変えない。
+
+    リンクを書く場所ごとに付けると付け忘れが 404 になるので、全ページが通る page() の出口で1回だけ行う。
+    JavaScript（app.js → ./lib.js）は相対 import で、パスを組み立てる箇所も無いので、ベースパスを渡す必要はない。
+    """
+    return _ROOT_REF.sub(rf'\1="{BASE_PATH}/', html_text) if BASE_PATH else html_text
+
+
 SITE_LD = {"@type": "WebSite", "name": SITE["name"], "url": f"{BASE}/"}
 
 
@@ -563,7 +580,7 @@ def page(path, title, desc, body, tool="", crumbs=(), ld=(), og_type="website", 
     else:
         robots, ld = '<meta name="robots" content="noindex">', ""
     image = f'\n<meta property="og:image" content="{e(OG_IMAGE_URL)}">' if OG_IMAGE_URL else ""
-    return f"""<!doctype html>
+    return with_base_path(f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(full)}</title>
@@ -586,7 +603,7 @@ def page(path, title, desc, body, tool="", crumbs=(), ld=(), og_type="website", 
 計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
 <script type="module" src="/app.js"></script>
 </body></html>
-"""
+""")
 
 
 # ---- 早見ページ（/born/<西暦>/ と /era/<元号>/<年>/）-------------------------------
@@ -831,8 +848,6 @@ def check():
         must.append(f"url が初期値（{BASE}）のままです。公開URLに書き換えてください（canonical・og:url・sitemap.xml・robots.txt に使われます）。")
     elif not BASE.startswith("https://"):
         must.append(f"url（{BASE}）が https:// で始まっていません。")
-    elif "/" in BASE[len("https://"):]:
-        must.append(f"url（{BASE}）にパスが含まれています。robots.txt と 404.html はドメイン直下に置く前提です。")
     operator = str(SITE.get("operator", "")).strip()
     if not operator or operator == DEFAULT_OPERATOR:
         must.append(f"operator が{'空' if not operator else '初期値（' + operator + '）のまま'}です。運営者名（ペンネーム可）に書き換えてください。")
@@ -882,6 +897,7 @@ def main():
     for f in ("lib.js", "app.js", "style.css"):
         shutil.copy(ROOT / "src" / f, OUT / f)
     (OUT / "favicon.svg").write_text(favicon_svg(), encoding="utf-8")
+    (OUT / ".nojekyll").write_text("", encoding="utf-8")   # GitHub Pages に Jekyll の処理をさせない（中身は空でよい）
     if OG_IMAGE and OG_IMAGE_URL != OG_IMAGE and (ROOT / "src" / OG_IMAGE.lstrip("/")).is_file():
         shutil.copy(ROOT / "src" / OG_IMAGE.lstrip("/"), OUT / OG_IMAGE.lstrip("/"))
 
@@ -965,7 +981,8 @@ def main():
              crumbs=[("プライバシーポリシー・運営者情報", "privacy/")]),
         encoding="utf-8")
 
-    # 存在しないURL用。Cloudflare Pages などはドメイン直下の 404.html を自動で返す。検索には載せない（noindex、sitemap にも入れない）
+    # 存在しないURL用。GitHub Pages や Cloudflare Pages は、公開物のルートにある 404.html を自動で返す。検索には載せない（noindex、sitemap にも入れない）
+    # どの階層のURLで表示されても壊れないよう、リンクと CSS・JS は（ほかのページと同じく）ベースパスつきの絶対パスで出す
     not_found = ('<h1>ページが見つかりません</h1><p>お探しのページは、移動または削除されたか、URLが間違っている可能性があります。</p>'
                  '<a class="btn" href="/">トップ（ツール一覧）へ</a>'
                  + "".join(f'<h2>{e(g)}</h2><ul class="tools">{compact(tools)}</ul>' for g, tools in GROUPS)
@@ -988,6 +1005,7 @@ def main():
     (OUT / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{e(BASE)}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+    # クローラーが読む robots.txt はドメイン直下のものだけ。ベースパスがあるとき（GitHub のプロジェクトページ）はこのファイルは読まれないが、害は無いので出しておく
     (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {BASE}/sitemap.xml\n", encoding="utf-8")
     if shots:
         before = sum(p.stat().st_size for p in SHEET_IMAGES.glob("*.png"))

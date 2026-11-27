@@ -3,8 +3,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>PSA鑑定 収支管理シート（Excel / Googleスプレッドシート用）｜くらしの計算機</title>
 <meta name="description" content="トレカをPSA鑑定に出して売る個人向けの、Excel / Googleスプレッドシート用の収支管理シートの紹介です。在庫台帳・注文別集計・月次集計・仕入れ前シミュレーターが1ファイルに入っています。">
-<link rel="canonical" href="https://example.com/sheet/">
-<meta property="og:url" content="https://example.com/sheet/">
+<link rel="canonical" href="https://n0619y.github.io/toto/sheet/">
+<meta property="og:url" content="https://n0619y.github.io/toto/sheet/">
 <meta property="og:title" content="PSA鑑定 収支管理シート（Excel / Googleスプレッドシート用）">
 <meta property="og:description" content="トレカをPSA鑑定に出して売る個人向けの、Excel / Googleスプレッドシート用の収支管理シートの紹介です。在庫台帳・注文別集計・月次集計・仕入れ前シミュレーターが1ファイルに入っています。">
 <meta property="og:type" content="website">
@@ -13,14 +13,14 @@
 <meta name="twitter:card" content="summary">
 <meta name="theme-color" content="#fafaf7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#151614" media="(prefers-color-scheme: dark)">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css"><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "トップ", "item": "https://example.com/"}, {"@type": "ListItem", "position": 2, "name": "PSA鑑定 収支管理シート", "item": "https://example.com/sheet/"}]}</script>
+<link rel="icon" href="/toto/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/toto/style.css"><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "トップ", "item": "https://n0619y.github.io/toto/"}, {"@type": "ListItem", "position": 2, "name": "PSA鑑定 収支管理シート", "item": "https://n0619y.github.io/toto/sheet/"}]}</script>
 </head><body data-tool="">
-<header><a href="/">くらしの計算機</a></header>
-<main><nav aria-label="パンくずリスト"><ol class="crumbs"><li><a href="/">トップ</a></li><li aria-current="page">PSA鑑定 収支管理シート</li></ol></nav><h1>PSA鑑定 収支管理シート</h1>
+<header><a href="/toto/">くらしの計算機</a></header>
+<main><nav aria-label="パンくずリスト"><ol class="crumbs"><li><a href="/toto/">トップ</a></li><li aria-current="page">PSA鑑定 収支管理シート</li></ol></nav><h1>PSA鑑定 収支管理シート</h1>
 <p class="lead">トレカをPSA鑑定に出して売る個人向けの、Excel / Googleスプレッドシート用の収支管理シートです。
 1枚ごとの仕入値・鑑定費用・売却額を台帳に入れると、原価と利益、注文別・月別の集計が自動で出ます。</p>
-<figure><img src="/sheet/01-cover.webp" alt="PSA鑑定 収支管理シートの表紙画像。在庫台帳の一部の列を抜粋したもの" width="1200" height="900"><figcaption>PSA鑑定 収支管理シートの表紙画像。在庫台帳の一部の列を抜粋したもの。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><div class="card note"><p><b>販売準備中</b></p><p class="lead">まだ販売を始めていません。販売を始めたら、ここに販売ページへのリンクを掲載します。</p></div>
+<figure><img src="/toto/sheet/01-cover.webp" alt="PSA鑑定 収支管理シートの表紙画像。在庫台帳の一部の列を抜粋したもの" width="1200" height="900"><figcaption>PSA鑑定 収支管理シートの表紙画像。在庫台帳の一部の列を抜粋したもの。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><div class="card note"><p><b>販売準備中</b></p><p class="lead">まだ販売を始めていません。販売を始めたら、ここに販売ページへのリンクを掲載します。</p></div>
 <h2>何ができるか</h2>
 <ul><li><b>在庫台帳</b>: カード1枚を1行で記録します。状態（在庫・鑑定中・返却済・売却済）とグレードはプルダウンで選びます。500行ぶん用意しています。</li>
 <li><b>鑑定費用の自動計算</b>: 為替・鑑定料・往復送料・関税・税率・諸経費を設定すると、1枚あたりの鑑定費用を計算し、原価合計・販売手数料・利益・利益率まで出します。</li>
@@ -29,10 +29,10 @@
 <li><b>仕入れ前シミュレーター</b>: 仕入れ値と、PSA10 / PSA9 / それ以下の売値・確率を入れると、期待利益・損益分岐の仕入れ値・目標利益率からの仕入れ上限を表示します。
 仕入れ上限は、目標利益率の2つの定義（売却額に対する利益率 / 仕入れ値に対する利益率）それぞれで出ます。</li></ul>
 <p>黄色いセルが入力欄、灰色のセルは数式です。相場の取得やPSAの注文状況の取得などの自動連携はなく、すべて手入力です。</p>
-<figure><img src="/sheet/02-ledger.webp" alt="在庫台帳シートの画面" width="1200" height="900" loading="lazy"><figcaption>在庫台帳シートの画面。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><figure><img src="/sheet/03-monthly.webp" alt="月次集計シートの画面" width="1200" height="900" loading="lazy"><figcaption>月次集計シートの画面。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><figure><img src="/sheet/04-simulator.webp" alt="シミュレーターシートの画面" width="1200" height="900" loading="lazy"><figcaption>シミュレーターシートの画面。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><figure><img src="/sheet/05-howto.webp" alt="使い方の説明画像" width="1200" height="900" loading="lazy"><figcaption>使い方の説明画像。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure>
+<figure><img src="/toto/sheet/02-ledger.webp" alt="在庫台帳シートの画面" width="1200" height="900" loading="lazy"><figcaption>在庫台帳シートの画面。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><figure><img src="/toto/sheet/03-monthly.webp" alt="月次集計シートの画面" width="1200" height="900" loading="lazy"><figcaption>月次集計シートの画面。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><figure><img src="/toto/sheet/04-simulator.webp" alt="シミュレーターシートの画面" width="1200" height="900" loading="lazy"><figcaption>シミュレーターシートの画面。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure><figure><img src="/toto/sheet/05-howto.webp" alt="使い方の説明画像" width="1200" height="900" loading="lazy"><figcaption>使い方の説明画像。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure>
 <h2>無料ツールとの違い</h2>
-<p>1枚あたりの鑑定費用の式は、当サイトの <a href="/psa-profit/">PSA鑑定 損益シミュレーター</a> と同じです（シートは、1枚あたりの費用を1円単位に四捨五入してから計算します）。</p>
-<p>利益率の定義は2通りあります。シートの在庫台帳・月次集計は「利益 ÷ 売却額」、当サイトの <a href="/psa-max-buy/">PSA鑑定 仕入れ上限 逆算</a> は「利益 ÷ 仕入れ値」です。
+<p>1枚あたりの鑑定費用の式は、当サイトの <a href="/toto/psa-profit/">PSA鑑定 損益シミュレーター</a> と同じです（シートは、1枚あたりの費用を1円単位に四捨五入してから計算します）。</p>
+<p>利益率の定義は2通りあります。シートの在庫台帳・月次集計は「利益 ÷ 売却額」、当サイトの <a href="/toto/psa-max-buy/">PSA鑑定 仕入れ上限 逆算</a> は「利益 ÷ 仕入れ値」です。
 シートのシミュレーターは、仕入れ上限をこの定義ごとに1行ずつ、2行で表示します。</p>
 <ul><li><b>仕入れ上限（売却額に対する利益率）</b>: 利益 ÷ 売却額 が目標以上になる上限です。在庫台帳・月次集計と同じ定義で、シミュレーターの「判定」はこの行で判定します。</li>
 <li><b>仕入れ上限（仕入れ値に対する利益率）</b>: 利益 ÷ 仕入れ値 が目標以上になる上限です。当サイトのツールと同じ定義なので、ツールの金額と比べるときはこの行を見ます。</li></ul>
@@ -68,10 +68,10 @@
 <p class="lead">同梱の「よくある質問」からの抜粋です。</p>
 <details><summary>Excel で開いたら、数字が出ず空欄に見えます。</summary><p>画面上部に「保護ビュー」の黄色い帯が出ていたら、「編集を有効にする」を押してください。このファイルには計算済みの値を入れておらず、開いたアプリがその場で計算する作りです。そのため、販売サイトやスマートフォンのプレビュー表示では、数式のセルが空に見えることがあります。</p></details><details><summary>Googleスプレッドシートで使うには、どうすればいいですか。</summary><p>Googleスプレッドシートで空のファイルを開き、「ファイル」→「インポート」→「アップロード」で xlsx を選び、「新しいスプレッドシートを作成する」で取り込みます。元の xlsx（購入時の zip）は消さずに取っておいてください。</p></details><details><summary>スマートフォンや、ほかの表計算アプリでも使えますか。</summary><p>パソコンの Microsoft Excel と Googleスプレッドシートを対象にしています。スマートフォンのアプリでの操作は想定していません（表が横に長く、入力しづらいためです）。Numbers など他の表計算アプリは対象外で、動くかどうかは確認していません。</p></details><details><summary>為替や鑑定料を変えると、過去の行の金額も変わりますか。</summary><p>変わります。設定は1組だけで、在庫台帳のすべての行が同じ設定を見て鑑定費用を計算するためです。過去ぶんを固定したいときは、その行の「鑑定費用」のセルに実際にかかった金額を直接入力します。注文ごと・サービスレベルごとに料金を持ち分ける機能はありません。</p></details><details><summary>PSA 以外の鑑定会社でも使えますか。</summary><p>費用の項目名をご自身で読み替えれば、費用と利益の計算には使えます。ただし、グレードの選択肢は「未鑑定 / PSA10 / PSA9 / PSA8以下」の4つで固定で、通貨は円とドルの1組だけです。他社の料金体系や手続きに合うかどうかは確認していません。</p></details><details><summary>シミュレーターの結果どおりに利益が出ますか。相場は自動で入りますか。</summary><p>いいえ。シミュレーターは、ご自身が入れた売値と確率から平均（期待値）を計算するだけで、将来の相場や鑑定結果を予測するものではありません。利益が出ることを保証するものでもありません。相場や PSA の注文状況を自動で取得する機能はなく、すべて手入力です。</p></details><details><summary>無料ツール「PSA鑑定 仕入れ上限 逆算」と、仕入れ上限の金額が違うのはなぜですか。</summary><p>目標利益率の定義が2通りあるためです。シミュレーターは、仕入れ上限を「売却額に対する利益率」（利益 ÷ 売却額。在庫台帳・月次集計と同じ定義）と「仕入れ値に対する利益率」（利益 ÷ 仕入れ値。無料ツールと同じ定義）の2行で表示します。無料ツールの金額と比べるときは「仕入れ値に対する利益率」の行を見てください。「判定」は「売却額に対する利益率」の行で判定します。販売手数料率が0でないときや、前提の数字が違うときは、この行でもツールと合いません。</p></details><details><summary>税金や関税の計算は、これで合っていますか。確定申告に使えますか。</summary><p>このシートは収支の記録と試算のための道具で、税額を計算するものではありません。設定の税率・関税の初期値は一例で、実際の税額や制度を示すものではありません。税務と、関税・輸入時の税の扱いは、必ずご自身で税理士・税務署・税関などに確認してください。</p></details><details><summary>使い方の質問や、不具合の問い合わせはできますか。</summary><p>個別のサポート（使い方の質問への回答、カスタマイズ、不具合の個別対応）は行っていません。同梱の「よくある質問」とファイル内の「使い方」シートで解決できる範囲でお使いください。バージョンアップ版の提供もお約束していません。</p></details>
 <h2>まずは無料ツールで計算する</h2>
-<ul class="tools"><li><a href="/psa-profit/"><b>PSA鑑定 損益シミュレーター</b><span>トレカをPSA鑑定に出したときの1枚あたりの費用・期待利益・利益率・損益分岐の仕入れ値を計算します。PSA10・PSA9になった場合の損益も表示。</span></a></li><li><a href="/psa-max-buy/"><b>PSA鑑定 仕入れ上限 逆算</b><span>PSA鑑定の費用と目標利益率から「この値段までなら仕入れてよい」上限額を逆算します。</span></a></li><li><a href="/grading-fee/"><b>鑑定料の円換算</b><span>ドル建ての鑑定料を、枚数・為替・送料から1枚あたりと合計の円額に換算します。</span></a></li><li><a href="/card-roi/"><b>トレカ売買の利益率計算</b><span>仕入れ値・売値・販売手数料率・送料から、利益・利益率・損益分岐の売値を計算します。フリマやオークションでの転売に。</span></a></li><li><a href="/furima-vs-kaitori/"><b>フリマと買取の手取り比較</b><span>同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。</span></a></li></ul>
+<ul class="tools"><li><a href="/toto/psa-profit/"><b>PSA鑑定 損益シミュレーター</b><span>トレカをPSA鑑定に出したときの1枚あたりの費用・期待利益・利益率・損益分岐の仕入れ値を計算します。PSA10・PSA9になった場合の損益も表示。</span></a></li><li><a href="/toto/psa-max-buy/"><b>PSA鑑定 仕入れ上限 逆算</b><span>PSA鑑定の費用と目標利益率から「この値段までなら仕入れてよい」上限額を逆算します。</span></a></li><li><a href="/toto/grading-fee/"><b>鑑定料の円換算</b><span>ドル建ての鑑定料を、枚数・為替・送料から1枚あたりと合計の円額に換算します。</span></a></li><li><a href="/toto/card-roi/"><b>トレカ売買の利益率計算</b><span>仕入れ値・売値・販売手数料率・送料から、利益・利益率・損益分岐の売値を計算します。フリマやオークションでの転売に。</span></a></li><li><a href="/toto/furima-vs-kaitori/"><b>フリマと買取の手取り比較</b><span>同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。</span></a></li></ul>
 <h2>計算の考え方の解説</h2>
-<ul class="tools"><li><a href="/guide/grading-cost/"><b>鑑定に出すときの1枚あたり費用の数え方</b><span>鑑定料・往復送料・輸入時にかかる費用・諸経費を、1枚あたりに直して足す考え方を、計算例つきで説明します。</span></a></li><li><a href="/guide/break-even/"><b>損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方</b><span>期待売値から費用を引いて損益分岐の仕入れ値を出す考え方と、PSA9以下だった場合の損益の見方、期待値で考える意味と限界を説明します。</span></a></li><li><a href="/guide/records/"><b>鑑定転売の記録の付け方（1枚ごとに何を残すか）</b><span>カード1枚を1行で記録するときに、どの項目を残しておくと注文別・月別・グレード別に後で集計できるかを説明します。</span></a></li></ul></main>
-<footer><a href="/">ツール一覧</a> ・ <a href="/born/">生まれ年の早見表</a> ・ <a href="/era/">和暦の年の早見</a> ・ <a href="/guide/">解説記事</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+<ul class="tools"><li><a href="/toto/guide/grading-cost/"><b>鑑定に出すときの1枚あたり費用の数え方</b><span>鑑定料・往復送料・輸入時にかかる費用・諸経費を、1枚あたりに直して足す考え方を、計算例つきで説明します。</span></a></li><li><a href="/toto/guide/break-even/"><b>損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方</b><span>期待売値から費用を引いて損益分岐の仕入れ値を出す考え方と、PSA9以下だった場合の損益の見方、期待値で考える意味と限界を説明します。</span></a></li><li><a href="/toto/guide/records/"><b>鑑定転売の記録の付け方（1枚ごとに何を残すか）</b><span>カード1枚を1行で記録するときに、どの項目を残しておくと注文別・月別・グレード別に後で集計できるかを説明します。</span></a></li></ul></main>
+<footer><a href="/toto/">ツール一覧</a> ・ <a href="/toto/born/">生まれ年の早見表</a> ・ <a href="/toto/era/">和暦の年の早見</a> ・ <a href="/toto/guide/">解説記事</a> ・ <a href="/toto/privacy/">プライバシーポリシー・運営者情報</a><br>
 計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
-<script type="module" src="/app.js"></script>
+<script type="module" src="/toto/app.js"></script>
 </body></html>
