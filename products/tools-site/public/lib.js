@@ -428,3 +428,61 @@ export function aspectScale(w, h, { width, height }) {
   const given = width !== undefined ? width : height;
   return fin(given, v) && given > 0 && v > 0 ? v : null;
 }
+
+// ---- 早見ページ（/born/<西暦>/ と /era/<元号>/<年>/）----
+// build.py は src/hayami.mjs 経由でここの関数の結果を受け取り、app.js は開いた日の年齢を同じ関数で出し直す。
+export const ERA_SLUGS = { 明治: "meiji", 大正: "taisho", 昭和: "showa", 平成: "heisei", 令和: "reiwa" };
+const ETO_KANA = { 子: "ね", 丑: "うし", 寅: "とら", 卯: "う", 辰: "たつ", 巳: "み", 午: "うま", 未: "ひつじ", 申: "さる", 酉: "とり", 戌: "いぬ", 亥: "い" };
+export const etoKana = (y) => ETO_KANA[eto(y)];
+
+// その西暦年にあたる和暦を古い順に返す。改元のあった年は2件で、from / to がその元号だった期間（[月, 日]）。
+export function warekiOfYear(y) {
+  if (seirekiError(y)) return [];
+  const a = toWareki(y, 1, 1), b = toWareki(y, 12, 31);
+  if (a.label === b.label) return [{ ...b, from: [1, 1], to: [12, 31] }];
+  const [, m, d] = ERAS.find((e) => e.name === b.era).start;
+  const last = addDays([y, m, d], -1);
+  return [{ ...a, from: [1, 1], to: [last[1], last[2]] }, { ...b, from: [m, d], to: [12, 31] }];
+}
+// 「昭和64年・平成元年」。1年を通した和暦の表記。
+export const warekiYearLabel = (y) => warekiOfYear(y).map((w) => w.label).join("・");
+
+// birthYear 年生まれの人の、year 年の年齢。before は誕生日を迎える前、after は迎えた後（その年に生まれる前なら −1）。
+export function ageInYear(birthYear, year) {
+  return { before: age([birthYear, 12, 31], [year, 1, 1]), after: age([birthYear, 1, 1], [year, 12, 31]), kazoe: year - birthYear + 1 };
+}
+export const ageLabel = (n) => (n < 0 ? "まだ生まれていません" : `${n}歳`);
+
+// 長寿の祝い。kazoe は数え年、man は満年齢で数える場合の年齢。
+// 還暦だけは「満60歳になる年」と「数え年61歳の年」が同じ年（生まれ年＋60）になる。
+export const LONGEVITY = [
+  { name: "還暦", kana: "かんれき", kazoe: 61, man: 60 },
+  { name: "古希", kana: "こき", kazoe: 70, man: 70 },
+  { name: "喜寿", kana: "きじゅ", kazoe: 77, man: 77 },
+  { name: "傘寿", kana: "さんじゅ", kazoe: 80, man: 80 },
+  { name: "米寿", kana: "べいじゅ", kazoe: 88, man: 88 },
+  { name: "卒寿", kana: "そつじゅ", kazoe: 90, man: 90 },
+  { name: "白寿", kana: "はくじゅ", kazoe: 99, man: 99 },
+];
+// 数え年 n 歳になるのは 生まれ年＋n−1 年、満 n 歳になるのは 生まれ年＋n 年。
+export function milestones(birthYear) {
+  return LONGEVITY.map((l) => ({ ...l, yearKazoe: birthYear + l.kazoe - 1, yearMan: birthYear + l.man }));
+}
+// 年男・年女: 生まれ年と同じ十二支の年（12年ごと）。
+export const etoYears = (birthYear, upTo = 96) => Array.from({ length: Math.floor(upTo / 12) }, (_, i) => birthYear + 12 * (i + 1));
+
+// 早見ページのうち、日付で変わる値。spec は { kind: "born", year } か { kind: "era", era, n }、today は [年, 月, 日]。
+// 対象の年が today より先・和暦として成り立たないときは null。
+export function hayamiNow(spec, today) {
+  const [ty, tm] = today;
+  const y = spec.kind === "era" ? toSeireki(spec.era, spec.n) : spec.year;
+  if (!Number.isInteger(y) || !Number.isInteger(ty) || y > ty) return null;
+  const a = ageInYear(y, ty);
+  const o = { asof: `${ty}年${tm}月時点`, year: `${ty}年（${warekiYearLabel(ty)}）`, before: ageLabel(a.before), after: ageLabel(a.after), kazoe: `${a.kazoe}歳` };
+  if (spec.kind === "era") {
+    o.ago = ty === y ? "今年" : `${ty - y}年前`;
+    const base = spec.era === "明治" ? 1868 : ERAS.find((e) => e.name === spec.era).start[0];
+    o.ifCont = `${spec.era}${ty - base + 1}年`;   // その元号が続いていたとした場合の、今年の年数
+  }
+  return o;
+}

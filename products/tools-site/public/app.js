@@ -69,6 +69,14 @@ const psaCostRows = (c) => [
 ];
 
 const TOOLS = {
+  // 早見ページ: HTML にはビルド時点の年齢が書いてある。開いた日の値で上書きする（計算は build.py と同じ L.hayamiNow）。
+  hayami() {
+    const d = $("hayami").dataset, t = today();
+    if (t[0] * 100 + t[1] < Number(d.built)) return;   // 端末の日付がビルド時より前なら、ビルド時点の値のままにする
+    const now = L.hayamiNow(d.kind === "era" ? { kind: "era", era: d.era, n: Number(d.n) } : { kind: "born", year: Number(d.year) }, t);
+    if (!now) return;
+    document.querySelectorAll("[data-hy]").forEach((el) => { if (el.dataset.hy in now) el.textContent = now[el.dataset.hy]; });
+  },
   wareki() {
     const run = () => {
       const y = read("seireki");

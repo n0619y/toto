@@ -397,4 +397,107 @@ assert.equal(L.psaProfit({ ...COST, ...SALE, buy: 1e-320 }).marginOnBuy, null); 
 assert.equal(L.cardRoi(1e-320, 5, 10, 0).roi, null);
 assert.equal(L.cardRoi(5, 1e-320, 10, 0).marginOnSell, null);
 assert.equal(L.changeRate(1e-320, 5), null);
+
+// ---- 早見ページ（期待値は手計算） ----
+import { hayamiData, BORN_MIN } from "./hayami.mjs";
+// 改元の境界: 前日と当日
+assert.equal(L.toWareki(1926, 12, 24).label, "大正15年");
+assert.equal(L.toWareki(1926, 12, 25).label, "昭和元年");
+assert.equal(L.toWareki(1989, 1, 7).label, "昭和64年");
+assert.equal(L.toWareki(1989, 1, 8).label, "平成元年");
+assert.equal(L.toWareki(2019, 4, 30).label, "平成31年");
+assert.equal(L.toWareki(2019, 5, 1).label, "令和元年");
+assert.equal(L.toWareki(1912, 7, 30).label, "大正元年");
+const wy = (y) => L.warekiOfYear(y).map((w) => [w.label, w.from, w.to]);
+assert.deepEqual(wy(1990), [["平成2年", [1, 1], [12, 31]]]);
+assert.deepEqual(wy(1926), [["大正15年", [1, 1], [12, 24]], ["昭和元年", [12, 25], [12, 31]]]);
+assert.deepEqual(wy(1989), [["昭和64年", [1, 1], [1, 7]], ["平成元年", [1, 8], [12, 31]]]);
+assert.deepEqual(wy(2019), [["平成31年", [1, 1], [4, 30]], ["令和元年", [5, 1], [12, 31]]]);
+assert.deepEqual(wy(1912), [["明治45年", [1, 1], [7, 29]], ["大正元年", [7, 30], [12, 31]]]);
+assert.deepEqual(wy(1873), [["明治6年", [1, 1], [12, 31]]]);
+assert.deepEqual(wy(1872), []);
+assert.equal(L.warekiYearLabel(1989), "昭和64年・平成元年");
+assert.equal(L.warekiYearLabel(1975), "昭和50年");
+// 期間の端の日が、その元号に入っていること（全対象年）
+for (let y = 1873; y <= 2100; y++) for (const w of L.warekiOfYear(y)) {
+  assert.equal(L.toWareki(y, ...w.from).label, w.label, `${y} from`);
+  assert.equal(L.toWareki(y, ...w.to).label, w.label, `${y} to`);
+  assert.equal(L.toSeireki(w.era, w.year), y);
+}
+assert.equal(L.toSeireki("昭和", 50), 1975);
+assert.equal(L.toSeireki("令和", 1), 2019);
+assert.equal(L.toSeireki("平成", 1), 1989);
+assert.equal(L.toSeireki("大正", 15), 1926);
+assert.equal(L.toSeireki("昭和", 1), 1926);
+assert.equal(L.toSeireki("明治", 6), 1873);
+// 干支: 1990年は午、1989年は巳、2019年は亥、1926年は寅、1975年は卯
+assert.deepEqual([1990, 1989, 2019, 1926, 1975].map((y) => L.eto(y) + L.etoKana(y)), ["午うま", "巳み", "亥い", "寅とら", "卯う"]);
+// 年齢: 1990年生まれは2026年に、誕生日の前35歳・後36歳・数え年37歳
+assert.deepEqual(L.ageInYear(1990, 2026), { before: 35, after: 36, kazoe: 37 });
+assert.deepEqual(L.ageInYear(2026, 2026), { before: -1, after: 0, kazoe: 1 });
+assert.equal(L.ageInYear(1990, 2026).before, L.age([1990, 11, 28], [2026, 11, 27]));
+assert.equal(L.ageInYear(1990, 2026).after, L.age([1990, 11, 27], [2026, 11, 27]));
+assert.equal(L.ageLabel(-1), "まだ生まれていません");
+assert.equal(L.ageLabel(0), "0歳");
+// 入学・卒業年の学年の境界: 4月1日までが早生まれ、4月2日からが次の学年。ページの2つの表は 4月1日 と 4月2日 で計算する
+const sy = (y, m, d) => L.schoolYears(y, m, d).map((s) => [s.enter, s.grad]);
+assert.deepEqual(sy(1990, 4, 2), [[1997, 2003], [2003, 2006], [2006, 2009], [2009, 2013]]);
+assert.deepEqual(sy(1990, 4, 1), [[1996, 2002], [2002, 2005], [2005, 2008], [2008, 2012]]);
+for (const y of [1926, 1989, 1990, 2019, 2026]) {
+  assert.deepEqual(sy(y, 1, 1), sy(y, 4, 1));      // 1月1日〜4月1日は同じ学年
+  assert.deepEqual(sy(y, 3, 31), sy(y, 4, 1));
+  assert.deepEqual(sy(y, 12, 31), sy(y, 4, 2));    // 4月2日〜12月31日は同じ学年
+  assert.deepEqual(sy(y, 4, 1), sy(y - 1, 4, 2));  // 早生まれは前の年の4月2日以降生まれと同じ学年
+}
+// 節目: 1990年生まれの還暦は2050年（満60歳・数え年61歳）、古希は数え年で2059年・満年齢で2060年
+const ms = Object.fromEntries(L.milestones(1990).map((m) => [m.name, [m.yearKazoe, m.yearMan]]));
+assert.deepEqual(ms, { 還暦: [2050, 2050], 古希: [2059, 2060], 喜寿: [2066, 2067], 傘寿: [2069, 2070], 米寿: [2077, 2078], 卒寿: [2079, 2080], 白寿: [2088, 2089] });
+for (const m of L.milestones(1990)) {
+  assert.equal(L.ageInYear(1990, m.yearKazoe).kazoe, m.kazoe, m.name);
+  assert.equal(L.ageInYear(1990, m.yearMan).after, m.man, m.name);
+}
+assert.deepEqual(L.etoYears(1990), [2002, 2014, 2026, 2038, 2050, 2062, 2074, 2086]);
+assert.ok(L.etoYears(1990).every((y) => L.eto(y) === L.eto(1990)));
+// 日付で変わる値
+assert.deepEqual(L.hayamiNow({ kind: "born", year: 1990 }, [2026, 11, 27]),
+  { asof: "2026年11月時点", year: "2026年（令和8年）", before: "35歳", after: "36歳", kazoe: "37歳" });
+assert.deepEqual(L.hayamiNow({ kind: "era", era: "昭和", n: 50 }, [2026, 11, 27]),
+  { asof: "2026年11月時点", year: "2026年（令和8年）", before: "50歳", after: "51歳", kazoe: "52歳", ago: "51年前", ifCont: "昭和101年" });
+assert.equal(L.hayamiNow({ kind: "era", era: "令和", n: 8 }, [2026, 1, 1]).ago, "今年");
+assert.equal(L.hayamiNow({ kind: "era", era: "明治", n: 6 }, [2026, 1, 1]).ifCont, "明治159年");   // 1868年が明治元年
+assert.equal(L.hayamiNow({ kind: "born", year: 1990 }, [2027, 1, 1]).after, "37歳");
+assert.equal(L.hayamiNow({ kind: "born", year: 1989 }, [2019, 3, 1]).year, "2019年（平成31年・令和元年）");
+assert.equal(L.hayamiNow({ kind: "born", year: 2027 }, [2026, 11, 27]), null);
+assert.equal(L.hayamiNow({ kind: "era", era: "昭和", n: 65 }, [2026, 11, 27]), null);
+// build.py に渡すデータ（2026-11-27 でビルドした場合）
+const HD = hayamiData([2026, 11, 27]);
+assert.equal(BORN_MIN, 1926);
+assert.deepEqual([HD.born.length, HD.born[0].year, HD.born.at(-1).year], [101, 1926, 2026]);
+assert.equal(HD.era.length, 40 + 15 + 64 + 31 + 8);   // 明治6〜45、大正1〜15、昭和1〜64、平成1〜31、令和1〜8
+assert.deepEqual([HD.era[0].label, HD.era.at(-1).label], ["明治6年", "令和8年"]);
+assert.equal(new Set(HD.era.map((x) => `${x.slug}/${x.n}`)).size, HD.era.length);
+assert.ok(HD.era.every((x, i) => i === 0 || x.year >= HD.era[i - 1].year));   // 古い順
+const b90 = HD.born.find((b) => b.year === 1990), b89 = HD.born.find((b) => b.year === 1989);
+assert.deepEqual([b90.warekiLabel, b90.eto, b90.ages[36].year, b90.ages[100].year, b90.ages[100].wareki], ["平成2年", "午", 2026, 2090, "令和72年"]);
+assert.deepEqual(b90.school.normal.map((s) => [s.enter, s.enterWareki, s.grad, s.gradWareki]),
+  [[1997, "平成9年", 2003, "平成15年"], [2003, "平成15年", 2006, "平成18年"], [2006, "平成18年", 2009, "平成21年"], [2009, "平成21年", 2013, "平成25年"]]);
+assert.deepEqual(b90.school.early.map((s) => [s.enter, s.grad]), [[1996, 2002], [2002, 2005], [2005, 2008], [2008, 2012]]);
+// 入学・卒業の和暦はその月の元号。改元のあった年にかかる例で確かめる。
+// 2012年4月2日生まれ: 小学校入学 2019年4月 = 平成31年（令和は5月から）。1982年4月2日生まれ: 小学校入学 1989年4月 = 平成元年。
+assert.equal(HD.born.find((b) => b.year === 2012).school.normal[0].enterWareki, "平成31年");
+assert.equal(HD.born.find((b) => b.year === 1982).school.normal[0].enterWareki, "平成元年");
+assert.equal(HD.born.find((b) => b.year === 1983).school.early[0].enterWareki, "平成元年");
+assert.deepEqual([1977].map((y) => HD.born.find((b) => b.year === y).school.early[0]).map((s) => [s.grad, s.gradWareki]), [[1989, "平成元年"]]);   // 1977年の早生まれ: 小学校卒業 1989年3月 = 平成元年（1月8日から）
+assert.deepEqual(b89.wareki.map((w) => `${w.label} ${w.fromLabel}〜${w.toLabel}`), ["昭和64年 1月1日〜1月7日", "平成元年 1月8日〜12月31日"]);
+// いまの学校制度になる前に小学校へ入学する年代（早生まれの入学が1947年より前）には表を出さない
+assert.deepEqual([1926, 1940, 1941, 1990].map((y) => HD.born.find((b) => b.year === y).schoolOk), [false, false, true, true]);
+const eraOf = (era, n) => HD.era.find((x) => x.era === era && x.n === n);
+assert.deepEqual([eraOf("昭和", 50).year, eraOf("昭和", 50).eto, eraOf("昭和", 50).other], [1975, "卯", null]);
+assert.deepEqual([eraOf("令和", 1).year, eraOf("令和", 1).from, eraOf("令和", 1).to, eraOf("令和", 1).other.label], [2019, "5月1日", "12月31日", "平成31年"]);
+assert.deepEqual([eraOf("平成", 31).from, eraOf("平成", 31).to, eraOf("平成", 31).other.label], ["1月1日", "4月30日", "令和元年"]);
+assert.deepEqual([eraOf("昭和", 64).to, eraOf("平成", 1).from], ["1月7日", "1月8日"]);
+assert.deepEqual([eraOf("大正", 15).to, eraOf("昭和", 1).from, eraOf("昭和", 1).year], ["12月24日", "12月25日", 1926]);
+assert.equal(eraOf("昭和", 65), undefined);
+assert.equal(eraOf("令和", 9), undefined);
+assert.equal(hayamiData([2027, 1, 1]).born.at(-1).year, 2027);   // 年が変わると対象年が1年増える
 console.log("lib ok");

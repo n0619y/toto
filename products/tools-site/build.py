@@ -8,7 +8,9 @@ import html
 import json
 import re
 import shutil
+import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).parent
@@ -251,7 +253,9 @@ _BREAKEVEN = _EXPECTED - _C["total"]
 _MAX_EXACT = _BREAKEVEN / (1 + DEF["target"] / 100)
 _MAX_BUY = max(0, _MAX_EXACT // 100 * 100)
 _SPEND = EX["buy"] + _C["total"]
-_SHEET_MAX_BUY = max(0, (_EXPECTED * (1 - DEF["target"] / 100) - round(_C["total"])) // 100 * 100)  # シート側の定義（利益÷売値）
+# シートのシミュレーターは仕入れ上限を2行で出す（費用を1円に四捨五入してから計算。販売手数料率は初期値の0%）
+_SHEET_MAX_BUY = max(0, (_EXPECTED * (1 - DEF["target"] / 100) - round(_C["total"])) // 100 * 100)   # 売却額に対する利益率（利益÷売却額）
+_SHEET_MAX_ON_BUY = max(0, (_EXPECTED - round(_C["total"])) / (1 + DEF["target"] / 100) // 100 * 100)  # 仕入れ値に対する利益率（ツールと同じ定義）
 _EX_NOTE = "ツールの初期値と同じ数字を使った一例です。実際の料金や税率を示すものではありません。"
 NO_ADVICE = "この記事は計算の考え方を説明するもので、税務・法律の助言ではありません。税や関税の扱いは、税理士・税務署・税関などにご確認ください。"
 
@@ -397,6 +401,10 @@ SHEET_FAQ = [
     ("シミュレーターの結果どおりに利益が出ますか。相場は自動で入りますか。",
      "いいえ。シミュレーターは、ご自身が入れた売値と確率から平均（期待値）を計算するだけで、将来の相場や鑑定結果を予測するものではありません。利益が出ることを保証するものでもありません。"
      "相場や PSA の注文状況を自動で取得する機能はなく、すべて手入力です。"),
+    ("無料ツール「PSA鑑定 仕入れ上限 逆算」と、仕入れ上限の金額が違うのはなぜですか。",
+     "目標利益率の定義が2通りあるためです。シミュレーターは、仕入れ上限を「売却額に対する利益率」（利益 ÷ 売却額。在庫台帳・月次集計と同じ定義）と"
+     "「仕入れ値に対する利益率」（利益 ÷ 仕入れ値。無料ツールと同じ定義）の2行で表示します。無料ツールの金額と比べるときは「仕入れ値に対する利益率」の行を見てください。"
+     "「判定」は「売却額に対する利益率」の行で判定します。販売手数料率が0でないときや、前提の数字が違うときは、この行でもツールと合いません。"),
     ("税金や関税の計算は、これで合っていますか。確定申告に使えますか。",
      "このシートは収支の記録と試算のための道具で、税額を計算するものではありません。設定の税率・関税の初期値は一例で、実際の税額や制度を示すものではありません。"
      "税務と、関税・輸入時の税の扱いは、必ずご自身で税理士・税務署・税関などに確認してください。"),
@@ -468,13 +476,21 @@ def sheet_body(shots):
 <li><b>鑑定費用の自動計算</b>: 為替・鑑定料・往復送料・関税・税率・諸経費を設定すると、1枚あたりの鑑定費用を計算し、原価合計・販売手数料・利益・利益率まで出します。</li>
 <li><b>注文別集計</b>: PSA注文番号ごとに、枚数・仕入合計・鑑定費用合計・売却合計・利益・未売却ぶんの原価を集計します（30注文まで）。</li>
 <li><b>月次集計とグレード別割合</b>: 指定した年の売却月ごとの売上・原価・利益・枚数と、グレード別の枚数・割合（自分のPSA10率）を出します。</li>
-<li><b>仕入れ前シミュレーター</b>: 仕入れ値と、PSA10 / PSA9 / それ以下の売値・確率を入れると、期待利益・損益分岐の仕入れ値・目標利益率からの仕入れ上限を表示します。</li></ul>
+<li><b>仕入れ前シミュレーター</b>: 仕入れ値と、PSA10 / PSA9 / それ以下の売値・確率を入れると、期待利益・損益分岐の仕入れ値・目標利益率からの仕入れ上限を表示します。
+仕入れ上限は、目標利益率の2つの定義（売却額に対する利益率 / 仕入れ値に対する利益率）それぞれで出ます。</li></ul>
 <p>黄色いセルが入力欄、灰色のセルは数式です。相場の取得やPSAの注文状況の取得などの自動連携はなく、すべて手入力です。</p>
 {rest}
 <h2>無料ツールとの違い</h2>
-<p>1枚あたりの鑑定費用の式は、当サイトの {tool_link("psa-profit")} と同じです。違うのは利益率の定義で、シートは全体を通して「利益 ÷ 売却額」で計算します。
-当サイトの {tool_link("psa-max-buy")} は目標利益率を「仕入れ値に対して」で計算するため、同じ数字を入れても仕入れ上限は一致しません
-（一例として、期待売値{yen(_EXPECTED)}・費用{yen(_C["total"])}・目標{DEF["target"]}%のとき、ツールは{yen(_MAX_BUY)}、シートは{yen(_SHEET_MAX_BUY)}）。</p>
+<p>1枚あたりの鑑定費用の式は、当サイトの {tool_link("psa-profit")} と同じです（シートは、1枚あたりの費用を1円単位に四捨五入してから計算します）。</p>
+<p>利益率の定義は2通りあります。シートの在庫台帳・月次集計は「利益 ÷ 売却額」、当サイトの {tool_link("psa-max-buy")} は「利益 ÷ 仕入れ値」です。
+シートのシミュレーターは、仕入れ上限をこの定義ごとに1行ずつ、2行で表示します。</p>
+<ul><li><b>仕入れ上限（売却額に対する利益率）</b>: 利益 ÷ 売却額 が目標以上になる上限です。在庫台帳・月次集計と同じ定義で、シミュレーターの「判定」はこの行で判定します。</li>
+<li><b>仕入れ上限（仕入れ値に対する利益率）</b>: 利益 ÷ 仕入れ値 が目標以上になる上限です。当サイトのツールと同じ定義なので、ツールの金額と比べるときはこの行を見ます。</li></ul>
+<p>一例として、期待売値{yen(_EXPECTED)}・費用{yen(_C["total"])}・目標{DEF["target"]}%・販売手数料率0%のとき、ツールは{yen(_MAX_BUY)}、
+シートは「仕入れ値に対する利益率」の行が{yen(_SHEET_MAX_ON_BUY)}、「売却額に対する利益率」の行が{yen(_SHEET_MAX_BUY)}です。
+同じ目標でも、売却額の{DEF["target"]}%を残すほうが条件が厳しいので、「売却額に対する利益率」の行のほうが低く出ます。</p>
+<p>「仕入れ値に対する利益率」の行でも、シートの販売手数料率が0でないとき（ツールには販売手数料の欄がありません）、為替・鑑定料などの前提が違うとき、
+費用の四捨五入で100円の境目にちょうど当たったときは、ツールと一致しません。</p>
 <h2>同梱物</h2>
 <p>zip ファイル1つに、次の3ファイルが入っています。</p>
 <ul><li><code>psa-shushi-kanri.xlsx</code>: シート本体（使い方 / 設定 / 在庫台帳 / 注文別集計 / 月次集計 / シミュレーター の6枚）</li>
@@ -566,11 +582,239 @@ def page(path, title, desc, body, tool="", crumbs=(), ld=(), og_type="website", 
 </head><body data-tool="{tool}">
 <header><a href="/">{e(SITE['name'])}</a></header>
 <main>{crumbs_html(crumbs) if crumbs else ""}{body}</main>
-<footer><a href="/">ツール一覧</a> ・ <a href="/guide/">解説記事</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+<footer><a href="/">ツール一覧</a> ・ <a href="/born/">生まれ年の早見表</a> ・ <a href="/era/">和暦の年の早見</a> ・ <a href="/guide/">解説記事</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
 計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
 <script type="module" src="/app.js"></script>
 </body></html>
 """
+
+
+# ---- 早見ページ（/born/<西暦>/ と /era/<元号>/<年>/）-------------------------------
+# 載せるのは計算で出せる値だけ（年齢・干支・和暦と西暦の対応・入学卒業年・定義を書ける節目）。その年の出来事などは載せない。
+# 値は Python で計算し直さず、src/hayami.mjs（中身は src/lib.js の関数）を node で1回呼んで受け取る。
+# 和暦の年のパスを /wareki/<元号>/<年>/ にしなかったのは、/wareki/ が変換ツールで、一覧ページを置く場所が重なるため。
+
+BORN_INDEX = ("生まれ年の早見表", "born/")
+ERA_INDEX = ("和暦の年の早見", "era/")
+HAYAMI_TOOLS = ("age", "school", "wareki")   # 早見ページからリンクし、下部に早見ページへのリンクを出すツール
+HAYAMI_LI = ('<li><a href="/born/"><b>生まれ年の早見表</b><span>生まれ年ごとの年齢早見表・干支・履歴書用の入学卒業年・節目の年。</span></a></li>'
+             '<li><a href="/era/"><b>和暦の年の早見</b><span>「昭和50年は西暦何年」を、明治6年から今年まで1年ずつ。</span></a></li>')
+
+
+def hayami_data():
+    """早見ページの値（今日の日付で計算）。node が無ければ、理由を出して止める。"""
+    t = date.today()
+    try:
+        r = subprocess.run(["node", str(ROOT / "src" / "hayami.mjs"), str(t.year), str(t.month), str(t.day)],
+                           capture_output=True, text=True, encoding="utf-8")
+    except FileNotFoundError:
+        raise SystemExit("node が見つかりません。早見ページの値は src/lib.js で計算するため、ビルドには Node.js が必要です。")
+    if r.returncode:
+        raise SystemExit(f"src/hayami.mjs が失敗しました:\n{r.stderr}")
+    return json.loads(r.stdout)
+
+
+def _hy(key, now):
+    """日付で変わる値。ビルド時点の値を書いておき、app.js の hayami が開いた日の値で上書きする。"""
+    return f'<span data-hy="{key}">{e(now[key])}</span>'
+
+
+def _grid(head, rows):
+    return ('<table class="grid"><tr>' + "".join(f"<th>{h}</th>" for h in head) + "</tr>"
+            + "".join(f"<tr><th>{r[0]}</th>" + "".join(f"<td>{c}</td>" for c in r[1:]) + "</tr>" for r in rows) + "</table>")
+
+
+def _yw(y, w):
+    """表のセル用: 西暦の下に和暦を小さく出す。"""
+    return f"{y}年<small>{e(w)}</small>"
+
+
+def _asof(now):
+    return (f'<p class="lead">年齢などは{_hy("asof", now)}の値です。JavaScript が有効なら、ページを開いた日の値に更新して表示します。</p>')
+
+
+def _future_note(d, last_year):
+    """表に今年より先の年があるときの注記（将来の元号は分からないため）。"""
+    ty = d["today"][0]
+    if last_year <= ty:
+        return ""
+    return f'<p class="lead">{ty + 1}年より先の和暦は、元号が{e(d["era"][-1]["era"])}のまま続いた場合の年数です。</p>'
+
+
+def _hayami_tools():
+    desc = {s: (t, x) for s, t, x, *_ in LIFE_TOOLS}
+    return ('<ul class="tools">' + "".join(f'<li><a href="/{s}/"><b>{e(desc[s][0])}</b><span>{e(desc[s][1])}</span></a></li>' for s in HAYAMI_TOOLS)
+            + HAYAMI_LI + "</ul>")
+
+
+def born_name(b):
+    return f'{b["year"]}年（{b["warekiLabel"]}）'
+
+
+def born_page(d, b):
+    """生まれ年ページ1枚の (title, description, body)。"""
+    ty, y, now = d["today"][0], b["year"], b["now"]
+    name, eto = born_name(b), f'{b["eto"]}年（{b["etoKana"]}どし）'
+    n, el = b["school"]["normal"], b["school"]["early"]
+    age_now = (f"{ty}年は生まれた年で、誕生日から0歳です。" if y == ty
+               else f"{ty}年に{now['after']}になります（誕生日の前は{now['before']}）。")
+    ms = b["milestones"]
+    if b["schoolOk"]:
+        title = f"{name}生まれの早見表（年齢・干支・入学卒業年）"
+        desc = (f"{name}生まれは{eto}。{age_now}"
+                f"小学校入学は{n[0]['enter']}年4月（早生まれは{el[0]['enter']}年4月）、4年制大学の卒業は{n[3]['grad']}年3月（早生まれは{el[3]['grad']}年3月）。100歳までの年齢早見表つき。")
+    else:
+        title = f"{name}生まれの早見表（年齢・干支・節目の年）"
+        desc = (f"{name}生まれは{eto}。{age_now}"
+                f"{ms[0]['name']}は{ms[0]['yearMan']}年、{ms[4]['name']}は数え年で{ms[4]['yearKazoe']}年。100歳までの年齢早見表と、節目の年の一覧つき。")
+    split = "".join(f'<tr><th>{w["fromLabel"]}〜{w["toLabel"]}生まれ</th><td>{e(w["label"])}生まれ</td></tr>' for w in b["wareki"]) if len(b["wareki"]) > 1 else ""
+    split_lead = (f'{y}年は年の途中で改元があったため、生まれた日によって{"と".join(e(w["label"]) for w in b["wareki"])}に分かれます。' if split else "")
+    head = (f'<div class="card" id="hayami" data-kind="born" data-year="{y}" data-built="{ty * 100 + d["today"][1]}"><table>'
+            f'<tr><th>生まれ年</th><td>{e(name)}</td></tr>{split}<tr><th>干支</th><td>{e(eto)}</td></tr>'
+            f'<tr><th>{_hy("year", now)}の年齢（誕生日の前）</th><td>{_hy("before", now)}</td></tr>'
+            f'<tr><th>{_hy("year", now)}の年齢（誕生日の後）</th><td>{_hy("after", now)}</td></tr>'
+            f'<tr><th>{_hy("year", now)}の数え年</th><td>{_hy("kazoe", now)}</td></tr></table>{_asof(now)}</div>')
+    age_rows = lambda rows: _grid(["年齢", "西暦", "和暦"], [(f'{a["age"]}歳', f'{a["year"]}年', e(a["wareki"])) for a in rows])
+    ages = (f'<h2>年齢早見表（{y}年生まれ）</h2>'
+            f'<p class="lead">その年の誕生日を迎えた後の満年齢です。誕生日の前は1歳少なく、数え年は1歳多くなります。まず10年ごと、その下に1歳ごとの表があります。</p>'
+            f'{age_rows(b["ages"][::10])}'
+            f'<details><summary>1歳ごとの表（0〜100歳）を開く</summary>{age_rows(b["ages"])}</details>{_future_note(d, y + 100)}')
+    sch = lambda rows: _grid(["", "入学（4月）", "卒業（3月）"], [(s["name"], _yw(s["enter"], s["enterWareki"]), _yw(s["grad"], s["gradWareki"])) for s in rows])
+    school = (f'<h2>履歴書用の入学・卒業年（{y}年生まれ）</h2>'
+              f'<p class="lead">4月2日から翌年4月1日生まれが同じ学年になるため、{y}年生まれは生まれた日で学年が分かれます。</p>'
+              f'<div class="cols"><div><h3>{y}年4月2日〜12月31日生まれ</h3>{sch(n)}</div>'
+              f'<div><h3>{y}年1月1日〜4月1日生まれ（早生まれ）</h3>{sch(el)}</div></div>'
+              f'<p>浪人・留年・休学がない場合の年です。大学は4年制で計算しています。和暦は、入学は4月、卒業は3月の時点の元号です。'
+              f'生年月日を入れて確かめるには <a href="/school/">入学・卒業年 早見</a> を使えます。</p>{_future_note(d, n[3]["grad"])}')
+    if not b["schoolOk"]:   # いまの学校制度になる前に小学校へ入学する年代
+        school = (f'<h2>入学・卒業年について</h2><p>{y}年生まれの人は、いまの学校制度（小学校6年・中学校3年・高校3年・大学4年）になる前に小学校へ入学する年代です。'
+                  'いまの制度の年数で数えた入学・卒業年は当時の学校の区切りと合わないため、この年の表は載せていません。</p>')
+    defs = "".join(
+        (f'<li><b>{m["name"]}（{m["kana"]}）</b>: 満{m["man"]}歳になる年（生まれ年＋{m["man"]}年）。数え年では{m["kazoe"]}歳で、どちらで数えても同じ年です。</li>'
+         if m["yearKazoe"] == m["yearMan"] else
+         f'<li><b>{m["name"]}（{m["kana"]}）</b>: 数え年{m["kazoe"]}歳になる年（生まれ年＋{m["kazoe"] - 1}年）。満年齢で数える場合は、満{m["man"]}歳になる年（生まれ年＋{m["man"]}年）。</li>')
+        for m in ms)
+    miles = (f'<h2>節目の年（{y}年生まれ）</h2>'
+             + _grid(["", "数え年で数える場合", "満年齢で数える場合"],
+                     [(m["name"], _yw(m["yearKazoe"], f'数え年{m["kazoe"]}歳・{m["warekiKazoe"]}'), _yw(m["yearMan"], f'満{m["man"]}歳・{m["warekiMan"]}')) for m in ms])
+             + f'<p class="lead">載せているのは、年の決め方を下のとおり書けるものだけです。数え年は、生まれた年を1歳とし、元日ごとに1歳加える数え方です。</p><ul>{defs}'
+             f'<li><b>年男・年女</b>: 生まれ年と同じ十二支（{b["eto"]}）の年。12年ごとで、{"・".join(f"{x}年" for x in b["etoYears"])}。</li></ul>'
+             f'<p>厄年は、数え方が神社や地域によって違い、1つの決まりとして書けないため載せていません。</p>{_future_note(d, ms[-1]["yearMan"])}')
+    by = {x["year"]: x for x in d["born"]}
+    prev = f'<a href="/born/{y - 1}/">← {e(born_name(by[y - 1]))}生まれ</a>' if y - 1 in by else "<span></span>"
+    nxt = f'<a href="/born/{y + 1}/">{e(born_name(by[y + 1]))}生まれ →</a>' if y + 1 in by else "<span></span>"
+    eras = "、".join(f'<a href="/era/{x["slug"]}/{x["n"]}/">{e(x["label"])}は西暦何年</a>' for x in d["era"] if x["year"] == y)
+    nav = (f'<h2>前後の年</h2><p class="nav">{prev}{nxt}</p>'
+           f'<p>和暦の年のページ: {eras} ／ <a href="/born/">生まれ年の一覧</a></p>')
+    body = (f'<h1>{e(name)}生まれの早見表</h1>'
+            f'<p class="lead">{y}年に生まれた人の、年齢・干支・{"履歴書に書く入学と卒業の年・" if b["schoolOk"] else ""}節目の年を、計算でまとめた早見表です。{split_lead}</p>'
+            f'{head}{AD_SLOT}{ages}{school}{miles}{nav}<h2>関連するツールと早見表</h2>{_hayami_tools()}')
+    return title, desc, body
+
+
+def era_page(d, x, i):
+    """和暦の年ページ1枚の (title, description, body)。i は d["era"] の中の位置。"""
+    ty, y, now, label, other = d["today"][0], x["year"], x["now"], x["label"], x["other"]
+    first = x["n"] == 1
+    full = f'{label}（{x["era"]}1年）' if first else label           # 元年は「1年」でも読めるようにする
+    eto = f'{x["eto"]}年（{x["etoKana"]}どし）'
+    has_born = y >= d["bornMin"]                                      # 年齢を出すのは、生まれ年ページのある年だけ
+    current = x["era"] == d["era"][-1]["era"]
+    if other:
+        span = f'{y}年{x["from"]}〜{x["to"]}'
+        other_txt = (f'{other["toLabel"]}までは{other["label"]}' if x["n"] == 1 else f'{other["fromLabel"]}から{other["label"]}')
+        h1 = f'{full}は西暦{y}年（{x["from"] + "から" if x["n"] == 1 else x["to"] + "まで"}）'
+        period = f'{span}（{other_txt}）'
+        what = f'{full}は西暦{y}年の{x["from"]}〜{x["to"]}です（{other_txt}）。'
+    else:
+        h1, period = f"{full}は西暦{y}年", f"{y}年1月1日〜12月31日"
+        what = f"{full}は西暦{y}年です。"
+    title = f"{h1}｜干支・年齢の早見"
+    ago = f"{ty}年の今年にあたります。" if y == ty else f"{ty}年からみて{now['ago']}です。"
+    age_desc = ("" if not has_born else f"{label}生まれの人は、{ty}年は誕生日から0歳です。" if y == ty
+                else f"{label}生まれの人は、{ty}年に{now['after']}になります（誕生日の前は{now['before']}）。")
+    desc = f"{what}干支は{eto}。{ago}{age_desc}"
+    rows = (f'<tr><th>和暦</th><td>{e(full)}</td></tr><tr><th>西暦</th><td>{y}年</td></tr><tr><th>期間</th><td>{e(period)}</td></tr>'
+            f'<tr><th>干支</th><td>{e(eto)}</td></tr>'
+            f'<tr><th>{_hy("year", now)}からみて</th><td>{_hy("ago", now)}</td></tr>')
+    if not current:
+        rows += f'<tr><th>{e(x["era"])}が続いていた場合の{_hy("year", now)}</th><td>{_hy("ifCont", now)}</td></tr>'
+    if has_born:
+        rows += (f'<tr><th>{e(label)}生まれの年齢（{_hy("year", now)}・誕生日の前）</th><td>{_hy("before", now)}</td></tr>'
+                 f'<tr><th>{e(label)}生まれの年齢（{_hy("year", now)}・誕生日の後）</th><td>{_hy("after", now)}</td></tr>')
+    head = (f'<div class="card" id="hayami" data-kind="era" data-era="{e(x["era"])}" data-n="{x["n"]}" data-built="{ty * 100 + d["today"][1]}">'
+            f'<table>{rows}</table>{_asof(now)}</div>')
+    lead = what + (f'「{label}」と「{x["era"]}1年」は同じ年です。' if first else "")
+    if x["era"] == "明治" and x["n"] == 6:
+        lead += "このサイトの和暦は、太陽暦が採用された明治6年（1873年）以降を対象にしています。"
+    steps = (f'<h2>{e(label)}から10年ごとの年</h2>'
+             + _grid(["", "西暦", "和暦"], [(f'{s["after"]}年後', f'{s["year"]}年', e(s["wareki"])) for s in x["steps"]])
+             + _future_note(d, x["steps"][-1]["year"]))
+    born = ""
+    if has_born:
+        b = next(b for b in d["born"] if b["year"] == y)
+        born = (f'<h2>{y}年生まれの早見表</h2><ul class="tools"><li><a href="/born/{y}/"><b>{e(born_name(b))}生まれの早見表</b>'
+                f'<span>100歳までの年齢早見表、履歴書用の入学・卒業年、節目の年。</span></a></li></ul>')
+    link = lambda z, arrow_left: (f'<a href="/era/{z["slug"]}/{z["n"]}/">' + ("← " if arrow_left else "")
+                                  + f'{e(z["label"])}（{z["year"]}年）' + ("" if arrow_left else " →") + "</a>")
+    prev = link(d["era"][i - 1], True) if i > 0 else "<span></span>"
+    nxt = link(d["era"][i + 1], False) if i + 1 < len(d["era"]) else "<span></span>"
+    nav = (f'<h2>前後の年</h2><p class="nav">{prev}{nxt}</p>'
+           f'<p><a href="/era/#{x["slug"]}">{e(x["era"])}の年の一覧</a></p>')
+    body = (f'<h1>{e(h1)}</h1><p class="lead">{e(lead)}</p>{head}{AD_SLOT}{steps}{born}{nav}'
+            f'<h2>関連するツールと早見表</h2>{_hayami_tools()}')
+    return title, desc, body
+
+
+def write_page(path, html_text):
+    out = OUT / path
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "index.html").write_text(html_text, encoding="utf-8")
+
+
+def build_hayami():
+    """早見ページを全部書き出し、sitemap に入れるパスの一覧を返す。"""
+    d = hayami_data()
+    ty = d["today"][0]
+    paths = ["born/", "era/"]
+    for b in d["born"]:
+        title, desc, body = born_page(d, b)
+        path = f'born/{b["year"]}/'
+        write_page(path, page(path, title, desc, body, "hayami", crumbs=[BORN_INDEX, (f'{b["year"]}年生まれ', path)]))
+        paths.append(path)
+    for i, x in enumerate(d["era"]):
+        title, desc, body = era_page(d, x, i)
+        path = f'era/{x["slug"]}/{x["n"]}/'
+        write_page(path, page(path, title, desc, body, "hayami", crumbs=[ERA_INDEX, (x["label"], path)]))
+        paths.append(path)
+
+    first, last = d["born"][0], d["born"][-1]
+    decades = {}
+    for b in d["born"]:
+        decades.setdefault(b["year"] // 10 * 10, []).append(b)
+    born_desc = (f'{first["year"]}年（{first["warekiLabel"]}）から{last["year"]}年（{last["warekiLabel"]}）までの生まれ年ごとに、'
+                 "年齢早見表・干支・履歴書用の入学卒業年・節目の年をまとめた早見表の一覧です。")
+    born_list = "".join(
+        f'<h2 id="y{dec}">{dec}年代生まれ</h2><ul class="years">'
+        + "".join(f'<li><a href="/born/{b["year"]}/">{e(born_name(b))}</a></li>' for b in bs) + "</ul>" for dec, bs in decades.items())
+    write_page("born/", page("born/", f'生まれ年の早見表の一覧（{first["year"]}年〜{last["year"]}年）', born_desc,
+                             f'<h1>生まれ年の早見表</h1><p class="lead">{e(born_desc)}生まれ年を選んでください。</p>{born_list}'
+                             f'<h2>関連するツールと早見表</h2>{_hayami_tools()}', crumbs=[BORN_INDEX]))
+    eras = {}
+    for x in d["era"]:
+        eras.setdefault(x["era"], []).append(x)
+    e0, e1 = d["era"][0], d["era"][-1]
+    era_desc = (f'{e0["label"]}（{e0["year"]}年）から{e1["label"]}（{e1["year"]}年）まで、和暦の年ごとに西暦との対応・干支・'
+                "その年に生まれた人の年齢をまとめた早見ページの一覧です。")
+    era_list = "".join(
+        f'<h2 id="{xs[0]["slug"]}">{e(name)}（{xs[0]["year"]}年〜{xs[-1]["year"]}年）</h2><ul class="years">'
+        + "".join(f'<li><a href="/era/{x["slug"]}/{x["n"]}/">{e(x["label"])}（{x["year"]}年）</a></li>' for x in xs) + "</ul>"
+        for name, xs in reversed(eras.items()))
+    write_page("era/", page("era/", f'和暦の年の早見の一覧（{e0["label"]}〜{e1["label"]}）', era_desc,
+                            f'<h1>和暦の年の早見</h1><p class="lead">{e(era_desc)}'
+                            f'明治は太陽暦が採用された明治6年（1873年）以降が対象です。西暦や和暦を入力して変換するには <a href="/wareki/">和暦・西暦 変換</a> を使えます。</p>'
+                            f'{era_list}<h2>関連するツールと早見表</h2>{_hayami_tools()}', crumbs=[ERA_INDEX]))
+    return paths, len(d["born"]), len(d["era"]), ty
 
 
 def favicon_svg():
@@ -604,6 +848,8 @@ def check():
         must.append("public/ がまだ生成されていません。python build.py を実行してください。")
     elif f'<link rel="canonical" href="{e(BASE)}/">' not in built.read_text(encoding="utf-8"):
         must.append("public/ がいまの site.json の url で生成されていません。python build.py を実行し直してください。")
+    if built.is_file() and not (OUT / "born" / str(date.today().year) / "index.html").is_file():
+        must.append(f"public/ の早見ページが{date.today().year}年のぶんまで生成されていません（年が変わったあと再ビルドしていません）。python build.py を実行し直してください。")
     if not ads:
         opt.append("adsense_client が空です。広告枠は出ません（審査に通ってから入れます）。")
     if not OG_IMAGE:
@@ -645,6 +891,7 @@ def main():
         + (f'<p class="lead">計算の考え方の解説（<a href="/guide/">{GUIDE_INDEX_TITLE}</a>）と、記録用のシート</p>{card_pillar([s for s, *_ in GUIDES])}'
            if tools is CARD_TOOLS else "")
         for g, tools in GROUPS)
+    links += f'<h2>早見表</h2><ul class="tools">{HAYAMI_LI}</ul>'
     compact = lambda tools: "".join(f'<li><a href="/{s}/"><b>{e(t)}</b></a></li>' for s, t, *_ in tools)
     for slug, title, desc, form, note in TOOLS:
         # 「ほかのツール」は同じグループを先に出す
@@ -657,6 +904,7 @@ def main():
                 f'<div class="card">{form}</div><div class="card" id="result" aria-live="polite"></div>{AD_SLOT}'
                 f'<h2>このツールについて</h2>{"".join(f"<p>{e(p)}</p>" for p in note.split(chr(10)))}'
                 + (f'<h2>計算の考え方の解説と、記録用のシート</h2>{card_pillar(TOOL_GUIDES[slug])}' if slug in TOOL_GUIDES else "")
+                + (f'<h2>早見表</h2><ul class="tools">{HAYAMI_LI}</ul>' if slug in HAYAMI_TOOLS else "")
                 + f'<h2>ほかのツール</h2><ul class="tools">{others}</ul>')
         (OUT / slug).mkdir()
         (OUT / slug / "index.html").write_text(page(f"{slug}/", title, desc, body, slug, crumbs=[(title, f"{slug}/")], ld=[app_ld]), encoding="utf-8")
@@ -721,10 +969,13 @@ def main():
     not_found = ('<h1>ページが見つかりません</h1><p>お探しのページは、移動または削除されたか、URLが間違っている可能性があります。</p>'
                  '<a class="btn" href="/">トップ（ツール一覧）へ</a>'
                  + "".join(f'<h2>{e(g)}</h2><ul class="tools">{compact(tools)}</ul>' for g, tools in GROUPS)
+                 + '<h2>早見表</h2><ul class="tools"><li><a href="/born/"><b>生まれ年の早見表</b></a></li><li><a href="/era/"><b>和暦の年の早見</b></a></li></ul>'
                  + f'<h2>解説記事</h2><ul class="tools"><li><a href="/guide/"><b>{GUIDE_INDEX_TITLE}</b></a></li></ul>')
     (OUT / "404.html").write_text(
         page("404.html", "ページが見つかりません", "お探しのページは見つかりませんでした。トップのツール一覧からお探しください。", not_found, index=False),
         encoding="utf-8")
+
+    hayami_paths, n_born, n_era, hayami_year = build_hayami()
 
     for i, name in ((1, "title"), (2, "description")):   # 空・重複は検索結果で区別がつかなくなるので、生成を止める
         seen = {}
@@ -733,7 +984,7 @@ def main():
                 raise SystemExit(f"{name} が空か重複しています: /{p[0]}" + (f" と /{seen[p[i]]}" if p[i] in seen else ""))
             seen[p[i]] = p[0]
 
-    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + ["guide/"] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"]
+    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + ["guide/"] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"] + hayami_paths
     (OUT / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{e(BASE)}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
@@ -744,6 +995,7 @@ def main():
         print(f"商品画像 {len(shots)} 枚: 元 {before / 1024:,.0f} KB → 出力 {after / 1024:,.0f} KB")
     print(f"{len(TOOLS)} ツール + 解説 {len(GUIDES)} 本 + 商品紹介（画像 {len(shots)} 枚、"
           f"{'購入ボタンあり' if PRODUCT_URL else '販売準備中'}）+ トップ + 解説の一覧 + プライバシー + 404 を {OUT} に生成しました")
+    print(f"早見ページ: 生まれ年 {n_born} + 和暦の年 {n_era} + 一覧 2（{hayami_year}年時点の年齢。年が変わったら再ビルドしてください）／ 全 {len(PAGES)} ページ")
     must = sum(k == "要対応" for k, _ in check())
     if must:
         print(f"公開前に直す項目が {must} 件あります。一覧は python build.py --check")
