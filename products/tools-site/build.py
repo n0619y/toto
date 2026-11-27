@@ -84,25 +84,25 @@ LIFE_TOOLS = [    ("wareki", "和暦・西暦 変換", "西暦から和暦、和
      """<label>開始日<input id="from" type="date"></label>
 <label>終了日<input id="to" type="date"></label>
 <label>または 開始日から◯日後<input id="n" type="number" inputmode="numeric" placeholder="例: 100"></label>""",
-     "「初日を含む」は開始日を1日目として数える方法です。マイナスの日数を入れると◯日前を計算できます。"),
+     "「初日を含む」は開始日を1日目として数える方法です。終了日が開始日より前のときは「◯日前」と表示し、週への換算は日数の絶対値で行います。「◯日後」にマイナスの整数を入れると◯日前の日付を計算できます。"),
     ("count", "文字数カウント", "入力した文章の文字数・空白を除いた文字数・行数・原稿用紙換算をその場で数えます。",
      """<label>文章<textarea id="text" placeholder="ここに入力または貼り付け"></textarea></label>""",
      "入力した文章は外部に送信されず、お使いのブラウザの中だけで数えます。絵文字なども1文字として数えます。"),
     ("warikan", "割り勘計算", "合計金額と人数から1人あたりの金額を計算。100円・500円単位の切り上げにも対応。",
-     """<label>合計金額（円）<input id="total" type="number" inputmode="numeric"></label>
+     """<label>合計金額（円）<input id="total" type="number" inputmode="numeric" min="0"></label>
 <div class="row"><label>人数<input id="people" type="number" inputmode="numeric" value="2" min="1"></label>
 <label>切り上げ単位<select id="unit"><option value="1">1円</option><option value="10">10円</option><option value="100" selected>100円</option><option value="500">500円</option><option value="1000">1000円</option></select></label></div>""",
      "指定した単位で切り上げるため、集めた金額が合計を上回ります。その差額を「おつり」として表示します。"),
     ("tax", "消費税計算", "税抜から税込、税込から税抜を計算。8%・10%と端数処理を選べます。",
-     """<label>金額（円）<input id="price" type="number" inputmode="numeric"></label>
+     """<label>金額（円）<input id="price" type="number" inputmode="numeric" min="0"></label>
 <div class="row"><label>入力額<select id="dir"><option value="net">税抜</option><option value="gross">税込</option></select></label>
 <label>税率<select id="rate"><option value="10">10%</option><option value="8">8%（軽減税率）</option></select></label>
 <label>端数<select id="mode"><option value="floor">切り捨て</option><option value="round">四捨五入</option><option value="ceil">切り上げ</option></select></label></div>""",
      "消費税の1円未満の端数処理は事業者が決められます。多くの店舗では切り捨てです。"),
     ("discount", "割引・ポイント還元 計算", "◯%オフの支払額と、ポイント還元を含めた実質価格を計算します。",
-     """<label>元の価格（円）<input id="price" type="number" inputmode="numeric"></label>
-<div class="row"><label>割引率（%）<input id="off" type="number" inputmode="decimal" value="0"></label>
-<label>ポイント還元率（%）<input id="point" type="number" inputmode="decimal" value="0"></label></div>""",
+     """<label>元の価格（円）<input id="price" type="number" inputmode="numeric" min="0"></label>
+<div class="row"><label>割引率（%）<input id="off" type="number" inputmode="decimal" value="0" min="0" max="100" step="any"></label>
+<label>ポイント還元率（%）<input id="point" type="number" inputmode="decimal" value="0" min="0" max="100" step="any"></label></div>""",
      "ポイントは割引後の支払額に対して付く前提で、1円未満・1ポイント未満は切り捨てています。"),
     ("unit", "単位変換", "坪と平方メートル、インチとセンチ、合とミリリットルなど、暮らしでよく使う単位を変換します。",
      """<label>種類<select id="group"></select></label>

@@ -184,4 +184,173 @@ assert.equal(L.aspectScale(4, 3, { width: 1000 }), 750);
 assert.equal(L.aspectScale(16, 9, { width: 0 }), null);
 assert.equal(L.aspectScale(0, 9, { width: 100 }), null);
 assert.equal(L.aspectScale(16, 9, { height: NaN }), null);
+// ---- 入力チェック（境界値: 0・負数・小数・空・範囲の両端とその外側） ----
+// app.js は空欄を null、数字として読めない入力を NaN で渡す。lib はどちらも不正として扱う。
+const JUNK = [NaN, Infinity, -Infinity, undefined, null, "", "5"];
+// 金額: 0以上の整数、上限1兆円
+for (const v of [0, 1, 999, L.MAX_YEN]) assert.equal(L.yenError(v), null);
+for (const v of [-1, -0.5, 0.5, 1000.5, L.MAX_YEN + 1, ...JUNK]) assert.equal(typeof L.yenError(v), "string", String(v));
+assert.equal(L.yenError(-1), "金額は0以上の整数で入力してください。");
+assert.equal(L.yenError(1.5, "合計金額"), "合計金額は0以上の整数で入力してください。");
+assert.equal(L.yenError(L.MAX_YEN + 1), "金額は1兆円以下で入力してください。");
+
+// 割り勘
+assert.deepEqual(L.splitBill(0, 1, 1), { each: 0, surplus: 0 });
+assert.deepEqual(L.splitBill(1, 1, 1), { each: 1, surplus: 0 });
+assert.deepEqual(L.splitBill(1000, 3), { each: 334, surplus: 2 });
+assert.deepEqual(L.splitBill(100, 1000, 1), { each: 1, surplus: 900 });
+assert.deepEqual(L.splitBill(L.MAX_YEN, L.MAX_PEOPLE, 1000), { each: 1000000, surplus: 0 });
+assert.equal(L.splitBillError(10000, 3, 100), null);
+assert.equal(L.splitBillError(-1, 3, 100), "合計金額は0以上の整数で入力してください。");
+assert.equal(L.splitBillError(1000.5, 3, 100), "合計金額は0以上の整数で入力してください。");
+assert.equal(L.splitBillError(L.MAX_YEN + 1, 3, 100), "合計金額は1兆円以下で入力してください。");
+for (const p of [0, -1, 0.5, 2.5, ...JUNK]) {
+  assert.equal(L.splitBillError(1000, p, 100), "人数は1以上の整数で入力してください。", String(p));
+  assert.equal(L.splitBill(1000, p, 100), null);
+}
+assert.equal(L.splitBillError(1000, L.MAX_PEOPLE, 1), null);
+assert.equal(L.splitBillError(1000, L.MAX_PEOPLE + 1, 1), "人数は100万人以下で入力してください。");
+for (const u of [0, -100, 1.5, NaN]) assert.equal(L.splitBill(1000, 2, u), null);
+for (const t of [-1, 0.5, 1000.5, L.MAX_YEN + 1, ...JUNK]) assert.equal(L.splitBill(t, 2, 100), null, String(t));
+
+// 消費税
+assert.deepEqual(L.taxFromNet(0, 10), { net: 0, tax: 0, gross: 0 });
+assert.deepEqual(L.taxFromGross(0, 10), { net: 0, tax: 0, gross: 0 });
+assert.deepEqual(L.taxFromNet(1, 10), { net: 1, tax: 0, gross: 1 });
+assert.deepEqual(L.taxFromNet(999, 10, "round"), { net: 999, tax: 100, gross: 1099 });
+assert.deepEqual(L.taxFromNet(991, 10, "ceil"), { net: 991, tax: 100, gross: 1091 });
+assert.deepEqual(L.taxFromNet(500, 0), { net: 500, tax: 0, gross: 500 });
+assert.deepEqual(L.taxFromNet(500, 100), { net: 500, tax: 500, gross: 1000 });
+assert.deepEqual(L.taxFromGross(L.MAX_YEN, 10), { net: 909090909091, tax: 90909090909, gross: L.MAX_YEN });
+for (const f of [L.taxFromNet, L.taxFromGross]) {
+  for (const v of [-1, -100, 0.5, 99.9, L.MAX_YEN + 1, ...JUNK]) assert.equal(f(v, 10), null, String(v));
+  for (const r of [-1, -0.1, 100.1, 101, NaN, Infinity, undefined]) assert.equal(f(100, r), null, String(r));
+  assert.equal(f(100, 10, "trunc"), null);
+  assert.equal(f(100, 10, "constructor"), null);
+}
+assert.equal(L.taxError(100, 10, "floor"), null);
+assert.equal(L.taxError(-100, 10), "金額は0以上の整数で入力してください。");
+assert.equal(L.taxError(100.5, 10), "金額は0以上の整数で入力してください。");
+assert.equal(L.taxError(100, 101), "税率は0〜100の範囲で指定してください。");
+
+// 割引・ポイント還元
+assert.deepEqual(L.discount(0, 30, 10), { pay: 0, saved: 0, points: 0, effective: 0 });
+assert.deepEqual(L.discount(1000, 0, 0), { pay: 1000, saved: 0, points: 0, effective: 1000 });
+assert.deepEqual(L.discount(1000, 100, 10), { pay: 0, saved: 1000, points: 0, effective: 0 });
+assert.deepEqual(L.discount(1000, 0, 100), { pay: 1000, saved: 0, points: 1000, effective: 0 });
+assert.deepEqual(L.discount(1000, 12.5, 0.5), { pay: 875, saved: 125, points: 4, effective: 871 });
+assert.deepEqual(L.discount(125, 66.4, 0), { pay: 42, saved: 83, points: 0, effective: 42 }); // 125×0.336 = 42 ちょうど（浮動小数では 41.99…）
+assert.equal(L.discountError(1980, 30, 10), null);
+assert.equal(L.discountError(1980, 0, 0), null);
+assert.equal(L.discountError(1980, 100, 100), null);
+assert.equal(L.discountError(-1, 0, 0), "元の価格は0以上の整数で入力してください。");
+assert.equal(L.discountError(1980.5, 0, 0), "元の価格は0以上の整数で入力してください。");
+for (const r of [-0.1, -1, 100.1, 101, 150, NaN, Infinity, undefined, null, "5"]) {
+  assert.equal(L.discountError(1000, r, 0), "割引率は0〜100の範囲で入力してください。", String(r));
+  assert.equal(L.discount(1000, r, 0), null);
+  if (r === undefined) continue; // ポイント還元率は省略すると0%
+  assert.equal(L.discountError(1000, 0, r), "ポイント還元率は0〜100の範囲で入力してください。", String(r));
+  assert.equal(L.discount(1000, 0, r), null);
+}
+for (const v of [-1, 0.5, L.MAX_YEN + 1, ...JUNK]) assert.equal(L.discount(v, 10, 1), null, String(v));
+
+// 日付
+assert.deepEqual(L.parseDate("2026-11-27"), [2026, 11, 27]);
+assert.deepEqual(L.parseDate("2024-02-29"), [2024, 2, 29]);
+assert.deepEqual(L.parseDate("0001-01-01"), [1, 1, 1]);
+assert.deepEqual(L.parseDate("9999-12-31"), [9999, 12, 31]);
+for (const s of ["", "2026-02-29", "2026-02-30", "2026-13-01", "2026-00-10", "2026-04-31", "0000-01-01", "10000-01-01", "+010000-01-01", "2026/11/27", "2026-1-1", "abc", undefined, null])
+  assert.equal(L.parseDate(s), null, String(s));
+assert.ok(L.validDate(50, 1, 1) && L.validDate(1900, 2, 28) && !L.validDate(1900, 2, 29) && L.validDate(2000, 2, 29));
+assert.ok(!L.validDate(2026, 1.5, 1) && !L.validDate(NaN, 1, 1) && !L.validDate(2026, 0, 1) && !L.validDate(2026, 1, 32));
+assert.equal(L.daysBetween([50, 1, 1], [50, 12, 31]), 364);      // 西暦50年を1950年と読み替えない
+assert.equal(L.daysBetween([99, 12, 31], [100, 1, 1]), 1);
+assert.equal(L.weekday([2024, 2, 29]), "木");
+
+// 日数計算
+assert.deepEqual(L.daySpan([2026, 11, 27], [2026, 11, 27]), { days: 0, abs: 0, before: false, inclusive: 1, weeks: 0, rest: 0 });
+assert.deepEqual(L.daySpan([2026, 11, 27], [2026, 11, 28]), { days: 1, abs: 1, before: false, inclusive: 2, weeks: 0, rest: 1 });
+assert.deepEqual(L.daySpan([2026, 11, 27], [2026, 12, 4]), { days: 7, abs: 7, before: false, inclusive: 8, weeks: 1, rest: 0 });
+assert.deepEqual(L.daySpan([2026, 11, 27], [2027, 1, 1]), { days: 35, abs: 35, before: false, inclusive: 36, weeks: 5, rest: 0 });
+assert.deepEqual(L.daySpan([2026, 11, 27], [2026, 11, 26]), { days: -1, abs: 1, before: true, inclusive: 2, weeks: 0, rest: 1 });
+assert.deepEqual(L.daySpan([2026, 11, 27], [2026, 11, 17]), { days: -10, abs: 10, before: true, inclusive: 11, weeks: 1, rest: 3 }); // 以前は「-1週と-3日」
+assert.deepEqual(L.daySpan([2026, 11, 27], [2026, 11, 20]), { days: -7, abs: 7, before: true, inclusive: 8, weeks: 1, rest: 0 });  // 以前は「-1週と-0日」
+assert.deepEqual(L.addDays([2026, 11, 27], 0), [2026, 11, 27]);
+assert.deepEqual(L.addDays([2026, 11, 27], -0), [2026, 11, 27]);
+assert.deepEqual(L.addDays([2026, 11, 27], 100), [2027, 3, 7]);
+assert.deepEqual(L.addDays([2026, 3, 1], -1), [2026, 2, 28]);
+assert.deepEqual(L.addDays([2024, 3, 1], -1), [2024, 2, 29]);
+assert.deepEqual(L.addDays([9999, 12, 30], 1), [9999, 12, 31]);
+assert.equal(L.addDays([9999, 12, 31], 1), null);
+assert.deepEqual(L.addDays([1, 1, 2], -1), [1, 1, 1]);
+assert.equal(L.addDays([1, 1, 1], -1), null);
+for (const n of [0.5, -1.5, 1e300, L.DAY_OFFSET_MAX + 1, -L.DAY_OFFSET_MAX - 1, ...JUNK]) {
+  assert.equal(L.addDays([2026, 11, 27], n), null, String(n));
+  assert.equal(typeof L.dayOffsetError(n), "string", String(n));
+}
+for (const n of [0, 1, -1, L.DAY_OFFSET_MAX, -L.DAY_OFFSET_MAX]) assert.equal(L.dayOffsetError(n), null);
+assert.equal(L.dayOffsetError(1.5), "◯日後の日数は整数で入力してください（◯日前はマイナスの整数）。");
+
+// 和暦変換
+for (const y of [1873, 2019, 2026, 2200]) assert.equal(L.seirekiError(y), null);
+for (const y of [1872, 2201, 0, -1, 2026.5, ...JUNK]) assert.equal(L.seirekiError(y), "西暦は1873〜2200の整数で入力してください。", String(y));
+assert.deepEqual(L.eraYearRange("令和"), [1, 182]);
+assert.deepEqual(L.eraYearRange("平成"), [1, 31]);
+assert.deepEqual(L.eraYearRange("昭和"), [1, 64]);
+assert.deepEqual(L.eraYearRange("大正"), [1, 15]);
+assert.deepEqual(L.eraYearRange("明治"), [6, 45]);
+assert.equal(L.eraYearRange("慶応"), null);
+assert.equal(L.toSeireki("令和", 1), 2019);
+assert.equal(L.toSeireki("平成", 1), 1989);
+assert.equal(L.toSeireki("大正", 15), 1926);
+assert.equal(L.toSeireki("明治", 6), 1873);
+assert.equal(L.toSeireki("令和", 182), 2200);
+for (const [e, n] of [["令和", 183], ["平成", 32], ["大正", 16], ["明治", 5], ["明治", 46], ["令和", 0], ["令和", -1], ["令和", 1.5], ["平成", 30.5], ["慶応", 1], ["令和", NaN], ["令和", undefined], ["令和", null], ["令和", "8"]])
+  assert.equal(L.toSeireki(e, n), null, `${e}${n}`);
+assert.equal(L.eraYearError("令和", 8), null);
+for (const n of [0, -1, 1.5, 0.5, NaN, Infinity, undefined, null]) assert.equal(L.eraYearError("平成", n), "年は1以上の整数で入力してください。", String(n));
+assert.equal(L.eraYearError("平成", 32), "平成は1〜31年の範囲で入力してください。");
+assert.equal(L.eraYearError("明治", 5), "明治は6〜45年の範囲で入力してください。");
+assert.equal(L.eraYearError("令和", 183), "令和は1〜182年の範囲で入力してください。");
+assert.equal(L.yearLabel(2026, 4, 1), "2026年（令和8年）");
+assert.equal(L.yearLabel(2019, 4, 1), "2019年（平成31年）");
+assert.equal(L.yearLabel(1872, 4, 1), "1872年");
+assert.equal(L.yearLabel(1873, 1, 1), "1873年（明治6年）");
+assert.equal(L.eto(1), "酉");
+assert.equal(L.eto(-1), L.eto(11));
+
+// 年齢・入学卒業年
+assert.equal(L.ageError([2000, 1, 1], [2026, 11, 27]), null);
+assert.equal(L.ageError([2026, 11, 27], [2026, 11, 27]), null);                 // 当日は0歳
+assert.equal(L.age([2026, 11, 27], [2026, 11, 27]), 0);
+assert.equal(L.ageError([2026, 11, 28], [2026, 11, 27]), "生年月日は基準日以前の日付にしてください。");
+assert.equal(L.ageError([2030, 1, 1], [2026, 11, 27]), "生年月日は基準日以前の日付にしてください。");
+assert.equal(L.age([2024, 2, 29], [2025, 2, 28]), 0);
+assert.equal(L.age([2024, 2, 29], [2025, 3, 1]), 1);
+assert.equal(L.schoolYears(1850, 5, 1)[0].enter, 1857);
+assert.equal(L.schoolYears(2030, 4, 1)[3].grad, 2052);
+
+// 単位変換
+assert.equal(L.convert("長さ", 0, "m", "cm"), 0);
+assert.ok(Object.is(L.convert("長さ", -0, "m", "cm"), 0));                     // -0 を返さない
+assert.equal(L.convert("長さ", -1, "m", "cm"), -100);
+assert.equal(L.convert("面積", 1e308, "ha", "㎡"), null);                       // 桁あふれ
+for (const v of [NaN, Infinity, "1", undefined, null]) assert.equal(L.convert("長さ", v, "m", "cm"), null, String(v));
+assert.equal(L.convert("長さ", 1, "m", "里"), null);
+assert.equal(L.convert("時間", 1, "m", "cm"), null);
+
+// パスワード
+const SETS3 = ["abc", "XYZ", "123"];
+for (const n of [4, 5, 16, 63, 64]) {
+  assert.equal(L.passwordError(n, SETS3), null);
+  assert.equal(L.password(n, SETS3, mr).length, n);
+}
+for (const n of [3, 0, -1, 65, 100, 4.5, 16.5, 63.9, 1e9, ...JUNK]) {
+  assert.equal(L.passwordError(n, SETS3), "長さは4〜64の整数で入力してください。", String(n));
+  assert.equal(L.password(n, SETS3, mr), "", String(n));
+}
+assert.equal(L.passwordError(16, []), "文字の種類を1つ以上選んでください。");
+assert.equal(L.password(16, [], mr), "");
+const p4 = L.password(4, ["abc", "XYZ", "123", "!#"], mr);                       // 4種類・4文字: 各種類が1文字ずつ
+assert.ok(["abc", "XYZ", "123", "!#"].every((s) => [...p4].some((c) => s.includes(c))), p4);
 console.log("lib ok");

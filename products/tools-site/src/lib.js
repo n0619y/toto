@@ -9,9 +9,24 @@ export const ERAS = [
 ];
 const key = (y, m, d) => y * 10000 + m * 100 + d;
 
+// 入力チェック用。*Error 関数は、問題があれば画面に出すエラー文を、無ければ null を返す。
+const isInt = (v, lo, hi) => Number.isSafeInteger(v) && v >= lo && v <= hi;
+const isRate = (v) => typeof v === "number" && v >= 0 && v <= 100; // NaN は比較で落ちる
+
+// 年・月・日の UTC 0時（ミリ秒）。Date.UTC は 0〜99 年を 1900 年代に読み替えるので使わない。
+const utc = (y, m, d) => new Date(0).setUTCFullYear(y, m - 1, d);
+
 export function validDate(y, m, d) {
-  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (![y, m, d].every(Number.isInteger)) return false;
+  const dt = new Date(utc(y, m, d));
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+// "2026-11-27" → [2026, 11, 27]。存在しない日付・西暦1〜9999年以外は null。
+export function parseDate(s) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s));
+  if (!m) return null;
+  const a = [Number(m[1]), Number(m[2]), Number(m[3])];
+  return a[0] >= 1 && validDate(...a) ? a : null;
 }
 
 export function toWareki(y, m = 12, d = 31) {
@@ -22,24 +37,46 @@ export function toWareki(y, m = 12, d = 31) {
   return { era: era.name, year: n, label: `${era.name}${n === 1 ? "元" : n}年` };
 }
 
-export function toSeireki(eraName, eraYear) {
+// 対応する西暦の範囲（和暦→西暦も同じ範囲に限る）
+export const SEIREKI_MIN = 1873, SEIREKI_MAX = 2200;
+export function seirekiError(y) {
+  return isInt(y, SEIREKI_MIN, SEIREKI_MAX) ? null : `西暦は${SEIREKI_MIN}〜${SEIREKI_MAX}の整数で入力してください。`;
+}
+// その元号で入力できる年の範囲 [最小, 最大]（明治は太陽暦採用の6年から）
+export function eraYearRange(eraName) {
   const i = ERAS.findIndex((e) => e.name === eraName);
-  if (i < 0 || eraYear < 1) return null;
+  if (i < 0) return null;
   const base = eraName === "明治" ? 1868 : ERAS[i].start[0];
-  const y = base + eraYear - 1;
-  const lastYear = i === 0 ? Infinity : ERAS[i - 1].start[0];
-  if (y > lastYear || y < ERAS[i].start[0]) return null;
-  return y;
+  const lastYear = i === 0 ? SEIREKI_MAX : ERAS[i - 1].start[0];
+  return [ERAS[i].start[0] - base + 1, lastYear - base + 1];
+}
+export function eraYearError(eraName, eraYear) {
+  const r = eraYearRange(eraName);
+  if (!r) return "元号を選んでください。";
+  if (!Number.isSafeInteger(eraYear) || eraYear < 1) return "年は1以上の整数で入力してください。";
+  return eraYear < r[0] || eraYear > r[1] ? `${eraName}は${r[0]}〜${r[1]}年の範囲で入力してください。` : null;
+}
+export function toSeireki(eraName, eraYear) {
+  if (eraYearError(eraName, eraYear)) return null;
+  return (eraName === "明治" ? 1868 : ERAS.find((e) => e.name === eraName).start[0]) + eraYear - 1;
+}
+// 「2026年（令和8年）」。和暦の対応範囲より前は西暦だけ。
+export function yearLabel(y, m = 12, d = 31) {
+  const w = toWareki(y, m, d);
+  return w ? `${y}年（${w.label}）` : `${y}年`;
 }
 
 const ETO = ["申", "酉", "戌", "亥", "子", "丑", "寅", "卯", "辰", "巳", "午", "未"];
-export const eto = (y) => ETO[y % 12];
+export const eto = (y) => ETO[((y % 12) + 12) % 12];
 
 export function age(birth, on) {
   // birth, on: [y, m, d]
   let a = on[0] - birth[0];
   if (on[1] * 100 + on[2] < birth[1] * 100 + birth[2]) a -= 1;
   return a;
+}
+export function ageError(birth, on) {
+  return daysBetween(birth, on) < 0 ? "生年月日は基準日以前の日付にしてください。" : null;
 }
 
 export function schoolYears(y, m, d) {
@@ -54,11 +91,23 @@ export function schoolYears(y, m, d) {
   ].map(([name, enter, grad]) => ({ name, enter, grad }));
 }
 
-const utc = (y, m, d) => Date.UTC(y, m - 1, d);
 export const daysBetween = (a, b) => Math.round((utc(...b) - utc(...a)) / 86400000);
+// a から b までの日数の内訳。b が a より前なら before = true で、日数・週は絶対値で返す。
+export function daySpan(a, b) {
+  const days = daysBetween(a, b), abs = Math.abs(days);
+  return { days, abs, before: days < 0, inclusive: abs + 1, weeks: Math.floor(abs / 7), rest: abs % 7 };
+}
+export const DAY_OFFSET_MAX = 3660000; // 約1万年
+export function dayOffsetError(n) {
+  if (!Number.isSafeInteger(n)) return "◯日後の日数は整数で入力してください（◯日前はマイナスの整数）。";
+  return Math.abs(n) > DAY_OFFSET_MAX ? `◯日後の日数は−${DAY_OFFSET_MAX.toLocaleString("ja-JP")}〜${DAY_OFFSET_MAX.toLocaleString("ja-JP")}の範囲で入力してください。` : null;
+}
+// n 日後（負なら前）の日付。n が整数でない・結果が西暦1〜9999年を外れるときは null。
 export function addDays(a, n) {
+  if (dayOffsetError(n)) return null;
   const dt = new Date(utc(...a) + n * 86400000);
-  return [dt.getUTCFullYear(), dt.getUTCMonth() + 1, dt.getUTCDate()];
+  const y = dt.getUTCFullYear();
+  return y >= 1 && y <= 9999 ? [y, dt.getUTCMonth() + 1, dt.getUTCDate()] : null;
 }
 export const weekday = (a) => "日月火水木金土"[new Date(utc(...a)).getUTCDay()];
 
@@ -73,26 +122,55 @@ export function countText(s) {
   };
 }
 
+export const MAX_YEN = 1e12, MAX_PEOPLE = 1e6;
+export function yenError(v, name = "金額") {
+  if (!Number.isSafeInteger(v) || v < 0) return `${name}は0以上の整数で入力してください。`;
+  return v > MAX_YEN ? `${name}は1兆円以下で入力してください。` : null;
+}
+export function splitBillError(total, people, unit = 1) {
+  const e = yenError(total, "合計金額");
+  if (e) return e;
+  if (!Number.isSafeInteger(people) || people < 1) return "人数は1以上の整数で入力してください。";
+  if (people > MAX_PEOPLE) return "人数は100万人以下で入力してください。";
+  return isInt(unit, 1, MAX_YEN) ? null : "切り上げ単位は1以上の整数で指定してください。";
+}
 export function splitBill(total, people, unit = 1) {
-  if (people < 1 || unit < 1 || total < 0) return null;
+  if (splitBillError(total, people, unit)) return null;
   const each = Math.ceil(total / people / unit) * unit;
   return { each, surplus: each * people - total };
 }
 
 const ROUND = { floor: Math.floor, ceil: Math.ceil, round: Math.round };
+export function taxError(amount, rate, mode = "floor") {
+  const e = yenError(amount);
+  if (e) return e;
+  if (!isRate(rate)) return "税率は0〜100の範囲で指定してください。";
+  return Object.hasOwn(ROUND, mode) ? null : "端数処理は切り捨て・四捨五入・切り上げから選んでください。";
+}
 export function taxFromNet(net, rate, mode = "floor") {
+  if (taxError(net, rate, mode)) return null;
   const tax = ROUND[mode]((net * rate) / 100);
   return { net, tax, gross: net + tax };
 }
 export function taxFromGross(gross, rate, mode = "floor") {
   // 税込 → 税抜: 税額は「税込 × 税率 / (100 + 税率)」を端数処理
+  if (taxError(gross, rate, mode)) return null;
   const tax = ROUND[mode]((gross * rate) / (100 + rate));
   return { net: gross - tax, tax, gross };
 }
 
+export function discountError(price, offPercent, pointPercent = 0) {
+  const e = yenError(price, "元の価格");
+  if (e) return e;
+  if (!isRate(offPercent)) return "割引率は0〜100の範囲で入力してください。";
+  return isRate(pointPercent) ? null : "ポイント還元率は0〜100の範囲で入力してください。";
+}
 export function discount(price, offPercent, pointPercent = 0) {
-  const pay = Math.floor((price * (100 - offPercent)) / 100);
-  const points = Math.floor((pay * pointPercent) / 100);
+  if (discountError(price, offPercent, pointPercent)) return null;
+  // 66.4% などは 2進小数で誤差が出る（125円の33.6% = 41.99999…）ので、小数6桁に丸めてから切り捨てる
+  const floor = (x) => Math.floor(Number(x.toFixed(6)));
+  const pay = floor((price * (100 - offPercent)) / 100);
+  const points = floor((pay * pointPercent) / 100);
   return { pay, saved: price - pay, points, effective: pay - points };
 }
 
@@ -104,7 +182,9 @@ export const UNITS = {
 };
 export function convert(group, value, from, to) {
   const u = UNITS[group];
-  return (value * u[from]) / u[to];
+  if (!u || !Object.hasOwn(u, from) || !Object.hasOwn(u, to)) return null;
+  const v = (value * u[from]) / u[to];
+  return typeof value === "number" && Number.isFinite(v) ? v + 0 : null; // + 0 は -0 を 0 にするため
 }
 
 export function toHalf(s) {
@@ -114,10 +194,15 @@ export function toFull(s) {
   return s.replace(/[!-~]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 0xfee0)).replace(/ /g, "　");
 }
 
+export const PASSWORD_MIN = 4, PASSWORD_MAX = 64;
+export function passwordError(len, sets) {
+  if (!isInt(len, PASSWORD_MIN, PASSWORD_MAX)) return `長さは${PASSWORD_MIN}〜${PASSWORD_MAX}の整数で入力してください。`;
+  return Array.isArray(sets) && sets.length && sets.every((s) => s) ? null : "文字の種類を1つ以上選んでください。";
+}
 export function password(len, sets, rand) {
-  // rand(n) は 0 以上 n 未満の一様な整数を返す関数
+  // rand(n) は 0 以上 n 未満の一様な整数を返す関数。入力が不正なら ""。
+  if (passwordError(len, sets) || len < sets.length) return "";
   const pool = sets.join("");
-  if (!pool || len < sets.length) return "";
   for (;;) {
     let out = "";
     for (let i = 0; i < len; i++) out += pool[rand(pool.length)];

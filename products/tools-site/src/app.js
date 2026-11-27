@@ -8,10 +8,17 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&l
 const show = (html) => { $("result").innerHTML = html; };
 const rows = (pairs) => "<table>" + pairs.map(([k, v]) => `<tr><th>${esc(k)}</th><td>${esc(v)}</td></tr>`).join("") + "</table>";
 const err = (msg) => show(`<p class="err">${esc(msg)}</p>`);
-function date(id) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec($(id).value);
-  return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
+const date = (id) => L.parseDate($(id).value);
+// 日付欄に何か入っているのに日付として読めない（存在しない日・年が5桁以上など）
+const badDate = (id) => !date(id) && ($(id).value !== "" || $(id).validity.badInput);
+const dateErr = (name) => err(`${name}は実在する日付を、西暦1〜9999年の範囲で入力してください。`);
+// 数値欄の読み取り: 空欄は null、数字として読めない入力は NaN（lib の *Error がエラー文にする）
+function read(id) {
+  const s = $(id).value.trim();
+  if (s === "") return $(id).validity.badInput ? NaN : null;
+  return Number(s);
 }
+const copy = (text) => { if (text && navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {}); };
 function today() {
   const t = new Date();
   return [t.getFullYear(), t.getMonth() + 1, t.getDate()];
@@ -49,16 +56,21 @@ const psaCostRows = (c) => [
 const TOOLS = {
   wareki() {
     const run = () => {
-      const y = num("seireki");
-      if (!Number.isInteger(y) || y < 1873 || y > 2200) return err("1873年以降の西暦を入力してください。");
+      const y = read("seireki");
+      if (y === null) return show("");
+      const e = L.seirekiError(y);
+      if (e) return err(e);
       const end = L.toWareki(y, 12, 31), start = L.toWareki(y, 1, 1);
       const label = start && start.label !== end.label ? `${start.label} ／ ${end.label}（年の途中で改元）` : end.label;
       show(rows([["西暦", `${y}年`], ["和暦", label], ["干支", L.eto(y) + "年"]]));
     };
-    const run2 = () => {
-      const y = L.toSeireki($("era").value, num("eraYear"));
-      if (y === null) return err("その元号には存在しない年です。");
-      show(rows([["和暦", `${$("era").value}${num("eraYear")}年`], ["西暦", `${y}年`], ["干支", L.eto(y) + "年"]]));
+    const run2 = (ev) => {
+      const era = $("era").value, n = read("eraYear");
+      if (n === null) return ev.target.id === "eraYear" ? show("") : undefined; // 年が空欄のまま元号だけ変えたときは何もしない
+      const e = L.eraYearError(era, n);
+      if (e) return err(e);
+      const y = L.toSeireki(era, n);
+      show(rows([["和暦", `${era}${n}年`], ["西暦", `${y}年`], ["干支", L.eto(y) + "年"]]));
     };
     $("seireki").value = today()[0];
     $("seireki").addEventListener("input", run);
@@ -69,16 +81,19 @@ const TOOLS = {
   age() {
     $("on").value = iso(today());
     const run = () => {
+      if (badDate("birth")) return dateErr("生年月日");
+      if (badDate("on")) return dateErr("基準日");
       const b = date("birth"), on = date("on");
       if (!b || !on) return show("");
-      if (L.daysBetween(b, on) < 0) return err("基準日は生年月日より後にしてください。");
+      const e = L.ageError(b, on);
+      if (e) return err(e);
       const a = L.age(b, on);
       const next = [on[0] + (on[1] * 100 + on[2] >= b[1] * 100 + b[2] ? 1 : 0), b[1], b[2]];
       const nextOk = L.validDate(...next) ? next : [next[0], 3, 1];
       show(rows([
         ["満年齢", `${a}歳`], ["数え年", `${on[0] - b[0] + 1}歳`],
-        ["生まれ年", `${L.toWareki(...b)?.label ?? ""}（${L.eto(b[0])}年）`],
-        ["生まれてから", `${L.daysBetween(b, on).toLocaleString()}日`],
+        ["生まれ年", `${L.toWareki(...b)?.label ?? b[0] + "年"}（${L.eto(b[0])}年）`],
+        ["生まれてから", `${L.daysBetween(b, on).toLocaleString("ja-JP")}日`],
         ["次の誕生日まで", `${L.daysBetween(on, nextOk)}日`],
       ]));
     };
@@ -86,9 +101,10 @@ const TOOLS = {
   },
   school() {
     $("birth").addEventListener("input", () => {
+      if (badDate("birth")) return dateErr("生年月日");
       const b = date("birth");
       if (!b) return show("");
-      const w = (y) => `${y}年（${L.toWareki(y, 4, 1).label}）`;
+      const w = (y) => L.yearLabel(y, 4, 1);
       show("<table><tr><th></th><th>入学（4月）</th><th>卒業（3月）</th></tr>" +
         L.schoolYears(...b).map((s) => `<tr><th>${s.name}</th><td>${w(s.enter)}</td><td>${w(s.grad)}</td></tr>`).join("") +
         "</table>");
@@ -97,15 +113,24 @@ const TOOLS = {
   days() {
     $("from").value = iso(today());
     const run = () => {
-      const a = date("from"), b = date("to");
-      const out = [];
-      if (a && b) {
-        const n = L.daysBetween(a, b);
-        out.push(["日数（初日を含まない）", `${n.toLocaleString()}日`], ["日数（初日を含む）", `${(n + Math.sign(n || 1)).toLocaleString()}日`],
-          ["週に換算", `${Math.trunc(n / 7)}週と${n % 7}日`]);
+      if (badDate("from")) return dateErr("開始日");
+      if (badDate("to")) return dateErr("終了日");
+      const a = date("from"), b = date("to"), n = read("n");
+      if (!a) return b || n !== null ? err("開始日を入力してください。") : show("");
+      const out = [], d = (v) => v.toLocaleString("ja-JP");
+      let bad = "";
+      if (b) {
+        const s = L.daySpan(a, b);
+        out.push(["日数（初日を含まない）", s.before ? `${d(s.abs)}日前（終了日が開始日より前です）` : `${d(s.abs)}日`],
+          [s.before ? "日数（終了日・開始日の両方を含む）" : "日数（初日を含む）", `${d(s.inclusive)}日`],
+          ["週に換算", `${d(s.weeks)}週と${s.rest}日`]);
       }
-      if (a && $("n").value !== "") out.push([`${num("n")}日後`, fmt(L.addDays(a, num("n")))]);
-      show(out.length ? rows(out) : "");
+      if (n !== null) {
+        const r = L.addDays(a, n);
+        if (r) out.push([n < 0 ? `${d(-n)}日前` : `${d(n + 0)}日後`, fmt(r)]);
+        else bad = L.dayOffsetError(n) || "結果が西暦1〜9999年の範囲に収まる日数を入力してください。";
+      }
+      show((out.length ? rows(out) : "") + (bad ? `<p class="err">${esc(bad)}</p>` : ""));
     };
     ["from", "to", "n"].forEach((id) => $(id).addEventListener("input", run));
   },
@@ -120,16 +145,21 @@ const TOOLS = {
   },
   warikan() {
     const run = () => {
-      const r = L.splitBill(num("total"), num("people"), num("unit"));
-      if (!r || !num("total")) return show("");
-      show(rows([["1人あたり", yen(r.each)], ["集まる金額", yen(r.each * num("people"))], ["おつり（余り）", yen(r.surplus)]]));
+      const total = read("total"), people = read("people"), unit = num("unit");
+      if (total === null || people === null) return show("");
+      const e = L.splitBillError(total, people, unit);
+      if (e) return err(e);
+      const r = L.splitBill(total, people, unit);
+      show(rows([["1人あたり", yen(r.each)], ["集まる金額", yen(r.each * people)], ["おつり（余り）", yen(r.surplus)]]));
     };
     ["total", "people", "unit"].forEach((id) => $(id).addEventListener("input", run));
   },
   tax() {
     const run = () => {
-      const v = num("price");
-      if (!v) return show("");
+      const v = read("price");
+      if (v === null) return show("");
+      const e = L.taxError(v, num("rate"), $("mode").value);
+      if (e) return err(e);
       const r = ($("dir").value === "net" ? L.taxFromNet : L.taxFromGross)(v, num("rate"), $("mode").value);
       show(rows([["税抜価格", yen(r.net)], ["消費税", yen(r.tax)], ["税込価格", yen(r.gross)]]));
     };
@@ -137,8 +167,11 @@ const TOOLS = {
   },
   discount() {
     const run = () => {
-      if (!num("price")) return show("");
-      const r = L.discount(num("price"), num("off"), num("point"));
+      const price = read("price"), off = read("off") ?? 0, point = read("point") ?? 0; // 率の空欄は0%として扱う
+      if (price === null) return show("");
+      const e = L.discountError(price, off, point);
+      if (e) return err(e);
+      const r = L.discount(price, off, point);
       show(rows([["割引後の支払額", yen(r.pay)], ["値引き額", yen(r.saved)], ["もらえるポイント", r.points.toLocaleString() + "pt"], ["実質価格", yen(r.effective)]]));
     };
     ["price", "off", "point"].forEach((id) => $(id).addEventListener("input", run));
@@ -151,9 +184,12 @@ const TOOLS = {
       run();
     };
     const run = () => {
-      if ($("value").value === "") return show("");
-      const v = L.convert($("group").value, num("value"), $("from").value, $("to").value);
-      show(rows([[`${num("value")} ${$("from").value}`, `${Number(v.toPrecision(8)).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} ${$("to").value}`]]));
+      const x = read("value");
+      if (x === null) return show("");
+      if (!Number.isFinite(x)) return err("数値は半角の数字で入力してください。");
+      const v = L.convert($("group").value, x, $("from").value, $("to").value);
+      if (v === null) return err("数値が大きすぎます。桁数を減らしてください。");
+      show(rows([[`${n6(x)} ${$("from").value}`, `${(Number(v.toPrecision(8)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 })} ${$("to").value}`]]));
     };
     $("group").innerHTML = Object.keys(L.UNITS).map((g) => `<option>${g}</option>`).join("");
     $("group").addEventListener("change", fill);
@@ -164,17 +200,21 @@ const TOOLS = {
     const set = (fn) => { $("out").value = fn($("text").value); };
     $("toHalf").addEventListener("click", () => set(L.toHalf));
     $("toFull").addEventListener("click", () => set(L.toFull));
-    $("copy").addEventListener("click", () => navigator.clipboard.writeText($("out").value));
+    $("copy").addEventListener("click", () => copy($("out").value));
   },
   password() {
     const SETS = { lower: "abcdefghijkmnopqrstuvwxyz", upper: "ABCDEFGHJKLMNPQRSTUVWXYZ", digit: "23456789", symbol: "!#$%&*+-=?@_" };
+    let current = ""; // 最後に生成に成功したパスワード（エラー表示中は ""）
     const run = () => {
       const sets = Object.keys(SETS).filter((k) => $(k).checked).map((k) => SETS[k]);
-      const pw = L.password(num("len"), sets, rand);
-      show(pw ? `<p class="big">${esc(pw)}</p>` : `<p class="err">文字の種類を1つ以上選んでください。</p>`);
+      const len = read("len") ?? NaN; // 空欄も長さのエラーにする
+      const e = L.passwordError(len, sets);
+      current = e ? "" : L.password(len, sets, rand);
+      if (e) return err(e);
+      show(`<p class="big">${esc(current)}</p>`);
     };
     $("gen").addEventListener("click", run);
-    $("copy").addEventListener("click", () => navigator.clipboard.writeText($("result").textContent));
+    $("copy").addEventListener("click", () => copy(current));
     run();
   },
   "psa-profit"() {
@@ -314,7 +354,7 @@ const TOOLS = {
     const set = (fn) => { $("out").value = fn($("text").value); };
     $("toKata").addEventListener("click", () => set(L.toKatakana));
     $("toHira").addEventListener("click", () => set(L.toHiragana));
-    $("copy").addEventListener("click", () => navigator.clipboard.writeText($("out").value));
+    $("copy").addEventListener("click", () => copy($("out").value));
   },
   aspect() {
     const run = () => {
