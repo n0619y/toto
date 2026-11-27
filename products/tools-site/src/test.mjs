@@ -500,4 +500,10 @@ assert.deepEqual([eraOf("大正", 15).to, eraOf("昭和", 1).from, eraOf("昭和
 assert.equal(eraOf("昭和", 65), undefined);
 assert.equal(eraOf("令和", 9), undefined);
 assert.equal(hayamiData([2027, 1, 1]).born.at(-1).year, 2027);   // 年が変わると対象年が1年増える
+// 買取価格の比較ページ: 取得から48時間を過ぎたら「古い」
+const T0 = Date.parse("2026-11-27T14:45:00+09:00");
+assert.equal(L.isStale("2026-11-27T14:45:00+09:00", T0 + 48 * 3600e3, 48), false);   // ちょうど48時間はまだ出さない
+assert.equal(L.isStale("2026-11-27T14:45:00+09:00", T0 + 48 * 3600e3 + 1, 48), true);
+assert.equal(L.isStale("2026-11-27T05:45:00Z", T0 + 3600e3, 48), false);   // 時差の書き方が違っても同じ時刻
+assert.equal(L.isStale("", T0, 48), true);   // 読めない日時は古いものとして扱う
 console.log("lib ok");

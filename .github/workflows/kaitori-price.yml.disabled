@@ -1,0 +1,70 @@
+name: 買取価格の比較ページを毎日更新して公開
+
+# このファイルは、拡張子が .disabled のあいだは動かない（GitHub Actions は .yml / .yaml だけを読む）。
+# 有効化の手順と、店から申し出があったときの外し方は products/tools-site/README.md の「PSA10 買取価格の比較」。
+# 有効にする前に: site.json の kaitori_price.publish を true にし、contact（連絡先）を入れておく。
+#   publish が false のままだと、取得はするがページは生成されない。
+#
+# 1日1回: 掲載が「入」の店の公開ページから PSA10 の買取価格を取得 → kaitori-data/prices.json を更新してコミット
+#          → テスト → ビルド → GitHub Pages に公開。
+# 取得できた店が2店未満の日は、前回のデータを残したままビルドする（空のページで上書きしない）。
+# アクセスの間隔（1.5秒）と上限ページ数は pokeca/shops/ の既存の設定のまま。1日1回を超えて取得しない（kaitori.py が20時間以内の再取得を断る）。
+
+on:
+  schedule:
+    - cron: "17 19 * * *"   # 毎日 04:17（日本時間）。schedule は既定ブランチでだけ動く
+  workflow_dispatch:
+
+permissions:
+  contents: write   # 取得した prices.json をコミットするため（pages.yml は read のまま）
+  pages: write
+  id-token: write
+
+# pages.yml と同じグループにして、公開が同時に走らないようにする
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    env:
+      TZ: Asia/Tokyo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 依存を入れる（取得に requests、商品画像の縮小に Pillow）
+        run: pip install requests pillow
+      - name: 買取価格を取得（失敗しても止めない。前回のデータでビルドを続ける）
+        run: python products/tools-site/kaitori.py || echo "取得に失敗しました。前回のデータのままビルドします。"
+      - name: 取得したデータをコミット（変更があるときだけ）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add products/tools-site/kaitori-data/prices.json 2>/dev/null || exit 0
+          git diff --cached --quiet || (git commit -m "買取価格のデータを更新（自動）" && git push)
+      - name: 計算ロジックのテスト
+        run: node products/tools-site/src/test.mjs
+      - name: サイトを生成
+        run: python products/tools-site/build.py
+      - name: 公開前チェック（表示だけ。警告では止めない）
+        run: python products/tools-site/build.py --check
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: products/tools-site/public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

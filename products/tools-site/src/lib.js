@@ -486,3 +486,10 @@ export function hayamiNow(spec, today) {
   }
   return o;
 }
+
+// ---- 買取価格の比較ページ: 取得からの経過時間 ----
+// 取得日時（ISO 8601、時差つき）から hours 時間を過ぎていれば true。日時が読めないときは true（古いものとして扱う）。
+export const isStale = (fetchedIso, nowMs, hours) => {
+  const t = Date.parse(fetchedIso);
+  return !Number.isFinite(t) || nowMs - t > hours * 3600 * 1000;
+};

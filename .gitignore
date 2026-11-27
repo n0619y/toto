@@ -19,6 +19,7 @@ output/scripts/*
 output/articles/*
 output/slides/*
 output/review/*
+output/shorts/*
 
 # .gitkeep は残す
 !output/**/.gitkeep

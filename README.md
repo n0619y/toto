@@ -243,6 +243,81 @@ reviewer:
 
 ---
 
+## 📱 Shorts の縦動画を作る（`python -m shorts`）
+
+Shorts の台本から、**そのままアップロードできる縦動画（MP4）** を作ります。
+文字が主役のスライド動画で、音声は無音です（外部の音声合成や素材サイトは使いません）。
+`main.py` とはまだつながっておらず、台本ファイル（JSON か YAML）を渡して使います。
+
+**自動投稿はしません。** できた動画は必ず監修者（医師）が確認し、そのあと人の手でアップロードします。
+
+```bash
+python -m shorts check shorts/sample/channel_intro.json                       # 台本の検査だけ（数秒）
+python -m shorts make  shorts/sample/channel_intro.json --out output/shorts/  # 動画を作る
+```
+
+`make` は `output/shorts/` に次の3つを出します（ファイル名は `<日付>_<タイトル>`）。
+
+| ファイル | 中身 |
+|---|---|
+| `.mp4` | 1080×1920・30fps・H.264（yuv420p）・無音の AAC 音声トラックつき |
+| `.png` | サムネイル用の画像（1枚目のシーン） |
+| `.txt` | 投稿用テキスト（タイトル案・説明文・ハッシュタグ）。台本の言葉を並べただけで、内容は足していません |
+
+45秒の動画で、生成は30〜40秒ほどです（4コアの環境で計測）。同じ台本からは同じ動画ができます。
+
+### 投稿までの流れ
+
+1. **台本を作る**（下の「台本の書き方」）。`python -m shorts check 台本.json` で長さと文字量を確かめる
+2. **`python -m shorts make 台本.json --out output/shorts/`** で動画を作る
+3. **監修者が動画を確認する**（内容・表記・免責文）。直すところがあれば台本を直して 2 からやり直す
+4. **スマホの YouTube アプリからアップロードする**（`.txt` のタイトルと説明文を貼り付ける）
+
+### 台本の書き方
+
+```json
+{
+  "title": "動画のタイトル",
+  "supervisor": "監修: toto先生（小児科医）",
+  "hashtags": ["子育て"],
+  "scenes": [
+    {"kind": "hook", "heading": "短い見出し", "lines": ["本文1行", "本文2行"], "seconds": 5},
+    {"kind": "warning", "heading": "注意してほしいこと", "lines": ["本文"]}
+  ],
+  "disclaimer": "本コンテンツは一般的情報提供です。診断・治療は必ず医療機関にご相談ください。"
+}
+```
+
+| 項目 | 説明 |
+|---|---|
+| `title` | 必須。ファイル名と投稿用テキストに使います（100文字まで） |
+| `supervisor` | 監修表記。画面の左上に常に出ます。省略すると `config/settings.yaml` の `reviewer.display` |
+| `scenes[].heading` | 必須。シーンの見出し |
+| `scenes[].lines` | 本文。1要素が1つのまとまりで、順に現れます |
+| `scenes[].kind` | `hook` / `point`（省略時）/ `warning`（色を変えて目立たせる）/ `cta` / `disclaimer` |
+| `scenes[].seconds` | 表示秒数。省略すると文字数から決めます（1秒あたり6文字 + 1秒、最短2.5秒・最長8秒） |
+| `disclaimer` | 免責文。省略すると既定の文。**最後に免責文のシーンが必ず入ります**（最後のシーンを自分で `kind: disclaimer` にした場合はそれを使います） |
+| `hashtags` | 任意。`#Shorts` は自動で付きます |
+
+決まりごと:
+
+- **合計が60秒を超える台本はエラー**になります（免責文のシーンを含む。超えた分を黙って切ることはしません）。
+- 長い行は自動で折り返し、収まらなければ文字を小さくします。それでも収まらないときは、
+  どのシーンが長すぎるかを示してエラーにします。折り返しの位置を自分で決めたいときは、`lines` を分けてください。
+- 絵文字は使えません（フォントに無いためエラーになります）。
+- 配色は `config/settings.yaml` の `design`（`primary_color` / `secondary_color` / `accent_color`）を使います。
+- 読む速さの目安（1秒あたり6文字）は仮の値です。`shorts/script.py` の `CHARS_PER_SECOND` で変えられます。
+
+### 動かすのに必要なもの
+
+- `node` と Playwright（Chromium）: 画面を1フレームずつ画像にするのに使います
+- `ffmpeg`: 画像を MP4 にまとめます
+- 日本語フォント IPAGothic（Ubuntu なら `apt install fonts-ipafont-gothic`）
+
+テスト: `python -m pytest tests/test_shorts.py -q`
+
+---
+
 # 🪙 ポイ活カンパニー（`python -m poikatsu`）
 
 複数のAIエージェントが「会社」のように連動し、毎朝ポイ活の段取りを済ませて
