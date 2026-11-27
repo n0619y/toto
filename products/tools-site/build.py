@@ -1,16 +1,28 @@
 """静的サイトを public/ に生成する。  使い方: python build.py
 
 site.json を書き換えて再実行すると、サイト名・URL・広告IDが全ページに反映される。
+python build.py --check は、公開前に直すべき項目を一覧表示する（生成はしない。警告だけで、エラーでは止めない）。
 """
 
 import html
 import json
+import re
 import shutil
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent
 SITE = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
 OUT = ROOT / "public"
+BASE = str(SITE["url"]).strip().rstrip("/")   # 公開URL。canonical・og:url・sitemap・構造化データはすべてここから作る
+DEFAULT_URL = "https://example.com"           # site.json の初期値。このままなら --check が警告する
+DEFAULT_OPERATOR = "くらしの計算機 運営"
+OG_IMAGE = str(SITE.get("og_image", "")).strip()   # SNS で共有されたときの画像。https:// のURLか、src/ に置いたファイル名。空なら og:image を出さない
+OG_IMAGE_URL = OG_IMAGE if OG_IMAGE.startswith(("https://", "http://")) else (f"{BASE}/{OG_IMAGE.lstrip('/')}" if OG_IMAGE else "")
+# theme-color と favicon の色は style.css の変数から取る（1つ目がライト、2つ目がダーク）
+_CSS = (ROOT / "src" / "style.css").read_text(encoding="utf-8")
+THEME_LIGHT, THEME_DARK = re.findall(r"--bg:(#[0-9a-fA-F]{3,8})", _CSS)[:2]
+ACCENT = re.search(r"--acc:(#[0-9a-fA-F]{3,8})", _CSS).group(1)
 
 ERA_OPTS = "".join(f"<option>{e}</option>" for e in ("令和", "平成", "昭和", "大正", "明治"))
 
@@ -495,23 +507,126 @@ def sheet_body(shots):
 <ul class="tools">{guide_items([s for s, *_ in GUIDES])}</ul>"""
 
 
-def page(path, title, desc, body, tool=""):
+GUIDE_INDEX_TITLE = "解説記事の一覧"
+GUIDE_CRUMB = ("解説記事", "guide/")
+PAGES = []   # 生成したページの (パス, title, description)。重複の点検に使う
+
+
+def json_ld(*objs):
+    """構造化データ。</script> で途切れないよう < は < にして出す。"""
+    return "".join('<script type="application/ld+json">'
+                   + json.dumps({"@context": "https://schema.org", **o}, ensure_ascii=False).replace("<", "\\u003c")
+                   + "</script>" for o in objs)
+
+
+def crumbs_html(crumbs):
+    """パンくず。crumbs は [(名前, パス)] で、トップは含めない。最後の1件がいまのページ。"""
+    items = '<li><a href="/">トップ</a></li>' + "".join(
+        f'<li aria-current="page">{e(n)}</li>' if i == len(crumbs) - 1 else f'<li><a href="/{p}">{e(n)}</a></li>'
+        for i, (n, p) in enumerate(crumbs))
+    return f'<nav aria-label="パンくずリスト"><ol class="crumbs">{items}</ol></nav>'
+
+
+def crumbs_ld(crumbs):
+    names = [("トップ", "")] + list(crumbs)
+    return {"@type": "BreadcrumbList", "itemListElement": [
+        {"@type": "ListItem", "position": i, "name": n, "item": f"{BASE}/{p}"} for i, (n, p) in enumerate(names, 1)]}
+
+
+SITE_LD = {"@type": "WebSite", "name": SITE["name"], "url": f"{BASE}/"}
+
+
+def page(path, title, desc, body, tool="", crumbs=(), ld=(), og_type="website", index=True):
+    """共通テンプレート。index=False は検索に載せないページ（404）で、canonical・og:url・構造化データを出さない。"""
     full = f"{title}｜{SITE['name']}" if path else f"{SITE['name']}｜{title}"
+    PAGES.append((path, full, desc))
+    url = f"{BASE}/{path}"
+    if index:
+        robots = f'<link rel="canonical" href="{e(url)}">\n<meta property="og:url" content="{e(url)}">'
+        ld = json_ld(*ld, *([crumbs_ld(crumbs)] if crumbs else []))
+    else:
+        robots, ld = '<meta name="robots" content="noindex">', ""
+    image = f'\n<meta property="og:image" content="{e(OG_IMAGE_URL)}">' if OG_IMAGE_URL else ""
     return f"""<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{e(full)}</title>
 <meta name="description" content="{e(desc)}">
-<link rel="canonical" href="{e(SITE['url'])}/{path}">
-<link rel="stylesheet" href="/style.css">{AD_HEAD}
+{robots}
+<meta property="og:title" content="{e(title if path else full)}">
+<meta property="og:description" content="{e(desc)}">
+<meta property="og:type" content="{og_type}">
+<meta property="og:site_name" content="{e(SITE['name'])}">
+<meta property="og:locale" content="ja_JP">{image}
+<meta name="twitter:card" content="{'summary_large_image' if OG_IMAGE_URL else 'summary'}">
+<meta name="theme-color" content="{THEME_LIGHT}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="{THEME_DARK}" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">{AD_HEAD}{ld}
 </head><body data-tool="{tool}">
 <header><a href="/">{e(SITE['name'])}</a></header>
-<main>{body}</main>
-<footer><a href="/">ツール一覧</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+<main>{crumbs_html(crumbs) if crumbs else ""}{body}</main>
+<footer><a href="/">ツール一覧</a> ・ <a href="/guide/">解説記事</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
 計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
 <script type="module" src="/app.js"></script>
 </body></html>
 """
+
+
+def favicon_svg():
+    """角丸の四角に「＝」。外部ファイルを使わず、ここで生成する。"""
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="{ACCENT}"/>'
+            f'<rect x="16" y="21" width="32" height="8" rx="4" fill="{THEME_LIGHT}"/>'
+            f'<rect x="16" y="35" width="32" height="8" rx="4" fill="{THEME_LIGHT}"/></svg>\n')
+
+
+def check():
+    """公開前に直すべき項目を [(区分, 文)] で返す。区分は「要対応」か「任意」。"""
+    must, opt = [], []
+    if BASE == DEFAULT_URL or "example.com" in BASE:
+        must.append(f"url が初期値（{BASE}）のままです。公開URLに書き換えてください（canonical・og:url・sitemap.xml・robots.txt に使われます）。")
+    elif not BASE.startswith("https://"):
+        must.append(f"url（{BASE}）が https:// で始まっていません。")
+    elif "/" in BASE[len("https://"):]:
+        must.append(f"url（{BASE}）にパスが含まれています。robots.txt と 404.html はドメイン直下に置く前提です。")
+    operator = str(SITE.get("operator", "")).strip()
+    if not operator or operator == DEFAULT_OPERATOR:
+        must.append(f"operator が{'空' if not operator else '初期値（' + operator + '）のまま'}です。運営者名（ペンネーム可）に書き換えてください。")
+    if not str(SITE.get("contact", "")).strip():
+        must.append("contact が空です。プライバシーポリシーのページに連絡先が表示されません（広告の審査では連絡先が見られます）。")
+    ads = str(SITE.get("adsense_client", "")).strip()
+    if ads and not ads.startswith("ca-pub-"):
+        must.append(f"adsense_client（{ads}）が ca-pub- で始まっていません。")
+    if OG_IMAGE and OG_IMAGE_URL != OG_IMAGE and not (ROOT / "src" / OG_IMAGE.lstrip("/")).is_file():
+        must.append(f"og_image のファイル src/{OG_IMAGE.lstrip('/')} がありません（og:image のリンク先が存在しなくなります）。")
+    built = OUT / "index.html"
+    if not built.is_file():
+        must.append("public/ がまだ生成されていません。python build.py を実行してください。")
+    elif f'<link rel="canonical" href="{e(BASE)}/">' not in built.read_text(encoding="utf-8"):
+        must.append("public/ がいまの site.json の url で生成されていません。python build.py を実行し直してください。")
+    if not ads:
+        opt.append("adsense_client が空です。広告枠は出ません（審査に通ってから入れます）。")
+    if not OG_IMAGE:
+        opt.append("og_image がありません。SNS で共有されたときに画像が出ません（1200×630px ほどの画像を src/ に置いてファイル名を書くか、https:// のURLを書きます）。")
+    if not PRODUCT_URL:
+        opt.append("product_url が空です。商品紹介ページ（/sheet/）は「販売準備中」と表示されます。")
+    elif not PRODUCT_PRICE:
+        opt.append("product_price が空です。商品紹介ページに価格が表示されません。")
+    if not PRODUCT_VERIFIED:
+        opt.append("product_verified が空です。商品紹介ページに「Excel と Googleスプレッドシートの実機では未確認」と表示されます。")
+    if not (SHEET_IMAGES.is_dir() and any(SHEET_IMAGES.glob("*.png"))):
+        opt.append("商品画像（products/psa-sheet/dist/images/*.png）がありません。商品紹介ページは画像なしになります。")
+    return [("要対応", m) for m in must] + [("任意", m) for m in opt]
+
+
+def print_check():
+    items = check()
+    must = [m for k, m in items if k == "要対応"]
+    print(f"公開前チェック: 要対応 {len(must)} 件 / 任意 {len(items) - len(must)} 件（site.json を直して python build.py）")
+    for k, m in items:
+        print(f"  [{k}] {m}")
+    if not must:
+        print("  公開前に直す必要のある項目はありません。")
 
 
 def main():
@@ -520,26 +635,47 @@ def main():
     OUT.mkdir()
     for f in ("lib.js", "app.js", "style.css"):
         shutil.copy(ROOT / "src" / f, OUT / f)
+    (OUT / "favicon.svg").write_text(favicon_svg(), encoding="utf-8")
+    if OG_IMAGE and OG_IMAGE_URL != OG_IMAGE and (ROOT / "src" / OG_IMAGE.lstrip("/")).is_file():
+        shutil.copy(ROOT / "src" / OG_IMAGE.lstrip("/"), OUT / OG_IMAGE.lstrip("/"))
 
     links = "".join(
         f'<h2>{e(g)}</h2><ul class="tools">'
         + "".join(f'<li><a href="/{s}/"><b>{e(t)}</b><span>{e(d)}</span></a></li>' for s, t, d, *_ in tools) + "</ul>"
-        + (f'<p class="lead">計算の考え方の解説と、記録用のシート</p>{card_pillar([s for s, *_ in GUIDES])}' if tools is CARD_TOOLS else "")
+        + (f'<p class="lead">計算の考え方の解説（<a href="/guide/">{GUIDE_INDEX_TITLE}</a>）と、記録用のシート</p>{card_pillar([s for s, *_ in GUIDES])}'
+           if tools is CARD_TOOLS else "")
         for g, tools in GROUPS)
+    compact = lambda tools: "".join(f'<li><a href="/{s}/"><b>{e(t)}</b></a></li>' for s, t, *_ in tools)
     for slug, title, desc, form, note in TOOLS:
-        others = "".join(f'<li><a href="/{s}/"><b>{e(t)}</b></a></li>' for s, t, *_ in TOOLS if s != slug)
+        # 「ほかのツール」は同じグループを先に出す
+        same = next(tools for _, tools in GROUPS if any(s == slug for s, *_ in tools))
+        others = compact([t for t in same if t[0] != slug] + [t for t in TOOLS if t not in same])
+        app_ld = {"@type": "WebApplication", "name": title, "description": desc, "url": f"{BASE}/{slug}/", "inLanguage": "ja",
+                  "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any",
+                  "offers": {"@type": "Offer", "price": "0", "priceCurrency": "JPY"}}
         body = (f'<h1>{e(title)}</h1><p class="lead">{e(desc)}</p>'
                 f'<div class="card">{form}</div><div class="card" id="result" aria-live="polite"></div>{AD_SLOT}'
                 f'<h2>このツールについて</h2>{"".join(f"<p>{e(p)}</p>" for p in note.split(chr(10)))}'
                 + (f'<h2>計算の考え方の解説と、記録用のシート</h2>{card_pillar(TOOL_GUIDES[slug])}' if slug in TOOL_GUIDES else "")
                 + f'<h2>ほかのツール</h2><ul class="tools">{others}</ul>')
         (OUT / slug).mkdir()
-        (OUT / slug / "index.html").write_text(page(f"{slug}/", title, desc, body, slug), encoding="utf-8")
+        (OUT / slug / "index.html").write_text(page(f"{slug}/", title, desc, body, slug, crumbs=[(title, f"{slug}/")], ld=[app_ld]), encoding="utf-8")
 
     top_desc = "和暦変換・年齢計算・日数計算・消費税・割り勘など暮らしと仕事の計算と、トレカのPSA鑑定の損益計算を、登録なし・無料で。"
     (OUT / "index.html").write_text(
         page("", "登録なしで使える無料の計算ツール集", top_desc,
-             f'<h1>{e(SITE["name"])}</h1><p class="lead">{e(top_desc)}</p>{links}{AD_SLOT}'),
+             f'<h1>{e(SITE["name"])}</h1><p class="lead">{e(top_desc)}</p>{links}{AD_SLOT}',
+             ld=[{**SITE_LD, "description": top_desc, "inLanguage": "ja"}]),
+        encoding="utf-8")
+
+    guide_desc = "トレカをPSA鑑定に出して売るときの、1枚あたり費用の数え方・損益分岐の仕入れ値・記録の付け方を説明した解説記事の一覧です。"
+    (OUT / "guide").mkdir()
+    (OUT / "guide" / "index.html").write_text(
+        page("guide/", GUIDE_INDEX_TITLE, guide_desc,
+             f'<h1>{GUIDE_INDEX_TITLE}</h1><p class="lead">{e(guide_desc)}料金や税率の実際の額ではなく、計算の考え方を説明しています。</p>'
+             f'<ul class="tools">{guide_items([s for s, *_ in GUIDES])}</ul>'
+             f'<h2>関連するツール</h2><ul class="tools">{tool_items([s for s, *_ in CARD_TOOLS])}</ul>'
+             f'<h2>記録用のシート</h2><ul class="tools">{SHEET_LI}</ul>', crumbs=[GUIDE_CRUMB]),
         encoding="utf-8")
 
     for slug, title, desc, body, tools in GUIDES:
@@ -547,8 +683,14 @@ def main():
         body = (f'<h1>{e(title)}</h1>{body}{AD_SLOT}'
                 f'<h2>関連するツール</h2><ul class="tools">{tool_items(tools)}</ul>'
                 f'<h2>記録用のシートと、ほかの解説</h2><ul class="tools">{SHEET_LI}{others}</ul>')
-        (OUT / "guide" / slug).mkdir(parents=True)
-        (OUT / "guide" / slug / "index.html").write_text(page(f"guide/{slug}/", title, desc, body), encoding="utf-8")
+        # 公開日・著者は確認できる値が無いので入れない
+        article_ld = {"@type": "Article", "headline": title, "description": desc, "url": f"{BASE}/guide/{slug}/",
+                      "mainEntityOfPage": f"{BASE}/guide/{slug}/", "inLanguage": "ja", "isPartOf": SITE_LD,
+                      **({"image": OG_IMAGE_URL} if OG_IMAGE_URL else {})}
+        (OUT / "guide" / slug).mkdir()
+        (OUT / "guide" / slug / "index.html").write_text(
+            page(f"guide/{slug}/", title, desc, body, crumbs=[GUIDE_CRUMB, (title, f"guide/{slug}/")], ld=[article_ld], og_type="article"),
+            encoding="utf-8")
 
     (OUT / "sheet").mkdir()
     shots = []
@@ -556,7 +698,8 @@ def main():
         for png in sorted(SHEET_IMAGES.glob("*.png")):
             shots.append(export_shot(png, OUT / "sheet"))
     (OUT / "sheet" / "index.html").write_text(
-        page("sheet/", f"{SHEET_NAME}（Excel / Googleスプレッドシート用）", SHEET_DESC, sheet_body(shots)), encoding="utf-8")
+        page("sheet/", f"{SHEET_NAME}（Excel / Googleスプレッドシート用）", SHEET_DESC, sheet_body(shots),
+             crumbs=[(SHEET_NAME, "sheet/")]), encoding="utf-8")
 
     contact = f'<p>お問い合わせ: {e(SITE["contact"])}</p>' if SITE["contact"] else ""
     ads = ("<h2>広告について</h2><p>当サイトは第三者配信の広告サービス（Google アドセンス）を利用しています。"
@@ -570,21 +713,44 @@ def main():
                "当サイトの利用によって生じた損害について、運営者は責任を負いません。</p>")
     (OUT / "privacy").mkdir()
     (OUT / "privacy" / "index.html").write_text(
-        page("privacy/", "プライバシーポリシー・運営者情報", "当サイトのプライバシーポリシーと運営者情報です。", privacy),
+        page("privacy/", "プライバシーポリシー・運営者情報", "当サイトのプライバシーポリシーと運営者情報です。", privacy,
+             crumbs=[("プライバシーポリシー・運営者情報", "privacy/")]),
         encoding="utf-8")
 
-    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"]
+    # 存在しないURL用。Cloudflare Pages などはドメイン直下の 404.html を自動で返す。検索には載せない（noindex、sitemap にも入れない）
+    not_found = ('<h1>ページが見つかりません</h1><p>お探しのページは、移動または削除されたか、URLが間違っている可能性があります。</p>'
+                 '<a class="btn" href="/">トップ（ツール一覧）へ</a>'
+                 + "".join(f'<h2>{e(g)}</h2><ul class="tools">{compact(tools)}</ul>' for g, tools in GROUPS)
+                 + f'<h2>解説記事</h2><ul class="tools"><li><a href="/guide/"><b>{GUIDE_INDEX_TITLE}</b></a></li></ul>')
+    (OUT / "404.html").write_text(
+        page("404.html", "ページが見つかりません", "お探しのページは見つかりませんでした。トップのツール一覧からお探しください。", not_found, index=False),
+        encoding="utf-8")
+
+    for i, name in ((1, "title"), (2, "description")):   # 空・重複は検索結果で区別がつかなくなるので、生成を止める
+        seen = {}
+        for p in PAGES:
+            if not p[i].strip() or p[i] in seen:
+                raise SystemExit(f"{name} が空か重複しています: /{p[0]}" + (f" と /{seen[p[i]]}" if p[i] in seen else ""))
+            seen[p[i]] = p[0]
+
+    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + ["guide/"] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"]
     (OUT / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
-        + "".join(f"  <url><loc>{e(SITE['url'])}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
-    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE['url']}/sitemap.xml\n", encoding="utf-8")
+        + "".join(f"  <url><loc>{e(BASE)}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
+    (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {BASE}/sitemap.xml\n", encoding="utf-8")
     if shots:
         before = sum(p.stat().st_size for p in SHEET_IMAGES.glob("*.png"))
         after = sum((OUT / "sheet" / n).stat().st_size for n, *_ in shots)
         print(f"商品画像 {len(shots)} 枚: 元 {before / 1024:,.0f} KB → 出力 {after / 1024:,.0f} KB")
     print(f"{len(TOOLS)} ツール + 解説 {len(GUIDES)} 本 + 商品紹介（画像 {len(shots)} 枚、"
-          f"{'購入ボタンあり' if PRODUCT_URL else '販売準備中'}）+ トップ + プライバシーを {OUT} に生成しました")
+          f"{'購入ボタンあり' if PRODUCT_URL else '販売準備中'}）+ トップ + 解説の一覧 + プライバシー + 404 を {OUT} に生成しました")
+    must = sum(k == "要対応" for k, _ in check())
+    if must:
+        print(f"公開前に直す項目が {must} 件あります。一覧は python build.py --check")
 
 
 if __name__ == "__main__":
-    main()
+    if "--check" in sys.argv[1:]:
+        print_check()
+    else:
+        main()

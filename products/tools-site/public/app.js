@@ -18,7 +18,18 @@ function read(id) {
   if (s === "") return $(id).validity.badInput ? NaN : null;
   return Number(s) + 0; // + 0 は "-0" を 0 にするため
 }
-const copy = (text) => { if (text && navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {}); };
+// 結果欄（aria-live）の末尾に一言足す。show() で結果が書き換わると消える。
+const note = (msg) => {
+  let p = $("note");
+  if (!p) { p = document.createElement("p"); p.id = "note"; p.className = "lead"; $("result").append(p); }
+  p.textContent = msg;
+};
+const COPY_NG = "コピーできませんでした。結果を選択してコピーしてください。";
+const copy = (text) => {
+  if (!text) return;
+  if (!navigator.clipboard) return note(COPY_NG);
+  navigator.clipboard.writeText(text).then(() => note("コピーしました。"), () => note(COPY_NG));
+};
 function today() {
   const t = new Date();
   return [t.getFullYear(), t.getMonth() + 1, t.getDate()];
@@ -202,7 +213,7 @@ const TOOLS = {
     fill();
   },
   zenhan() {
-    const set = (fn) => { $("out").value = fn($("text").value); };
+    const set = (fn) => { $("out").value = fn($("text").value); show("<p>変換しました。「結果」の欄に表示しています。</p>"); };
     $("toHalf").addEventListener("click", () => set(L.toHalf));
     $("toFull").addEventListener("click", () => set(L.toFull));
     $("copy").addEventListener("click", () => copy($("out").value));
@@ -374,7 +385,7 @@ const TOOLS = {
     on(["value", "from"], run);
   },
   kana() {
-    const set = (fn) => { $("out").value = fn($("text").value); };
+    const set = (fn) => { $("out").value = fn($("text").value); show("<p>変換しました。「結果」の欄に表示しています。</p>"); };
     $("toKata").addEventListener("click", () => set(L.toKatakana));
     $("toHira").addEventListener("click", () => set(L.toHiragana));
     $("copy").addEventListener("click", () => copy($("out").value));

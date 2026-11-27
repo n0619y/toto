@@ -4,16 +4,26 @@
 <title>フリマと買取の手取り比較｜くらしの計算機</title>
 <meta name="description" content="同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。">
 <link rel="canonical" href="https://example.com/furima-vs-kaitori/">
-<link rel="stylesheet" href="/style.css">
+<meta property="og:url" content="https://example.com/furima-vs-kaitori/">
+<meta property="og:title" content="フリマと買取の手取り比較">
+<meta property="og:description" content="同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="くらしの計算機">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary">
+<meta name="theme-color" content="#fafaf7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#151614" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css"><script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "フリマと買取の手取り比較", "description": "同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。", "url": "https://example.com/furima-vs-kaitori/", "inLanguage": "ja", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "JPY"}}</script><script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "トップ", "item": "https://example.com/"}, {"@type": "ListItem", "position": 2, "name": "フリマと買取の手取り比較", "item": "https://example.com/furima-vs-kaitori/"}]}</script>
 </head><body data-tool="furima-vs-kaitori">
 <header><a href="/">くらしの計算機</a></header>
-<main><h1>フリマと買取の手取り比較</h1><p class="lead">同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。</p><div class="card"><label>相場価格（円）<input id="price" type="number" inputmode="numeric" min="0" step="any"></label>
+<main><nav aria-label="パンくずリスト"><ol class="crumbs"><li><a href="/">トップ</a></li><li aria-current="page">フリマと買取の手取り比較</li></ol></nav><h1>フリマと買取の手取り比較</h1><p class="lead">同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。</p><div class="card"><label>相場価格（円）<input id="price" type="number" inputmode="numeric" min="0" step="any"></label>
 <p class="lead">フリマで売る場合（初期値は一例です）</p>
 <div class="row"><label>販売手数料率（%）<input id="fee" type="number" inputmode="decimal" min="0" step="any" value="10"></label><label>送料（円）<input id="fship" type="number" inputmode="numeric" min="0" step="any" value="210"></label></div>
 <p class="lead">買取に出す場合（初期値は一例です）</p>
 <label>買取率（%・相場に対して）<input id="rate" type="number" inputmode="decimal" min="0" step="any" value="93"></label>
 <div class="row"><label>売り手負担の送料（円）<input id="kship" type="number" inputmode="numeric" min="0" step="any" value="0"></label><label>売り手負担の振込手数料（円）<input id="kfee" type="number" inputmode="numeric" min="0" step="any" value="0"></label></div></div><div class="card" id="result" aria-live="polite"></div><h2>このツールについて</h2><p>フリマの手取り＝相場価格−販売手数料−送料、買取の手取り＝買取額−売り手が負担する送料−売り手が負担する振込手数料です。販売手数料＝相場価格×手数料率、買取額＝相場価格×買取率で、どちらも1円未満を切り捨てます。差額は「買取の手取り−フリマの手取り」で、プラスなら買取のほうが多くなります。</p><p>手取りが同じになる買取率＝(フリマの手取り＋売り手が負担する送料＋振込手数料)÷相場価格です（端数処理前の値を小数第2位で四捨五入）。買取率がこれより高ければ、買取のほうが手取りが多くなります。</p><p>手数料率・送料・買取率・振込手数料は、サービスや発送方法、店によって違います。初期値は一例なので、必ずご自身の条件に書き換えてください。1円未満の端数処理もサービスによって異なり、実際の額と数円ずれることがあります。</p><p>フリマでは相場価格どおりに売れるものとして計算しています。売れるまでの日数、値下げ、梱包材の費用、売上金を引き出すときの手数料、査定で減額される場合は含めていません。このツールは入力した数字を比べるだけで、特定のサービスや店を勧めるものではありません。金額は円の整数で、率は小数第4位まで入力できます。入力内容は外部に送信されません。</p><h2>計算の考え方の解説と、記録用のシート</h2><ul class="tools"><li><a href="/guide/records/"><b>鑑定転売の記録の付け方（1枚ごとに何を残すか）</b><span>カード1枚を1行で記録するときに、どの項目を残しておくと注文別・月別・グレード別に後で集計できるかを説明します。</span></a></li><li><a href="/sheet/"><b>PSA鑑定 収支管理シート（商品紹介）</b><span>在庫台帳・注文別集計・月次集計・シミュレーターが入った、Excel / Googleスプレッドシート用のシートです。</span></a></li></ul><h2>ほかのツール</h2><ul class="tools"><li><a href="/psa-profit/"><b>PSA鑑定 損益シミュレーター</b></a></li><li><a href="/psa-max-buy/"><b>PSA鑑定 仕入れ上限 逆算</b></a></li><li><a href="/grading-fee/"><b>鑑定料の円換算</b></a></li><li><a href="/card-roi/"><b>トレカ売買の利益率計算</b></a></li><li><a href="/wareki/"><b>和暦・西暦 変換</b></a></li><li><a href="/age/"><b>年齢計算</b></a></li><li><a href="/school/"><b>入学・卒業年 早見</b></a></li><li><a href="/days/"><b>日数計算</b></a></li><li><a href="/count/"><b>文字数カウント</b></a></li><li><a href="/warikan/"><b>割り勘計算</b></a></li><li><a href="/tax/"><b>消費税計算</b></a></li><li><a href="/discount/"><b>割引・ポイント還元 計算</b></a></li><li><a href="/unit/"><b>単位変換</b></a></li><li><a href="/zenhan/"><b>全角・半角 変換</b></a></li><li><a href="/password/"><b>パスワード生成</b></a></li><li><a href="/percent/"><b>割合（パーセント）計算</b></a></li><li><a href="/time-calc/"><b>時間の足し算・引き算</b></a></li><li><a href="/hourly-wage/"><b>時給・日給・月給・年収 換算</b></a></li><li><a href="/random/"><b>乱数・抽選</b></a></li><li><a href="/base-convert/"><b>2進数・8進数・10進数・16進数 変換</b></a></li><li><a href="/kana/"><b>ひらがな・カタカナ 変換</b></a></li><li><a href="/aspect/"><b>アスペクト比 計算</b></a></li></ul></main>
-<footer><a href="/">ツール一覧</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+<footer><a href="/">ツール一覧</a> ・ <a href="/guide/">解説記事</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
 計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
 <script type="module" src="/app.js"></script>
 </body></html>
