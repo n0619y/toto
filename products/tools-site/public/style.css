@@ -25,3 +25,13 @@ ul.tools{list-style:none;padding:0;display:grid;gap:10px}
 ul.tools a{display:block;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--fg);text-decoration:none}
 ul.tools b{display:block;color:var(--acc)}ul.tools span{color:var(--mut);font-size:.9rem}
 footer{color:var(--mut);font-size:.85rem;padding-top:32px;padding-bottom:32px}footer a{color:var(--mut)}
+main a{color:var(--acc)}
+h3{font-size:1rem;margin:1.6em 0 .4em}
+main ul:not(.tools){padding-left:1.3em}main li{overflow-wrap:anywhere}
+.note>:first-child{margin-top:0}.note>:last-child{margin-bottom:0}
+a.btn{display:block;text-align:center;background:var(--acc);color:var(--bg);font-weight:700;text-decoration:none;border-radius:8px;padding:12px;margin:12px 0}
+.price{font-size:1.2rem;font-weight:700}
+figure{margin:16px 0}figure img{display:block;max-width:100%;height:auto;border:1px solid var(--line);border-radius:12px}
+figcaption{color:var(--mut);font-size:.9rem;margin-top:6px}
+details{border-bottom:1px solid var(--line);padding:10px 0}summary{cursor:pointer;font-weight:700}details p{margin:.6em 0 0}
+code{font-family:ui-monospace,monospace;font-size:.9em;overflow-wrap:anywhere}

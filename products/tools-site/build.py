@@ -176,6 +176,285 @@ AD_SLOT = ('<div class="ad"><ins class="adsbygoogle" style="display:block" data-
            f'data-ad-client="{e(SITE["adsense_client"])}" data-full-width-responsive="true"></ins>'
            '<script>(adsbygoogle=window.adsbygoogle||[]).push({});</script></div>') if SITE["adsense_client"] else ""
 
+# ---- トレカ鑑定の収支管理: 解説記事と商品紹介ページ -------------------------------
+# 記事は「計算の考え方」だけを書く。料金・関税・税率の実際の額や制度は書かない（変わるうえ、確認していないため）。
+# 記事内の数字はすべて DEF（ツールの初期値）と EX（仮の売値）から計算する。
+
+SHEET_NAME = "PSA鑑定 収支管理シート"
+SHEET_DESC = ("トレカをPSA鑑定に出して売る個人向けの、Excel / Googleスプレッドシート用の収支管理シートの紹介です。"
+              "在庫台帳・注文別集計・月次集計・仕入れ前シミュレーターが1ファイルに入っています。")
+SHEET_IMAGES = ROOT.parent / "psa-sheet" / "dist" / "images"   # 読むだけ。PNG があれば public/sheet/ にコピーする
+PRODUCT_URL = str(SITE.get("product_url", "")).strip()
+PRODUCT_PRICE = str(SITE.get("product_price", "")).strip()
+PRODUCT_VERIFIED = str(SITE.get("product_verified", "")).strip()
+if PRODUCT_URL and not PRODUCT_URL.startswith(("https://", "http://")):
+    raise SystemExit("site.json の product_url は https:// から始まるURLにしてください（販売前は空にします）")
+
+EX = {"buy": 8000, "v10": 60000, "v9": 15000, "vLow": 5000}   # 計算例のための仮の数字（相場ではない）
+TOOL_TITLE = {s: t for s, t, *_ in CARD_TOOLS}
+
+
+def yen(x):
+    """四捨五入して円表示。app.js の yenR（Math.round）と同じ丸め方にする（round() は .5 を偶数側に丸めるため使わない）。"""
+    return f"{int((x + 0.5) // 1):,}円"
+
+
+def psa_costs(d):
+    """1枚あたりの費用。src/lib.js の psaCosts、pokeca/core.py の per_card_costs と同じ式。"""
+    grading = d["feeUsd"] * d["fx"]
+    back = d["shipBack"] * d["fx"] / d["cards"]
+    c = {"grading": grading, "shipOut": d["shipOut"] / d["cards"], "shipBack": back,
+         "importTax": (grading + back) * d["taxRate"] / 100, "usDuty": d["duty"] * d["fx"] / d["cards"], "misc": d["misc"]}
+    c["total"] = sum(c.values())
+    return c
+
+
+def tool_link(slug):
+    return f'<a href="/{slug}/">{e(TOOL_TITLE[slug])}</a>'
+
+
+def _table(pairs):
+    return "<table>" + "".join(f"<tr><th>{k}</th><td>{v}</td></tr>" for k, v in pairs) + "</table>"
+
+
+_C = psa_costs(DEF)
+_C_HALF = psa_costs({**DEF, "cards": DEF["cards"] // 2})
+_EXPECTED = (EX["v10"] * DEF["p10"] + EX["v9"] * DEF["p9"] + EX["vLow"] * DEF["pLow"]) / 100
+_BREAKEVEN = _EXPECTED - _C["total"]
+_MAX_EXACT = _BREAKEVEN / (1 + DEF["target"] / 100)
+_MAX_BUY = max(0, _MAX_EXACT // 100 * 100)
+_SPEND = EX["buy"] + _C["total"]
+_SHEET_MAX_BUY = max(0, (_EXPECTED * (1 - DEF["target"] / 100) - round(_C["total"])) // 100 * 100)  # シート側の定義（利益÷売値）
+_EX_NOTE = "ツールの初期値と同じ数字を使った一例です。実際の料金や税率を示すものではありません。"
+NO_ADVICE = "この記事は計算の考え方を説明するもので、税務・法律の助言ではありません。税や関税の扱いは、税理士・税務署・税関などにご確認ください。"
+
+GUIDES = [
+    ("grading-cost", "鑑定に出すときの1枚あたり費用の数え方",
+     "鑑定料・往復送料・輸入時にかかる費用・諸経費を、1枚あたりに直して足す考え方を、計算例つきで説明します。",
+     f"""<p>鑑定に出したカードがいくらで売れれば元が取れるかを考えるには、まず「1枚にいくらかかったか」を決める必要があります。
+鑑定料だけを見ていると、送料などの箱単位の費用が抜けて、原価を低く見積もってしまいます。ここでは、費用を1枚あたりに直して足す考え方をまとめます。</p>
+<h2>1枚ごとの費用と、箱ごとの費用を分ける</h2>
+<p>鑑定にかかる費用は、かかり方で2種類に分かれます。</p>
+<ul><li><b>1枚ごとにかかるもの</b>: 鑑定料、スリーブや梱包材などの諸経費</li>
+<li><b>箱（1回の発送）ごとにかかるもの</b>: 行きの送料、返送の送料、通関でかかる費用</li></ul>
+<p>箱ごとの費用は、その箱に入れた枚数で割って1枚あたりに直します（按分）。1枚あたりの費用は、この2種類を足したものです。</p>
+<h2>ドル建ての費用は円に直してから足す</h2>
+<p>鑑定料や返送の送料がドル建てのときは、為替を掛けて円に直します。試算に使う為替と、実際の請求に使われる換算レートは一致しないので、
+試算では少し不利な側の数字を置き、請求額が確定したら実額に置き換えるのが安全です。</p>
+<h2>輸入時にかかる費用</h2>
+<p>返送されたカードを受け取るときに税がかかる場合があります。このサイトのツールでは、試算のために「（鑑定料＋返送の送料）× 税率」という形で置いています。
+これは計算上の置き方で、実際に何に対してどの率でかかるのか、そもそもかかるのかは、制度・時期・申込方法（直接か代行か）によって変わります。
+当サイトでは確認していないため、必ずご自身で確かめた数字を入れてください。発送先の国でかかる費用も、箱単位なら同じように枚数で割ります。かからなければ0です。</p>
+<h2>一例で足してみる</h2>
+<p>{_EX_NOTE}為替{DEF["fx"]}円、鑑定料{DEF["feeUsd"]}ドル/枚、行きの送料{DEF["shipOut"]:,}円/箱、返送の送料{DEF["shipBack"]}ドル/箱、
+1箱{DEF["cards"]}枚、発送先の国でかかる費用{DEF["duty"]}ドル/箱、輸入時の税率{DEF["taxRate"]}%、諸経費{DEF["misc"]}円/枚の場合です。</p>
+<div class="card note">{_table([
+    ("鑑定料", yen(_C["grading"])), ("行きの送料（÷枚数）", yen(_C["shipOut"])), ("返送の送料（×為替÷枚数）", yen(_C["shipBack"])),
+    ("輸入時の税", yen(_C["importTax"])), ("発送先の国でかかる費用（×為替÷枚数）", yen(_C["usDuty"])), ("諸経費", yen(_C["misc"])),
+    ("1枚あたりの合計", yen(_C["total"]))])}</div>
+<p>同じ条件で数字を変えて試すには {tool_link("psa-profit")} を、鑑定料と送料だけを円に直すには {tool_link("grading-fee")} を使えます。</p>
+<h2>判断が分かれるところ</h2>
+<ul><li><b>1箱の枚数</b>: 枚数が少ないほど、箱ごとの費用が1枚に重く乗ります。上の例で1箱を{DEF["cards"] // 2}枚にすると、1枚あたりの合計は{yen(_C_HALF["total"])}になります。</li>
+<li><b>按分のしかた</b>: ここでは枚数で均等に割っています。高いカードに多く配分する考え方もありますが、どちらにしても、決めた方法を全部のカードで通すことが大事です。</li>
+<li><b>諸経費に何を入れるか</b>: 国内の発送費や売るときの梱包材を入れるかどうかは自分で決めます。売値を「手数料を引いた手取り額」で考えるなら、同じ手数料を費用にも入れると二重になります。</li>
+<li><b>代行を使う場合</b>: 代行の手数料は鑑定料か諸経費に含め、料金の仕組みが違う部分は項目を読み替えます。</li></ul>
+<p>{NO_ADVICE}</p>""",
+     ["psa-profit", "grading-fee"]),
+    ("break-even", "損益分岐の仕入れ値と、グレードが下振れしたときの損益の見方",
+     "期待売値から費用を引いて損益分岐の仕入れ値を出す考え方と、PSA9以下だった場合の損益の見方、期待値で考える意味と限界を説明します。",
+     f"""<p>未鑑定のカードを「いくらまでなら仕入れてよいか」は、鑑定後の売値・費用・グレードの出方の3つで決まります。
+ここでは損益分岐の仕入れ値の出し方と、その数字だけでは見えない下振れの見方を説明します。</p>
+<h2>期待売値を出す</h2>
+<p>鑑定結果は出してみるまで分からないので、グレードごとに「その場合の売値」と「そうなる確率」を置き、掛けて足します。これが期待売値です。
+売値には、販売手数料や送料を引いたあとの手取り額を入れます。</p>
+<p>仮の数字で、PSA10なら{EX["v10"]:,}円・PSA9なら{EX["v9"]:,}円・それ以下なら{EX["vLow"]:,}円、確率は{DEF["p10"]}%・{DEF["p9"]}%・{DEF["pLow"]}%（ツールの初期値）とすると、
+期待売値は{yen(_EXPECTED)}です。売値は説明のために置いた一例で、相場ではありません。</p>
+<h2>損益分岐の仕入れ値</h2>
+<div class="card note"><p>損益分岐の仕入れ値 ＝ 期待売値 − 1枚あたりの費用</p></div>
+<p>1枚あたりの費用が{yen(_C["total"])}（ツールの初期値で計算した一例。数え方は <a href="/guide/grading-cost/">1枚あたり費用の数え方</a>）なら、
+損益分岐は{yen(_BREAKEVEN)}です。これより安く仕入れると、期待値のうえでは利益が残ります。</p>
+<p>利益の目標があるときは、仕入れ上限 ＝（期待売値 − 費用）÷（1 ＋ 目標利益率）で逆算します。目標を仕入れ値に対して{DEF["target"]}%とすると、
+上の例では{yen(_MAX_BUY)}（100円単位に切り下げ）です。利益率を「仕入れ値に対して」と「売値に対して」のどちらで考えるかで上限は変わるので、どちらかに決めて揃えます。
+計算は {tool_link("psa-max-buy")} でできます。</p>
+<h2>グレードが下振れしたときの損益</h2>
+<p>期待値は平均の話なので、1枚ごとの結果は別に見ます。上の例のカードを{EX["buy"]:,}円で仕入れた場合です。</p>
+<div class="card note">{_table([
+    ("期待利益", yen(_EXPECTED - _SPEND)), ("PSA10だった場合", yen(EX["v10"] - _SPEND)),
+    ("PSA9だった場合", yen(EX["v9"] - _SPEND)), ("それ以下だった場合", yen(EX["vLow"] - _SPEND))])}</div>
+<p>期待利益はプラスですが、この置き方では{DEF["p9"] + DEF["pLow"]}%の確率で1枚あたり赤字になります。期待値のプラスは、PSA10の利益がそれ以外の赤字を埋めることで成り立っています。
+グレード別の損益は {tool_link("psa-profit")} に表示されます。</p>
+<h2>期待値で考える意味と限界</h2>
+<p>似た条件の仕入れを何度も繰り返すと、平均の結果は期待値に近づいていきます。1枚ごとの当たり外れに左右されない仕入れの基準を持てるのが、期待値で考える意味です。一方で、次の限界があります。</p>
+<ul><li><b>枚数が少ないうちは大きくぶれる</b>: 数枚では、全部が下のグレードになることも普通に起こります。その場合の赤字の合計に資金が耐えられるかを、期待値とは別に確かめます。</li>
+<li><b>確率は自分で置いた仮定</b>: 式が予測してくれるわけではありません。カードの状態の見立てが外れれば、期待値そのものが変わります。自分の実績の割合も、枚数が少ないうちは当てになりません。</li>
+<li><b>売値は動く</b>: 鑑定から返ってくるまでのあいだに相場が変わることがあります。</li>
+<li><b>時間と資金の拘束は入っていない</b>: 売れるまでの期間や、そのあいだ資金が動かせないことは、この式には出てきません。</li></ul>
+<p>確率や売値を悪い側にずらしても成り立つかどうかを見てから、仕入れ値を決めるのが堅実です。</p>
+<p>{NO_ADVICE}</p>""",
+     ["psa-profit", "psa-max-buy"]),
+    ("records", "鑑定転売の記録の付け方（1枚ごとに何を残すか）",
+     "カード1枚を1行で記録するときに、どの項目を残しておくと注文別・月別・グレード別に後で集計できるかを説明します。",
+     """<p>鑑定に出して売るまでには数か月かかることがあり、そのあいだに仕入れ・発送・返却・売却がばらばらに起こります。
+あとから「結局いくら残ったのか」を出せるかどうかは、最初にどう記録したかで決まります。ここでは、1枚ごとに残す項目と、その意味を説明します。</p>
+<h2>カード1枚を1行にする</h2>
+<p>鑑定結果も売値も1枚ごとに違います。まとめて買った分を1行にしてしまうと、あとで利益をカードごとに分けられません。
+同じカードを複数枚持っていても、1枚ずつ別の行にします。</p>
+<h2>残しておく項目</h2>
+<ul><li><b>管理番号</b>: 自分で振る通し番号です。同じカードが何枚あっても区別でき、現物のスリーブなどに同じ番号を書いておけば行と結びつきます。</li>
+<li><b>状態</b>: 在庫・鑑定中・返却済・売却済のように、いまどの段階にあるかを表します。売れていない分を数えるときに使います。</li>
+<li><b>カード名・番号</b>: 何のカードかを表します。表記を揃えておくと、あとで探しやすくなります。</li>
+<li><b>仕入日・仕入先・仕入値</b>: まとめ買いのときは、合計を1枚ずつの値段に分けます。分け方は自分で決め、同じ方法を続けます。</li>
+<li><b>鑑定の注文番号</b>: どの注文（どの箱）で出したかを表します。注文ごとの収支をまとめるときの目印です。</li>
+<li><b>認定番号</b>: 返ってきたケースに付く番号です。現物と行を1対1で結びます。</li>
+<li><b>グレード</b>: 鑑定結果です。グレード別の枚数と割合のもとになります。</li>
+<li><b>売却日・売却先・売却額</b>: 売却日は月ごとの集計の目印です。「3月ごろ」のような文字ではなく、日付として入れておきます。</li></ul>
+<h2>そこから計算できるもの</h2>
+<p>上の項目に1枚あたりの鑑定費用（数え方は <a href="/guide/grading-cost/">1枚あたり費用の数え方</a>）を足すと、次の数字が行ごとに出せます。</p>
+<div class="card note"><p>原価合計 ＝ 仕入値 ＋ 鑑定費用<br>利益 ＝ 売却額 − 販売手数料 − 原価合計</p></div>
+<p>これを注文番号でまとめれば注文ごとの収支と、まだ売れていない分の原価が分かります。売却日でまとめれば月ごとの売上・原価・利益になります。
+グレードで数えれば、自分が出したカードのグレード別の割合が出ます。この割合は次の仕入れを試算するときの確率の参考になりますが、枚数が少ないうちは大きくぶれます。</p>
+<h2>判断が分かれるところ</h2>
+<ul><li><b>鑑定費用を試算で置くか、実額で置くか</b>: 出す前は試算の額しか分かりません。請求が確定したら実額に置き換えると、あとで為替や料金の前提を変えても過去の行が動きません。</li>
+<li><b>売るときの送料の扱い</b>: 売却額から引いて入れるか、別の列に分けるかです。どちらでもかまいませんが、途中で変えると月ごとの比較ができなくなります。</li>
+<li><b>利益率の分母</b>: 売却額に対する割合か、仕入値に対する割合かで数字が変わります。1件の売買の2通りの利益率は __CARD_ROI__ で比べられます。</li>
+<li><b>売れていない在庫</b>: 利益には入りませんが、資金はすでに出ています。利益とは別に、未売却分の原価の合計を見ておきます。</li></ul>
+<p>記録をどう申告に使うかは、この記事では扱いません。__NO_ADVICE__</p>""".replace("__CARD_ROI__", tool_link("card-roi")).replace("__NO_ADVICE__", NO_ADVICE),
+     ["card-roi", "psa-profit"]),
+]
+GUIDE_TITLE = {s: t for s, t, *_ in GUIDES}
+# トレカ向けツールの各ページ下部に出す解説記事（一般向けツールには出さない）
+TOOL_GUIDES = {"psa-profit": ["break-even", "grading-cost", "records"], "psa-max-buy": ["break-even", "grading-cost"],
+               "grading-fee": ["grading-cost", "records"], "card-roi": ["records", "break-even"]}
+SHEET_LI = f'<li><a href="/sheet/"><b>{e(SHEET_NAME)}（商品紹介）</b><span>在庫台帳・注文別集計・月次集計・シミュレーターが入った、Excel / Googleスプレッドシート用のシートです。</span></a></li>'
+
+
+def guide_items(slugs):
+    desc = {s: d for s, _, d, *_ in GUIDES}
+    return "".join(f'<li><a href="/guide/{s}/"><b>{e(GUIDE_TITLE[s])}</b><span>{e(desc[s])}</span></a></li>' for s in slugs)
+
+
+def tool_items(slugs):
+    desc = {s: d for s, _, d, *_ in CARD_TOOLS}
+    return "".join(f'<li><a href="/{s}/"><b>{e(TOOL_TITLE[s])}</b><span>{e(desc[s])}</span></a></li>' for s in slugs)
+
+
+def card_pillar(slugs):
+    """トレカ向けツールの下部と、トップの「トレカ・PSA鑑定」に置く導線。"""
+    return f'<ul class="tools">{guide_items(slugs)}{SHEET_LI}</ul>'
+
+
+SHEET_SHOTS = {  # ファイル名 → 説明（alt とキャプション）。ここに無い PNG は汎用の説明で表示する
+    "01-cover.png": "PSA鑑定 収支管理シートの表紙画像。在庫台帳の一部の列を抜粋したもの",
+    "02-ledger.png": "在庫台帳シートの画面",
+    "03-monthly.png": "月次集計シートの画面",
+    "04-simulator.png": "シミュレーターシートの画面",
+    "05-howto.png": "使い方の説明画像",
+}
+SHEET_FAQ = [
+    ("Excel で開いたら、数字が出ず空欄に見えます。",
+     "画面上部に「保護ビュー」の黄色い帯が出ていたら、「編集を有効にする」を押してください。このファイルには計算済みの値を入れておらず、開いたアプリがその場で計算する作りです。"
+     "そのため、販売サイトやスマートフォンのプレビュー表示では、数式のセルが空に見えることがあります。"),
+    ("Googleスプレッドシートで使うには、どうすればいいですか。",
+     "Googleスプレッドシートで空のファイルを開き、「ファイル」→「インポート」→「アップロード」で xlsx を選び、「新しいスプレッドシートを作成する」で取り込みます。"
+     "元の xlsx（購入時の zip）は消さずに取っておいてください。"),
+    ("スマートフォンや、ほかの表計算アプリでも使えますか。",
+     "パソコンの Microsoft Excel と Googleスプレッドシートを対象にしています。スマートフォンのアプリでの操作は想定していません（表が横に長く、入力しづらいためです）。"
+     "Numbers など他の表計算アプリは対象外で、動くかどうかは確認していません。"),
+    ("為替や鑑定料を変えると、過去の行の金額も変わりますか。",
+     "変わります。設定は1組だけで、在庫台帳のすべての行が同じ設定を見て鑑定費用を計算するためです。過去ぶんを固定したいときは、その行の「鑑定費用」のセルに実際にかかった金額を直接入力します。"
+     "注文ごと・サービスレベルごとに料金を持ち分ける機能はありません。"),
+    ("PSA 以外の鑑定会社でも使えますか。",
+     "費用の項目名をご自身で読み替えれば、費用と利益の計算には使えます。ただし、グレードの選択肢は「未鑑定 / PSA10 / PSA9 / PSA8以下」の4つで固定で、通貨は円とドルの1組だけです。"
+     "他社の料金体系や手続きに合うかどうかは確認していません。"),
+    ("シミュレーターの結果どおりに利益が出ますか。相場は自動で入りますか。",
+     "いいえ。シミュレーターは、ご自身が入れた売値と確率から平均（期待値）を計算するだけで、将来の相場や鑑定結果を予測するものではありません。利益が出ることを保証するものでもありません。"
+     "相場や PSA の注文状況を自動で取得する機能はなく、すべて手入力です。"),
+    ("税金や関税の計算は、これで合っていますか。確定申告に使えますか。",
+     "このシートは収支の記録と試算のための道具で、税額を計算するものではありません。設定の税率・関税の初期値は一例で、実際の税額や制度を示すものではありません。"
+     "税務と、関税・輸入時の税の扱いは、必ずご自身で税理士・税務署・税関などに確認してください。"),
+    ("使い方の質問や、不具合の問い合わせはできますか。",
+     "個別のサポート（使い方の質問への回答、カスタマイズ、不具合の個別対応）は行っていません。同梱の「よくある質問」とファイル内の「使い方」シートで解決できる範囲でお使いください。"
+     "バージョンアップ版の提供もお約束していません。"),
+]
+
+
+def png_size(path):
+    """PNG の幅と高さ（img の width/height に入れて、読み込み中のガタつきを防ぐ）。"""
+    with open(path, "rb") as f:
+        head = f.read(24)
+    return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
+
+
+def sheet_body(shots):
+    """shots: public/sheet/ にコピーした PNG の [(ファイル名, 幅, 高さ)]。空なら画像なしで組む。"""
+    def fig(name, w, h, lazy=True):
+        alt = SHEET_SHOTS.get(name, f"{SHEET_NAME}の画面")
+        lz = ' loading="lazy"' if lazy else ""
+        return (f'<figure><img src="/sheet/{e(name)}" alt="{e(alt)}" width="{w}" height="{h}"{lz}>'
+                f'<figcaption>{e(alt)}。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure>')
+    cover = fig(*shots[0], lazy=False) if shots else ""
+    rest = "".join(fig(*s) for s in shots[1:])
+    price = f'<p class="price">価格: {e(PRODUCT_PRICE)}</p>' if PRODUCT_PRICE else ""
+    if PRODUCT_URL:
+        buy = (f'<div class="card note">{price}<a class="btn" href="{e(PRODUCT_URL)}" rel="noopener">販売ページで購入する（外部サイト）</a>'
+               '<p class="lead">購入・決済・ダウンロードは外部の販売サイトで行います。当サイトでは販売・決済をしていません。</p></div>')
+    else:
+        buy = (f'<div class="card note">{price}<p><b>販売準備中</b></p>'
+               '<p class="lead">まだ販売を始めていません。販売を始めたら、ここに販売ページへのリンクを掲載します。</p></div>')
+    if PRODUCT_VERIFIED:
+        verified = f"<li>動作確認した環境: {e(PRODUCT_VERIFIED)}</li>"
+    else:
+        verified = ("<li><b>Microsoft Excel と Googleスプレッドシートの実機での動作確認は、まだ行っていません。</b>"
+                    "現時点で確認しているのは、数式の静的な点検と、LibreOffice Calc で再計算した値が手計算と一致することだけです。"
+                    "Excel・Googleスプレッドシートで開いたあとの見た目（列幅・色・フォント）、プルダウン、入力規則、シート保護がそのまま残るかは確かめていません。</li>")
+    faq = "".join(f"<details><summary>{e(q)}</summary><p>{e(a)}</p></details>" for q, a in SHEET_FAQ)
+    return f"""<h1>{e(SHEET_NAME)}</h1>
+<p class="lead">トレカをPSA鑑定に出して売る個人向けの、Excel / Googleスプレッドシート用の収支管理シートです。
+1枚ごとの仕入値・鑑定費用・売却額を台帳に入れると、原価と利益、注文別・月別の集計が自動で出ます。</p>
+{cover}{buy}
+<h2>何ができるか</h2>
+<ul><li><b>在庫台帳</b>: カード1枚を1行で記録します。状態（在庫・鑑定中・返却済・売却済）とグレードはプルダウンで選びます。500行ぶん用意しています。</li>
+<li><b>鑑定費用の自動計算</b>: 為替・鑑定料・往復送料・関税・税率・諸経費を設定すると、1枚あたりの鑑定費用を計算し、原価合計・販売手数料・利益・利益率まで出します。</li>
+<li><b>注文別集計</b>: PSA注文番号ごとに、枚数・仕入合計・鑑定費用合計・売却合計・利益・未売却ぶんの原価を集計します（30注文まで）。</li>
+<li><b>月次集計とグレード別割合</b>: 指定した年の売却月ごとの売上・原価・利益・枚数と、グレード別の枚数・割合（自分のPSA10率）を出します。</li>
+<li><b>仕入れ前シミュレーター</b>: 仕入れ値と、PSA10 / PSA9 / それ以下の売値・確率を入れると、期待利益・損益分岐の仕入れ値・目標利益率からの仕入れ上限を表示します。</li></ul>
+<p>黄色いセルが入力欄、灰色のセルは数式です。相場の取得やPSAの注文状況の取得などの自動連携はなく、すべて手入力です。</p>
+{rest}
+<h2>無料ツールとの違い</h2>
+<p>1枚あたりの鑑定費用の式は、当サイトの {tool_link("psa-profit")} と同じです。違うのは利益率の定義で、シートは全体を通して「利益 ÷ 売却額」で計算します。
+当サイトの {tool_link("psa-max-buy")} は目標利益率を「仕入れ値に対して」で計算するため、同じ数字を入れても仕入れ上限は一致しません
+（一例として、期待売値{yen(_EXPECTED)}・費用{yen(_C["total"])}・目標{DEF["target"]}%のとき、ツールは{yen(_MAX_BUY)}、シートは{yen(_SHEET_MAX_BUY)}）。</p>
+<h2>同梱物</h2>
+<p>zip ファイル1つに、次の3ファイルが入っています。</p>
+<ul><li><code>psa-shushi-kanri.xlsx</code>: シート本体（使い方 / 設定 / 在庫台帳 / 注文別集計 / 月次集計 / シミュレーター の6枚）</li>
+<li><code>よくある質問_FAQ.txt</code>: よくある質問</li>
+<li><code>はじめにお読みください.txt</code>: 開き方と最初の手順</li></ul>
+<p>使い方の説明はファイル内の「使い方」シートに入っています。別冊のマニュアルはありません。在庫台帳には架空のサンプルデータが5行入っています（消してからお使いください）。</p>
+<h2>対応環境</h2>
+<ul><li>Microsoft Excel（.xlsx を開けるバージョン）</li>
+<li>Googleスプレッドシート（「ファイル」→「インポート」で取り込み）</li>
+<li>マクロ（VBA）・アドイン・外部データ接続は使っていません。使っている関数は IF / AND / OR / SUM / SUMIFS / COUNTIFS / COUNT / COUNTA / ROUND / ROUNDDOWN / MAX / DATE のみです。</li>
+{verified}
+<li>スマートフォンのアプリでの操作は想定していません（入力はパソコンを前提にしています）。</li></ul>
+<h2>購入前に確認してほしいこと</h2>
+<ul><li><b>サポートはありません。</b>使い方の質問への回答、カスタマイズ、不具合の個別対応は行っていません。バージョンアップ版の提供もお約束していません。</li>
+<li><b>返金・キャンセルは、販売サイトの規定に従います。</b>当サイトでは受け付けていません。</li>
+<li><b>税務と関税は各自でご確認ください。</b>このシートは収支の記録と試算のための道具で、税額を計算するものではありません。
+確定申告・所得区分・消費税などの税務と、関税・輸入時の税の扱いは、税理士・税務署・税関などにご確認ください。</li>
+<li><b>非公式のツールです。</b>PSA（Professional Sports Authenticator）社とは関係がありません。カード名・価格などのサンプルデータはすべて架空です。</li>
+<li>鑑定料・送料・為替・関税・税率の初期値は一例です。必ずご自身の実際の金額に書き換えてください。</li>
+<li>利益が出ることや、計算結果が実際の費用・税額と一致することを保証するものではありません。</li>
+<li>設定を変えると、過去の行も含めて鑑定費用が計算し直されます（過去ぶんを固定する方法は「使い方」シートに記載）。</li>
+<li>購入者ご本人の利用に限ります。ファイルの再配布・転売はご遠慮ください。</li></ul>
+{buy}
+<h2>よくある質問（抜粋）</h2>
+<p class="lead">同梱の「よくある質問」からの抜粋です。</p>
+{faq}
+<h2>まずは無料ツールで計算する</h2>
+<ul class="tools">{tool_items([s for s, *_ in CARD_TOOLS])}</ul>
+<h2>計算の考え方の解説</h2>
+<ul class="tools">{guide_items([s for s, *_ in GUIDES])}</ul>"""
+
 
 def page(path, title, desc, body, tool=""):
     full = f"{title}｜{SITE['name']}" if path else f"{SITE['name']}｜{title}"
@@ -206,13 +485,15 @@ def main():
     links = "".join(
         f'<h2>{e(g)}</h2><ul class="tools">'
         + "".join(f'<li><a href="/{s}/"><b>{e(t)}</b><span>{e(d)}</span></a></li>' for s, t, d, *_ in tools) + "</ul>"
+        + (f'<p class="lead">計算の考え方の解説と、記録用のシート</p>{card_pillar([s for s, *_ in GUIDES])}' if tools is CARD_TOOLS else "")
         for g, tools in GROUPS)
     for slug, title, desc, form, note in TOOLS:
         others = "".join(f'<li><a href="/{s}/"><b>{e(t)}</b></a></li>' for s, t, *_ in TOOLS if s != slug)
         body = (f'<h1>{e(title)}</h1><p class="lead">{e(desc)}</p>'
                 f'<div class="card">{form}</div><div class="card" id="result" aria-live="polite"></div>{AD_SLOT}'
                 f'<h2>このツールについて</h2>{"".join(f"<p>{e(p)}</p>" for p in note.split(chr(10)))}'
-                f'<h2>ほかのツール</h2><ul class="tools">{others}</ul>')
+                + (f'<h2>計算の考え方の解説と、記録用のシート</h2>{card_pillar(TOOL_GUIDES[slug])}' if slug in TOOL_GUIDES else "")
+                + f'<h2>ほかのツール</h2><ul class="tools">{others}</ul>')
         (OUT / slug).mkdir()
         (OUT / slug / "index.html").write_text(page(f"{slug}/", title, desc, body, slug), encoding="utf-8")
 
@@ -221,6 +502,23 @@ def main():
         page("", "登録なしで使える無料の計算ツール集", top_desc,
              f'<h1>{e(SITE["name"])}</h1><p class="lead">{e(top_desc)}</p>{links}{AD_SLOT}'),
         encoding="utf-8")
+
+    for slug, title, desc, body, tools in GUIDES:
+        others = guide_items([s for s, *_ in GUIDES if s != slug])
+        body = (f'<h1>{e(title)}</h1>{body}{AD_SLOT}'
+                f'<h2>関連するツール</h2><ul class="tools">{tool_items(tools)}</ul>'
+                f'<h2>記録用のシートと、ほかの解説</h2><ul class="tools">{SHEET_LI}{others}</ul>')
+        (OUT / "guide" / slug).mkdir(parents=True)
+        (OUT / "guide" / slug / "index.html").write_text(page(f"guide/{slug}/", title, desc, body), encoding="utf-8")
+
+    (OUT / "sheet").mkdir()
+    shots = []
+    if SHEET_IMAGES.is_dir():   # 商品画像が無くても（psa-sheet が無い環境でも）ページは成立する
+        for png in sorted(SHEET_IMAGES.glob("*.png")):
+            shutil.copy(png, OUT / "sheet" / png.name)
+            shots.append((png.name, *png_size(png)))
+    (OUT / "sheet" / "index.html").write_text(
+        page("sheet/", f"{SHEET_NAME}（Excel / Googleスプレッドシート用）", SHEET_DESC, sheet_body(shots)), encoding="utf-8")
 
     contact = f'<p>お問い合わせ: {e(SITE["contact"])}</p>' if SITE["contact"] else ""
     ads = ("<h2>広告について</h2><p>当サイトは第三者配信の広告サービス（Google アドセンス）を利用しています。"
@@ -237,12 +535,13 @@ def main():
         page("privacy/", "プライバシーポリシー・運営者情報", "当サイトのプライバシーポリシーと運営者情報です。", privacy),
         encoding="utf-8")
 
-    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + ["privacy/"]
+    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"]
     (OUT / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{e(SITE['url'])}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE['url']}/sitemap.xml\n", encoding="utf-8")
-    print(f"{len(TOOLS)} ツール + トップ + プライバシーを {OUT} に生成しました")
+    print(f"{len(TOOLS)} ツール + 解説 {len(GUIDES)} 本 + 商品紹介（画像 {len(shots)} 枚、"
+          f"{'購入ボタンあり' if PRODUCT_URL else '販売準備中'}）+ トップ + プライバシーを {OUT} に生成しました")
 
 
 if __name__ == "__main__":
