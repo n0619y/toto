@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://example.com/</loc></url>
+  <url><loc>https://example.com/psa-profit/</loc></url>
+  <url><loc>https://example.com/psa-max-buy/</loc></url>
+  <url><loc>https://example.com/grading-fee/</loc></url>
+  <url><loc>https://example.com/card-roi/</loc></url>
   <url><loc>https://example.com/wareki/</loc></url>
   <url><loc>https://example.com/age/</loc></url>
   <url><loc>https://example.com/school/</loc></url>
@@ -12,5 +16,12 @@
   <url><loc>https://example.com/unit/</loc></url>
   <url><loc>https://example.com/zenhan/</loc></url>
   <url><loc>https://example.com/password/</loc></url>
+  <url><loc>https://example.com/percent/</loc></url>
+  <url><loc>https://example.com/time-calc/</loc></url>
+  <url><loc>https://example.com/hourly-wage/</loc></url>
+  <url><loc>https://example.com/random/</loc></url>
+  <url><loc>https://example.com/base-convert/</loc></url>
+  <url><loc>https://example.com/kana/</loc></url>
+  <url><loc>https://example.com/aspect/</loc></url>
   <url><loc>https://example.com/privacy/</loc></url>
 </urlset>

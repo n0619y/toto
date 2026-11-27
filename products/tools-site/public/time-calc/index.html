@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>時間の足し算・引き算｜くらしの計算機</title>
+<meta name="description" content="「1:30」のような時間の合計と、開始〜終了の時間差を計算します。日付をまたぐ勤務や休憩の差し引きにも対応。">
+<link rel="canonical" href="https://example.com/time-calc/">
+<link rel="stylesheet" href="/style.css">
+</head><body data-tool="time-calc">
+<header><a href="/">くらしの計算機</a></header>
+<main><h1>時間の足し算・引き算</h1><p class="lead">「1:30」のような時間の合計と、開始〜終了の時間差を計算します。日付をまたぐ勤務や休憩の差し引きにも対応。</p><div class="card"><label>足したい時間（1行に1つ。引くときは先頭に - ）<textarea id="list" placeholder="1:30&#10;2:45&#10;-0:15"></textarea></label>
+<p class="lead">または開始〜終了の時間差</p>
+<div class="row"><label>開始<input id="start" type="time"></label><label>終了<input id="end" type="time"></label></div>
+<label>休憩（分・任意）<input id="brk" type="number" inputmode="numeric" min="0" placeholder="例: 60"></label></div><div class="card" id="result" aria-live="polite"></div><h2>このツールについて</h2><p>時間は「時:分」で入力します（分は00〜59。「100:30」のように24時間を超えてもかまいません）。終了が開始より前の時刻のときは、翌日の終了として計算します。開始と終了が同じ時刻のときは0分です。</p><h2>ほかのツール</h2><ul class="tools"><li><a href="/psa-profit/"><b>PSA鑑定 損益シミュレーター</b></a></li><li><a href="/psa-max-buy/"><b>PSA鑑定 仕入れ上限 逆算</b></a></li><li><a href="/grading-fee/"><b>鑑定料の円換算</b></a></li><li><a href="/card-roi/"><b>トレカ売買の利益率計算</b></a></li><li><a href="/wareki/"><b>和暦・西暦 変換</b></a></li><li><a href="/age/"><b>年齢計算</b></a></li><li><a href="/school/"><b>入学・卒業年 早見</b></a></li><li><a href="/days/"><b>日数計算</b></a></li><li><a href="/count/"><b>文字数カウント</b></a></li><li><a href="/warikan/"><b>割り勘計算</b></a></li><li><a href="/tax/"><b>消費税計算</b></a></li><li><a href="/discount/"><b>割引・ポイント還元 計算</b></a></li><li><a href="/unit/"><b>単位変換</b></a></li><li><a href="/zenhan/"><b>全角・半角 変換</b></a></li><li><a href="/password/"><b>パスワード生成</b></a></li><li><a href="/percent/"><b>割合（パーセント）計算</b></a></li><li><a href="/hourly-wage/"><b>時給・日給・月給・年収 換算</b></a></li><li><a href="/random/"><b>乱数・抽選</b></a></li><li><a href="/base-convert/"><b>2進数・8進数・10進数・16進数 変換</b></a></li><li><a href="/kana/"><b>ひらがな・カタカナ 変換</b></a></li><li><a href="/aspect/"><b>アスペクト比 計算</b></a></li></ul></main>
+<footer><a href="/">ツール一覧</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
+<script type="module" src="/app.js"></script>
+</body></html>

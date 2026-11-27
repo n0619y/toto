@@ -16,6 +16,7 @@ button{background:var(--acc);color:var(--bg);border:0;font-weight:700;margin-top
 table{width:100%;border-collapse:collapse;margin-top:6px}
 th,td{text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 th{font-weight:400;color:var(--mut);width:45%}td{font-weight:700}
+th,td{overflow-wrap:anywhere}
 .big{font-size:1.4rem;font-family:ui-monospace,monospace;word-break:break-all;margin:8px 0}
 .err{color:var(--err)}
 .ad{min-height:0;margin:20px 0}

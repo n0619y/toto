@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PSA鑑定 損益シミュレーター｜くらしの計算機</title>
+<meta name="description" content="トレカをPSA鑑定に出したときの1枚あたりの費用・期待利益・利益率・損益分岐の仕入れ値を計算します。PSA10・PSA9になった場合の損益も表示。">
+<link rel="canonical" href="https://example.com/psa-profit/">
+<link rel="stylesheet" href="/style.css">
+</head><body data-tool="psa-profit">
+<header><a href="/">くらしの計算機</a></header>
+<main><h1>PSA鑑定 損益シミュレーター</h1><p class="lead">トレカをPSA鑑定に出したときの1枚あたりの費用・期待利益・利益率・損益分岐の仕入れ値を計算します。PSA10・PSA9になった場合の損益も表示。</p><div class="card"><label>仕入れ値（円）<input id="buy" type="number" inputmode="numeric" min="0" step="any"></label>
+<p class="lead">鑑定後の売値と、そのグレードになる確率（合計100%）</p>
+<div class="row"><label>PSA10の売値（円）<input id="v10" type="number" inputmode="decimal" min="0" step="any"></label><label>PSA10の確率（%）<input id="p10" type="number" inputmode="decimal" min="0" step="any" value="50"></label></div>
+<div class="row"><label>PSA9の売値（円）<input id="v9" type="number" inputmode="decimal" min="0" step="any"></label><label>PSA9の確率（%）<input id="p9" type="number" inputmode="decimal" min="0" step="any" value="40"></label></div>
+<div class="row"><label>それ以下の売値（円）<input id="vLow" type="number" inputmode="decimal" min="0" step="any"></label><label>それ以下の確率（%）<input id="pLow" type="number" inputmode="decimal" min="0" step="any" value="10"></label></div>
+<p class="lead">鑑定にかかる費用（初期値は一例です。実際の料金は各自でご確認ください）</p>
+<div class="row"><label>鑑定料（USD/枚）<input id="feeUsd" type="number" inputmode="decimal" min="0" step="any" value="79.99"></label><label>為替（円/ドル）<input id="fx" type="number" inputmode="decimal" min="0" step="any" value="155"></label></div>
+<div class="row"><label>往路送料（円/箱）<input id="shipOut" type="number" inputmode="decimal" min="0" step="any" value="7700"></label><label>復路送料（USD/箱）<input id="shipBack" type="number" inputmode="decimal" min="0" step="any" value="69.99"></label></div>
+<div class="row"><label>1箱の枚数<input id="cards" type="number" inputmode="numeric" min="0" step="any" value="20"></label><label>米国関税（USD/箱）<input id="duty" type="number" inputmode="decimal" min="0" step="any" value="30"></label></div>
+<div class="row"><label>輸入時の税率（%）<input id="taxRate" type="number" inputmode="decimal" min="0" step="any" value="10"></label><label>諸経費（円/枚）<input id="misc" type="number" inputmode="decimal" min="0" step="any" value="150"></label></div></div><div class="card" id="result" aria-live="polite"></div><h2>このツールについて</h2><p>仕入れたカードをPSA鑑定に出して売ると、期待値でいくら残るかを計算します。期待利益＝期待売値−費用の合計−仕入れ値です。利益率は「仕入れ値に対して」と「仕入れ値＋費用に対して」の2通りを表示します。損益分岐の仕入れ値は、期待利益がちょうど0円になる仕入れ値です。</p><p>「PSA10だった場合」「PSA9だった場合」「それ以下だった場合」は、そのグレードの売値から費用の合計と仕入れ値を引いた額です。期待値がプラスでも、PSA9以下では赤字になることがよくあります。</p><p>費用は1枚あたりに直して合計します。鑑定料＝鑑定料(USD)×為替、往路送料＝往路送料÷1箱の枚数、復路送料＝復路送料(USD)×為替÷1箱の枚数、輸入時の税＝(鑑定料＋復路送料)×税率、米国関税＝関税(USD)×為替÷1箱の枚数、これに諸経費（スリーブ・梱包材・国内の発送費など）を足します。</p><p>期待売値は「各グレードの売値×そのグレードになる確率」の合計です。売値には、販売手数料や送料を引いたあとの手取り額、または買取店の買取価格を入れてください。</p><p>初期値は一例です。鑑定料・送料・関税・税率はプランや時期、申込方法（直接か代行か）で変わるため、必ずご自身で最新の料金を確認して書き換えてください。グレードの確率はカードの状態で大きく変わり、このツールが予測するものではありません。</p><p>結果は入力した数字をそのまま計算した参考値で、利益を保証するものではありません。入力内容は外部に送信されません。</p><h2>ほかのツール</h2><ul class="tools"><li><a href="/psa-max-buy/"><b>PSA鑑定 仕入れ上限 逆算</b></a></li><li><a href="/grading-fee/"><b>鑑定料の円換算</b></a></li><li><a href="/card-roi/"><b>トレカ売買の利益率計算</b></a></li><li><a href="/wareki/"><b>和暦・西暦 変換</b></a></li><li><a href="/age/"><b>年齢計算</b></a></li><li><a href="/school/"><b>入学・卒業年 早見</b></a></li><li><a href="/days/"><b>日数計算</b></a></li><li><a href="/count/"><b>文字数カウント</b></a></li><li><a href="/warikan/"><b>割り勘計算</b></a></li><li><a href="/tax/"><b>消費税計算</b></a></li><li><a href="/discount/"><b>割引・ポイント還元 計算</b></a></li><li><a href="/unit/"><b>単位変換</b></a></li><li><a href="/zenhan/"><b>全角・半角 変換</b></a></li><li><a href="/password/"><b>パスワード生成</b></a></li><li><a href="/percent/"><b>割合（パーセント）計算</b></a></li><li><a href="/time-calc/"><b>時間の足し算・引き算</b></a></li><li><a href="/hourly-wage/"><b>時給・日給・月給・年収 換算</b></a></li><li><a href="/random/"><b>乱数・抽選</b></a></li><li><a href="/base-convert/"><b>2進数・8進数・10進数・16進数 変換</b></a></li><li><a href="/kana/"><b>ひらがな・カタカナ 変換</b></a></li><li><a href="/aspect/"><b>アスペクト比 計算</b></a></li></ul></main>
+<footer><a href="/">ツール一覧</a> ・ <a href="/privacy/">プライバシーポリシー・運営者情報</a><br>
+計算結果は参考値です。重要な判断の前には公式の情報でご確認ください。</footer>
+<script type="module" src="/app.js"></script>
+</body></html>

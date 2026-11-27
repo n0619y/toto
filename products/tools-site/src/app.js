@@ -17,6 +17,34 @@ function today() {
   return [t.getFullYear(), t.getMonth() + 1, t.getDate()];
 }
 const iso = (a) => `${a[0]}-${String(a[1]).padStart(2, "0")}-${String(a[2]).padStart(2, "0")}`;
+// 空欄・数値でない入力は null（Number("") が 0 になるのを避ける）
+function val(id) {
+  const s = $(id).value.trim(), n = Number(s);
+  return s !== "" && Number.isFinite(n) ? n : null;
+}
+function vals(ids) {
+  const o = {};
+  for (const id of ids) if ((o[id] = val(id)) === null) return null;
+  return o;
+}
+const on = (ids, run) => ids.forEach((id) => $(id).addEventListener("input", run));
+const yenR = (n) => yen(Math.round(n) || 0); // || 0 は -0 を 0 にするため
+const n6 = (v) => (Number(v.toPrecision(12)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 6 });
+const pct = (v) => (v === null ? "—" : (Number(v.toFixed(2)) + 0).toLocaleString("ja-JP", { maximumFractionDigits: 2 }) + "%");
+// 0 以上 n 未満の一様な整数（剰余の偏りが出ないよう、範囲外の値は引き直す）
+const rand = (n) => {
+  const limit = Math.floor(0x100000000 / n) * n, buf = new Uint32Array(1);
+  do crypto.getRandomValues(buf); while (buf[0] >= limit);
+  return buf[0] % n;
+};
+const PSA_COST = ["feeUsd", "fx", "shipOut", "shipBack", "cards", "duty", "taxRate", "misc"];
+const PSA_SALE = ["v10", "v9", "vLow", "p10", "p9", "pLow"];
+const PSA_BAD = "入力を確認してください（金額・確率は0以上、為替は0より大きく、1箱の枚数は1以上の整数、税率は100%以下）。";
+const psaProbErr = (v) => (Math.abs(v.p10 + v.p9 + v.pLow - 100) > 1e-6 ? `確率の合計が100%になるようにしてください（いまは${n6(v.p10 + v.p9 + v.pLow)}%）。` : PSA_BAD);
+const psaCostRows = (c) => [
+  ["鑑定料", yenR(c.grading)], ["往路送料", yenR(c.shipOut)], ["復路送料", yenR(c.shipBack)],
+  ["輸入時の税", yenR(c.importTax)], ["米国関税", yenR(c.usDuty)], ["諸経費", yenR(c.misc)], ["費用の合計（1枚あたり）", yenR(c.total)],
+];
 
 const TOOLS = {
   wareki() {
@@ -140,11 +168,6 @@ const TOOLS = {
   },
   password() {
     const SETS = { lower: "abcdefghijkmnopqrstuvwxyz", upper: "ABCDEFGHJKLMNPQRSTUVWXYZ", digit: "23456789", symbol: "!#$%&*+-=?@_" };
-    const rand = (n) => {
-      const limit = Math.floor(0x100000000 / n) * n, buf = new Uint32Array(1);
-      do crypto.getRandomValues(buf); while (buf[0] >= limit);
-      return buf[0] % n;
-    };
     const run = () => {
       const sets = Object.keys(SETS).filter((k) => $(k).checked).map((k) => SETS[k]);
       const pw = L.password(num("len"), sets, rand);
@@ -153,6 +176,162 @@ const TOOLS = {
     $("gen").addEventListener("click", run);
     $("copy").addEventListener("click", () => navigator.clipboard.writeText($("result").textContent));
     run();
+  },
+  "psa-profit"() {
+    const ids = ["buy", ...PSA_SALE, ...PSA_COST];
+    const run = () => {
+      const v = vals(ids);
+      if (!v) return show("");
+      const r = L.psaProfit(v);
+      if (!r) return err(psaProbErr(v));
+      show(rows([
+        ...psaCostRows(r.costs),
+        ["期待売値", yenR(r.expected)], ["期待利益（1枚あたり）", yenR(r.profit)],
+        ["利益率（仕入れ値に対して）", pct(r.marginOnBuy)], ["利益率（仕入れ値＋費用に対して）", pct(r.marginOnSpend)],
+        ["損益分岐の仕入れ値", r.breakevenBuy > 0 ? yen(Math.floor(r.breakevenBuy)) : "なし（費用が期待売値を上回ります）"],
+        ["PSA10だった場合の損益", yenR(r.if10)], ["PSA9だった場合の損益", yenR(r.if9)], ["それ以下だった場合の損益", yenR(r.ifLow)],
+      ]) + "<p>1円未満は四捨五入して表示しています（損益分岐の仕入れ値は切り捨て）。</p>");
+    };
+    on(ids, run);
+    run();
+  },
+  "psa-max-buy"() {
+    const ids = [...PSA_SALE, ...PSA_COST, "target"];
+    const run = () => {
+      const v = vals(ids);
+      if (!v) return show("");
+      const r = L.psaMaxBuy(v);
+      if (!r) return err(v.target < 0 ? "目標利益率は0%以上で入力してください。" : psaProbErr(v));
+      show(rows([
+        ["仕入れ上限（100円単位に切り下げ）", yen(r.maxBuy)],
+        ["仕入れ上限（切り下げ前）", yen(Math.max(0, Math.floor(r.exact)))],
+        ["期待売値", yenR(r.expected)], ["費用の合計（1枚あたり）", yenR(r.costs.total)],
+        ["損益分岐の仕入れ値（利益0円）", r.breakevenBuy > 0 ? yen(Math.floor(r.breakevenBuy)) : "なし"],
+      ]) + (r.breakevenBuy <= 0 ? '<p class="err">費用が期待売値を上回るため、いくらで仕入れても期待値では利益が出ません。</p>' : ""));
+    };
+    on(ids, run);
+    run();
+  },
+  "grading-fee"() {
+    const ids = ["count", "unitUsd", "fx", "shipOut", "shipBack"];
+    const run = () => {
+      const v = vals(ids);
+      if (!v) return show("");
+      const r = L.gradingFee(v.count, v.unitUsd, v.fx, v.shipOut, v.shipBack);
+      if (!r) return err("枚数は1以上の整数、為替は0より大きい数、金額は0以上で入力してください。");
+      show(rows([
+        ["1枚あたり", yenR(r.perCard)], ["　うち鑑定料", yenR(r.perCardGrading)], ["　うち送料", yenR(r.perCardShipping)],
+        ["鑑定料の合計", yenR(r.grading)], ["送料の合計", yenR(r.shipping)], ["合計", yenR(r.total)],
+      ]));
+    };
+    on(ids, run);
+    run();
+  },
+  "card-roi"() {
+    const ids = ["buy", "sell", "fee", "ship"];
+    const run = () => {
+      const v = vals(ids);
+      if (!v) return show("");
+      const r = L.cardRoi(v.buy, v.sell, v.fee, v.ship);
+      if (!r) return err("金額は0以上、手数料率は0%以上100%未満で入力してください。");
+      show(rows([
+        ["販売手数料", yenR(r.fee)], ["手取り（売値−手数料−送料）", yenR(r.net)], ["利益", yenR(r.profit)],
+        ["利益率（売値に対して）", pct(r.marginOnSell)], ["利益率（仕入れ値に対して）", pct(r.roi)],
+        ["損益分岐の売値", yen(Math.ceil(Number(r.breakevenSell.toFixed(6))))],
+      ]));
+    };
+    on(ids, run);
+  },
+  percent() {
+    const run = () => {
+      const v = vals(["a", "b"]);
+      if (!v) return show("");
+      const f = (x, unit, why) => (x === null ? why : n6(x) + unit);
+      show(rows([
+        [`${n6(v.a)} は ${n6(v.b)} の何%`, f(L.percentOf(v.a, v.b), "%", "計算できません（Bが0）")],
+        [`${n6(v.a)} の ${n6(v.b)}%`, f(L.percentage(v.a, v.b), "", "計算できません（数が大きすぎます）")],
+        [`${n6(v.a)} から ${n6(v.b)} への増減率`, f(L.changeRate(v.a, v.b), "%", "計算できません（Aが0）")],
+      ]));
+    };
+    on(["a", "b"], run);
+  },
+  "time-calc"() {
+    const hm = (m) => `${L.formatDuration(m)}（${n6(m / 60)}時間・${m.toLocaleString("ja-JP")}分）`;
+    const run = () => {
+      const out = [];
+      const s = L.sumDurations($("list").value);
+      if (s.bad.length) return err(`${s.bad.join("・")}行目を読めません。「1:30」のように 時:分（分は00〜59）で入力してください。`);
+      if (s.count) out.push([`合計（${s.count}件）`, hm(s.total)]);
+      const a = L.parseDuration($("start").value), b = L.parseDuration($("end").value);
+      if (a !== null && b !== null) {
+        const brk = $("brk").value.trim() === "" ? 0 : val("brk");
+        const d = brk === null ? null : L.timeDiff(a, b, brk);
+        if (!d) return err("休憩は0以上の整数（分）で、開始〜終了の時間以内にしてください。");
+        out.push([d.overnight ? "開始〜終了（翌日の終了として計算）" : "開始〜終了", hm(d.minutes)]);
+        if (brk) out.push(["休憩を引いた時間", hm(d.work)]);
+      }
+      show(out.length ? rows(out) : "");
+    };
+    on(["list", "start", "end", "brk"], run);
+  },
+  "hourly-wage"() {
+    const run = () => {
+      const v = vals(["amount", "hours", "days"]);
+      if (!v) return show("");
+      const r = L.wageConvert(v.amount, $("kind").value, v.hours, v.days);
+      if (!r) return err("金額は0以上、1日の労働時間は0より大きく24以下、月の勤務日数は0より大きく31以下で入力してください。");
+      show(rows([["時給", yenR(r.hourly)], ["日給", yenR(r.daily)], ["月給", yenR(r.monthly)], ["年収（月給×12）", yenR(r.yearly)],
+        ["月の労働時間", `${n6(v.hours * v.days)}時間`]]));
+    };
+    on(["amount", "kind", "hours", "days"], run);
+  },
+  random() {
+    $("draw").addEventListener("click", () => {
+      const v = vals(["min", "max", "n"]);
+      const r = v && L.randomUnique(v.min, v.max, v.n, rand);
+      if (!r) return err(`最小・最大・個数は整数で、個数は1以上かつ範囲に含まれる数の個数以下（最大${L.RANDOM_MAX_COUNT.toLocaleString("ja-JP")}個）にしてください。範囲の広さは約42億までです。`);
+      if ($("sort").checked) r.sort((a, b) => a - b);
+      show(`<p class="big">${esc(r.join("、"))}</p>`);
+    });
+    $("pick").addEventListener("click", () => {
+      const items = $("list").value.split(/\r\n|\r|\n/).map((s) => s.trim()).filter(Boolean);
+      const k = val("k");
+      const r = k === null ? null : L.pickFromList(items, k, rand);
+      if (!r) return err(`選ぶ数は1以上、リストの件数（いま${items.length}件）以下の整数にしてください。`);
+      show("<table>" + r.map((s, i) => `<tr><th>${i + 1}番目</th><td>${esc(s)}</td></tr>`).join("") + "</table>");
+    });
+  },
+  "base-convert"() {
+    const run = () => {
+      if ($("value").value.trim() === "") return show("");
+      const r = L.baseConvert($("value").value, num("from"));
+      if (!r) return err(`${num("from")}進数として読めません。使える文字と桁数（${L.BASE_MAX_DIGITS.toLocaleString("ja-JP")}桁まで）を確認してください。`);
+      show(rows([["2進数", r[2]], ["8進数", r[8]], ["10進数", r[10]], ["16進数", r[16]]]));
+    };
+    on(["value", "from"], run);
+  },
+  kana() {
+    const set = (fn) => { $("out").value = fn($("text").value); };
+    $("toKata").addEventListener("click", () => set(L.toKatakana));
+    $("toHira").addEventListener("click", () => set(L.toHiragana));
+    $("copy").addEventListener("click", () => navigator.clipboard.writeText($("out").value));
+  },
+  aspect() {
+    const run = () => {
+      const v = vals(["w", "h"]);
+      if (!v) return show("");
+      const r = L.aspectRatio(v.w, v.h);
+      if (!r) return err("幅と高さは0より大きい数で入力してください。");
+      const out = [["比率", r.rw ? `${r.rw}:${r.rh}` : `${n6(r.decimal)}:1`], ["幅÷高さ", n6(r.decimal)]];
+      for (const [id, key, name, other] of [["newW", "width", "幅", "高さ"], ["newH", "height", "高さ", "幅"]]) {
+        if ($(id).value.trim() === "") continue;
+        const x = val(id), y = x === null ? null : L.aspectScale(v.w, v.h, { [key]: x });
+        if (y === null) return err(`新しい${name}は0より大きい数で入力してください。`);
+        out.push([`${name} ${n6(x)} のときの${other}`, Number.isInteger(Number(y.toPrecision(12))) ? n6(y) : `${n6(Number(y.toFixed(2)))}（整数にすると ${n6(Math.round(y))}）`]);
+      }
+      show(rows(out));
+    };
+    on(["w", "h", "newW", "newH"], run);
   },
 };
 
