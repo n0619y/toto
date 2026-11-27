@@ -7,7 +7,22 @@ from pokeca.core import best_offers, card_key, normalize_grade, per_card_costs, 
 from pokeca.db import DB
 
 ROOT = Path(__file__).resolve().parents[1]
-CFG = yaml.safe_load((ROOT / "config" / "pokeca.yaml").read_text(encoding="utf-8"))
+# テストは設定ファイルの金額に依存させない（設定は実績に合わせて変わるため）
+CFG = {
+    "usd_jpy": 155,
+    "costs": {"psa_fee_usd": 25, "cards_per_shipment": 20, "outbound_shipping_jpy": 8000,
+              "return_shipping_usd": 60, "us_duty_per_shipment_usd": 30,
+              "import_tax_rate": 0.10, "misc_per_card_jpy": 150},
+    "target_margin": 0.25,
+    "grade_probabilities": {"PSA10": 0.5, "PSA9": 0.4, "LOW": 0.1},
+    "fallback": {"psa9_of_raw": 0.9, "low_of_raw": 0.5},
+}
+
+
+def test_shipped_config_is_valid():
+    cfg = yaml.safe_load((ROOT / "config" / "pokeca.yaml").read_text(encoding="utf-8"))
+    assert per_card_costs(cfg).total > 0
+    assert sum(cfg["grade_probabilities"].values()) == pytest.approx(1.0)
 A = "SV2A-201/165"
 
 
@@ -26,10 +41,7 @@ def test_normalization():
 
 def test_costs_per_card():
     c = per_card_costs(CFG)
-    cfg = {"usd_jpy": 155, "costs": {
-        "psa_fee_usd": 25, "cards_per_shipment": 20, "outbound_shipping_jpy": 8000, "return_shipping_usd": 60,
-        "us_duty_per_shipment_usd": 30, "import_tax_rate": 0.10, "misc_per_card_jpy": 150}}
-    c = per_card_costs(cfg)
+    c = per_card_costs(CFG)
     assert c.grading == 25 * 155
     assert c.ship_out == 8000 / 20
     assert c.ship_back == 60 * 155 / 20
