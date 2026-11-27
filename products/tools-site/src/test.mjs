@@ -94,6 +94,43 @@ assert.deepEqual(L.cardRoi(0, 0, 10, 0), { fee: 0, net: 0, profit: 0, marginOnSe
 assert.equal(L.cardRoi(1000, 500, 10, 0).profit, -550);
 for (const a of [[1000, 2000, 100, 0], [1000, 2000, -1, 0], [-1, 2000, 10, 0], [1000, NaN, 10, 0], [1000, 2000, 10, -5]]) assert.equal(L.cardRoi(...a), null);
 
+// フリマと買取の手取り比較。期待値は products/kaitori-kit/計算例.md の例1・3・4・5 と手計算
+const FK = (...a) => L.furimaVsKaitori(...a);
+assert.deepEqual(FK(10000, 10, 210, 93), { fee: 1000, furima: 8790, kaitoriGaku: 9300, kaitori: 9300, diff: 510, breakevenRate: 87.9 });
+assert.deepEqual(FK(10000, 10, 210, 93, 0, 0), FK(10000, 10, 210, 93));                       // 省略時は売り手負担 0
+assert.deepEqual(FK(10000, 10, 210, 93, 520), { fee: 1000, furima: 8790, kaitoriGaku: 9300, kaitori: 8780, diff: -10, breakevenRate: 93.1 });
+assert.deepEqual(FK(60000, 10, 2100, 93), { fee: 6000, furima: 51900, kaitoriGaku: 55800, kaitori: 55800, diff: 3900, breakevenRate: 86.5 });
+assert.deepEqual(FK(3000, 10, 210, 93), { fee: 300, furima: 2490, kaitoriGaku: 2790, kaitori: 2790, diff: 300, breakevenRate: 83 });
+assert.deepEqual(FK(10000, 10, 210, 93, 300, 220), { fee: 1000, furima: 8790, kaitoriGaku: 9300, kaitori: 8780, diff: -10, breakevenRate: 93.1 }); // (8790+520)÷10000
+// 端数: 999×10%=99.9→99、999×93%=929.07→929。同じになる率 690÷999=69.069…→69.1
+assert.deepEqual(FK(999, 10, 210, 93), { fee: 99, furima: 690, kaitoriGaku: 929, kaitori: 929, diff: 239, breakevenRate: 69.1 });
+// 浮動小数の誤差: 10000×4.35 は JS では 43499.99… になるが、手数料は 435円
+assert.equal(FK(10000, 4.35, 0, 0).fee, 435);
+assert.equal(FK(1000, 0.1, 0, 0).fee, 1);
+assert.equal(FK(999, 0.1, 0, 0).fee, 0);                                                      // 0.999 → 0
+assert.equal(FK(300, 33.3333, 0, 33.3334).fee, 99);                                           // 99.9999 → 99
+assert.equal(FK(300, 33.3333, 0, 33.3334).kaitoriGaku, 100);                                  // 100.0002 → 100
+// 手取りが同じ・境界
+assert.deepEqual(FK(10000, 10, 210, 87.9), { fee: 1000, furima: 8790, kaitoriGaku: 8790, kaitori: 8790, diff: 0, breakevenRate: 87.9 });
+assert.deepEqual(FK(1, 0, 0, 0), { fee: 0, furima: 1, kaitoriGaku: 0, kaitori: 0, diff: -1, breakevenRate: 100 });
+assert.deepEqual(FK(1, 100, 0, 100), { fee: 1, furima: 0, kaitoriGaku: 1, kaitori: 1, diff: 1, breakevenRate: 0 });
+assert.equal(FK(10000, 0, 0, 1000).kaitori, 100000);                                          // 買取率の上限
+assert.equal(FK(2000, 0, 5, 0).breakevenRate, 99.8);                                          // 99.75 → 99.8（四捨五入）
+assert.equal(FK(2000, 0, 6, 0).breakevenRate, 99.7);                                          // 99.70
+assert.equal(FK(3000, 0, 1, 0).breakevenRate, 100);                                           // 99.966… → 100.0
+// フリマの手取りがマイナス（送料が相場を上回る）: 金額はそのまま出し、同じになる買取率は「なし」
+assert.deepEqual(FK(100, 10, 210, 93), { fee: 10, furima: -120, kaitoriGaku: 93, kaitori: 93, diff: 213, breakevenRate: null });
+assert.equal(FK(100, 10, 210, 93, 120).breakevenRate, 0);                                     // −120 + 120 = 0
+assert.equal(FK(100, 0, 0, 50, 80).kaitori, -30);                                             // 買取の手取りもマイナスになりうる
+// 上限いっぱいでも桁あふれしない
+assert.deepEqual(FK(L.MAX_YEN, 100, L.MAX_YEN, 1000, L.MAX_YEN, L.MAX_YEN),
+  { fee: 1e12, furima: -1e12, kaitoriGaku: 1e13, kaitori: 8e12, diff: 9e12, breakevenRate: 100 });
+for (const a of [[0, 10, 210, 93], [-1, 10, 210, 93], [1000.5, 10, 210, 93], [L.MAX_YEN + 1, 10, 210, 93], [NaN, 10, 210, 93], [Infinity, 10, 210, 93],
+  [10000, -0.1, 210, 93], [10000, 100.1, 210, 93], [10000, NaN, 210, 93], [10000, 10, -1, 93], [10000, 10, 210.5, 93], [10000, 10, L.MAX_YEN + 1, 93],
+  [10000, 10, 210, -1], [10000, 10, 210, 1000.1], [10000, 10, 210, NaN], [10000, 10, 210, Infinity],
+  [10000, 10, 210, 93, -1], [10000, 10, 210, 93, 0.5], [10000, 10, 210, 93, 0, -1], [10000, 10, 210, 93, 0, NaN], [10000, "10", 210, 93], [null, 10, 210, 93]])
+  assert.equal(FK(...a), null, JSON.stringify(a));
+
 // ---- くらし・仕事 ----
 assert.equal(L.percentOf(30, 120), 25);
 assert.equal(L.percentOf(0, 5), 0);

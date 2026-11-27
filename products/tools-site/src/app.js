@@ -287,6 +287,24 @@ const TOOLS = {
     };
     on(ids, run);
   },
+  "furima-vs-kaitori"() {
+    const ids = ["price", "fee", "fship", "rate", "kship", "kfee"];
+    const run = () => {
+      const v = vals(ids);
+      if (!v) return;
+      const r = L.furimaVsKaitori(v.price, v.fee, v.fship, v.rate, v.kship, v.kfee);
+      if (!r) return err(`相場価格は1円以上、送料・振込手数料は0円以上の整数（1兆円以下）で、手数料率は0〜100%、買取率は0〜${L.KAITORI_RATE_MAX.toLocaleString("ja-JP")}%で入力してください。`);
+      const d = Math.abs(r.diff);
+      const which = r.diff > 0 ? `+${yen(d)}（買取のほうが${yen(d)}多い）` : r.diff < 0 ? `-${yen(d)}（フリマのほうが${yen(d)}多い）` : "0円（手取りは同じ）";
+      show(rows([
+        ["フリマで売った場合の手取り", yen(r.furima)], ["買取に出した場合の手取り", yen(r.kaitori)],
+        ["差額（買取 − フリマ）", which],
+        ["手取りが同じになる買取率", r.breakevenRate === null ? "なし（フリマの手取りがマイナスのため、買取率が何%でも買取のほうが多くなります）" : r.breakevenRate.toFixed(1) + "%"],
+      ]) + `<p>内訳: 販売手数料 ${esc(yen(r.fee))}、買取額（相場×買取率）${esc(yen(r.kaitoriGaku))}。手数料と買取額は1円未満を切り捨てています。</p>`);
+    };
+    on(ids, run);
+    run();
+  },
   percent() {
     const run = () => {
       const v = vals(["a", "b"]);

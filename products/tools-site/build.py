@@ -69,6 +69,19 @@ CARD_TOOLS = [
      "利益＝売値−販売手数料−送料−仕入れ値、販売手数料＝売値×手数料率です。利益率は「売値に対して」と「仕入れ値に対して」の2通りを表示します。"
      "損益分岐の売値は、利益が0円以上になる最低の売値（(仕入れ値＋送料)÷(1−手数料率)を1円単位に切り上げ）です。\n"
      "手数料率の初期値10%は一例です。手数料率や1円未満の端数処理は販売先によって異なるため、実際の額と数円ずれることがあります。振込手数料などは送料の欄に足して計算してください。"),
+    ("furima-vs-kaitori", "フリマと買取の手取り比較", "同じカードをフリマで売った場合と買取に出した場合の手取りを比べ、差額と、手取りが同じになる買取率を計算します。",
+     f"""{_n("price", "相場価格（円）", "", "numeric")}
+<p class="lead">フリマで売る場合（初期値は一例です）</p>
+<div class="row">{_n("fee", "販売手数料率（%）", 10)}{_n("fship", "送料（円）", 210, "numeric")}</div>
+<p class="lead">買取に出す場合（初期値は一例です）</p>
+{_n("rate", "買取率（%・相場に対して）", 93)}
+<div class="row">{_n("kship", "売り手負担の送料（円）", 0, "numeric")}{_n("kfee", "売り手負担の振込手数料（円）", 0, "numeric")}</div>""",
+     "フリマの手取り＝相場価格−販売手数料−送料、買取の手取り＝買取額−売り手が負担する送料−売り手が負担する振込手数料です。"
+     "販売手数料＝相場価格×手数料率、買取額＝相場価格×買取率で、どちらも1円未満を切り捨てます。差額は「買取の手取り−フリマの手取り」で、プラスなら買取のほうが多くなります。\n"
+     "手取りが同じになる買取率＝(フリマの手取り＋売り手が負担する送料＋振込手数料)÷相場価格です（端数処理前の値を小数第2位で四捨五入）。買取率がこれより高ければ、買取のほうが手取りが多くなります。\n"
+     "手数料率・送料・買取率・振込手数料は、サービスや発送方法、店によって違います。初期値は一例なので、必ずご自身の条件に書き換えてください。1円未満の端数処理もサービスによって異なり、実際の額と数円ずれることがあります。\n"
+     "フリマでは相場価格どおりに売れるものとして計算しています。売れるまでの日数、値下げ、梱包材の費用、売上金を引き出すときの手数料、査定で減額される場合は含めていません。"
+     "このツールは入力した数字を比べるだけで、特定のサービスや店を勧めるものではありません。金額は円の整数で、率は小数第4位まで入力できます。入力内容は外部に送信されません。"),
 ]
 
 LIFE_TOOLS = [    ("wareki", "和暦・西暦 変換", "西暦から和暦、和暦から西暦へすぐ変換。改元のあった年や干支も表示します。",
@@ -183,7 +196,9 @@ AD_SLOT = ('<div class="ad"><ins class="adsbygoogle" style="display:block" data-
 SHEET_NAME = "PSA鑑定 収支管理シート"
 SHEET_DESC = ("トレカをPSA鑑定に出して売る個人向けの、Excel / Googleスプレッドシート用の収支管理シートの紹介です。"
               "在庫台帳・注文別集計・月次集計・仕入れ前シミュレーターが1ファイルに入っています。")
-SHEET_IMAGES = ROOT.parent / "psa-sheet" / "dist" / "images"   # 読むだけ。PNG があれば public/sheet/ にコピーする
+SHEET_IMAGES = ROOT.parent / "psa-sheet" / "dist" / "images"   # 読むだけ。PNG があれば縮小して public/sheet/ に出力する
+SHEET_IMAGE_WIDTH = 1200   # 表示幅は最大約650px。高解像度の画面でも文字が読めるよう、その約2倍にする
+SHEET_IMAGE_QUALITY = 90   # WebP の品質。80 でも読めるが、細い文字の周りのにじみが少ない 90 にしている
 PRODUCT_URL = str(SITE.get("product_url", "")).strip()
 PRODUCT_PRICE = str(SITE.get("product_price", "")).strip()
 PRODUCT_VERIFIED = str(SITE.get("product_verified", "")).strip()
@@ -324,7 +339,8 @@ GUIDES = [
 GUIDE_TITLE = {s: t for s, t, *_ in GUIDES}
 # トレカ向けツールの各ページ下部に出す解説記事（一般向けツールには出さない）
 TOOL_GUIDES = {"psa-profit": ["break-even", "grading-cost", "records"], "psa-max-buy": ["break-even", "grading-cost"],
-               "grading-fee": ["grading-cost", "records"], "card-roi": ["records", "break-even"]}
+               "grading-fee": ["grading-cost", "records"], "card-roi": ["records", "break-even"],
+               "furima-vs-kaitori": ["records"]}
 SHEET_LI = f'<li><a href="/sheet/"><b>{e(SHEET_NAME)}（商品紹介）</b><span>在庫台帳・注文別集計・月次集計・シミュレーターが入った、Excel / Googleスプレッドシート用のシートです。</span></a></li>'
 
 
@@ -385,10 +401,33 @@ def png_size(path):
     return int.from_bytes(head[16:20], "big"), int.from_bytes(head[20:24], "big")
 
 
+def export_shot(png, out_dir):
+    """商品画像1枚を out_dir に出力し、(ファイル名, 幅, 高さ) を返す。元の PNG は読むだけで変更しない。
+
+    Pillow があれば幅 SHEET_IMAGE_WIDTH px に縮小した WebP にする（幅がそれ以下の画像は拡大しない）。
+    Pillow が無い環境では縮小せずに PNG のままコピーする。
+    形式は 1200px 幅で比べて決めた: WebP 品質90 が合計約0.39MB、256色PNG 約0.48MB（赤字の色が変わる）、
+    フルカラーPNG 約1.3MB、JPEG 品質90 約0.73MB。
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        print(f"警告: Pillow が無いため {png.name} を縮小せずにコピーしました（pip install pillow で縮小されます）")
+        shutil.copy(png, out_dir / png.name)
+        return (png.name, *png_size(png))
+    with Image.open(png) as im:
+        im = im.convert("RGBA" if "A" in im.getbands() or "transparency" in im.info else "RGB")
+        if im.width > SHEET_IMAGE_WIDTH:
+            im = im.resize((SHEET_IMAGE_WIDTH, max(1, round(im.height * SHEET_IMAGE_WIDTH / im.width))), Image.LANCZOS)
+        name = png.stem + ".webp"
+        im.save(out_dir / name, "WEBP", quality=SHEET_IMAGE_QUALITY, method=6)
+        return (name, im.width, im.height)
+
+
 def sheet_body(shots):
-    """shots: public/sheet/ にコピーした PNG の [(ファイル名, 幅, 高さ)]。空なら画像なしで組む。"""
+    """shots: public/sheet/ に出力した画像の [(ファイル名, 幅, 高さ)]。空なら画像なしで組む。"""
     def fig(name, w, h, lazy=True):
-        alt = SHEET_SHOTS.get(name, f"{SHEET_NAME}の画面")
+        alt = SHEET_SHOTS.get(Path(name).stem + ".png", f"{SHEET_NAME}の画面")
         lz = ' loading="lazy"' if lazy else ""
         return (f'<figure><img src="/sheet/{e(name)}" alt="{e(alt)}" width="{w}" height="{h}"{lz}>'
                 f'<figcaption>{e(alt)}。画像内のカード名・金額はすべて架空のサンプルです。</figcaption></figure>')
@@ -515,8 +554,7 @@ def main():
     shots = []
     if SHEET_IMAGES.is_dir():   # 商品画像が無くても（psa-sheet が無い環境でも）ページは成立する
         for png in sorted(SHEET_IMAGES.glob("*.png")):
-            shutil.copy(png, OUT / "sheet" / png.name)
-            shots.append((png.name, *png_size(png)))
+            shots.append(export_shot(png, OUT / "sheet"))
     (OUT / "sheet" / "index.html").write_text(
         page("sheet/", f"{SHEET_NAME}（Excel / Googleスプレッドシート用）", SHEET_DESC, sheet_body(shots)), encoding="utf-8")
 
@@ -540,6 +578,10 @@ def main():
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{e(SITE['url'])}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")
     (OUT / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE['url']}/sitemap.xml\n", encoding="utf-8")
+    if shots:
+        before = sum(p.stat().st_size for p in SHEET_IMAGES.glob("*.png"))
+        after = sum((OUT / "sheet" / n).stat().st_size for n, *_ in shots)
+        print(f"商品画像 {len(shots)} 枚: 元 {before / 1024:,.0f} KB → 出力 {after / 1024:,.0f} KB")
     print(f"{len(TOOLS)} ツール + 解説 {len(GUIDES)} 本 + 商品紹介（画像 {len(shots)} 枚、"
           f"{'購入ボタンあり' if PRODUCT_URL else '販売準備中'}）+ トップ + プライバシーを {OUT} に生成しました")
 

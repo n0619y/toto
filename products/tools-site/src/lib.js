@@ -291,6 +291,27 @@ export function cardRoi(buy, sell, feePercent, shipping = 0) {
   };
 }
 
+// フリマで売った場合と買取に出した場合の、売り手の手取り（円）。products/kaitori-kit/tejori.py と同じ式・同じ端数処理。
+//   フリマの手取り = 相場 − 販売手数料（相場 × 手数料率、1円未満切り捨て）− 送料
+//   買取の手取り   = 買取額（相場 × 買取率、1円未満切り捨て）− 売り手負担の送料 − 売り手負担の振込手数料
+//   手取りが同じになる買取率 = (フリマの手取り + 売り手負担の送料 + 振込手数料) ÷ 相場（端数処理前の理論値を小数1桁に四捨五入）
+// 金額は円の整数、率は % で小数4桁まで（それより細かい桁は四捨五入）。0.1 × 3 のような誤差を出さないため BigInt で計算する。
+export const KAITORI_RATE_MAX = 1000;
+export function furimaVsKaitori(price, feePercent, furimaShip, kaitoriPercent, sellerShip = 0, transferFee = 0) {
+  if (!isInt(price, 1, MAX_YEN) || ![furimaShip, sellerShip, transferFee].every((v) => isInt(v, 0, MAX_YEN))) return null;
+  if (!isRate(feePercent) || !(typeof kaitoriPercent === "number" && kaitoriPercent >= 0 && kaitoriPercent <= KAITORI_RATE_MAX)) return null;
+  const part = (pct) => Number((BigInt(price) * BigInt(Math.round(pct * 1e4))) / 1000000n); // 相場 × 率 の1円未満切り捨て
+  const fee = part(feePercent), kaitoriGaku = part(kaitoriPercent);
+  const furima = price - fee - furimaShip;
+  const kaitori = kaitoriGaku - sellerShip - transferFee;
+  const need = furima + sellerShip + transferFee; // 買取額がこの額なら手取りが同じ
+  return {
+    fee, furima, kaitoriGaku, kaitori, diff: kaitori - furima,
+    // 0.1% 単位に四捨五入。フリマの手取りがマイナスで、買取率が何%でも買取のほうが多いときは null
+    breakevenRate: need < 0 ? null : Number((BigInt(need) * 2000n + BigInt(price)) / (2n * BigInt(price))) / 10,
+  };
+}
+
 // ---- くらし・仕事 ----
 export const percentOf = (a, b) => (fin(a, b) && b !== 0 ? finOrNull((a / b) * 100) : null); // A は B の何%
 export const percentage = (a, b) => (fin(a, b) ? finOrNull((a * b) / 100) : null);            // A の B%
