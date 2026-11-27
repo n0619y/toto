@@ -30,11 +30,23 @@ sites:
     category: medical_portal
     yen_per_point: 1
     mail_from: ["medpeer.jp"]
-  # 一般のポイントサイトを使う場合はここに追加（mail_from は案内メールの送信元の一部）
-  # モッピー:
-  #   category: point_site
-  #   yen_per_point: 1
-  #   mail_from: ["moppy.jp"]
+  # --- 一般のポイントサイト・アンケートサイト ---------------------------------
+  # 2026-11 時点の調査では、自動操作を規約で明示的に許可しているサイトも、会員向けの
+  # 公式APIも見つからなかったため、すべて本人操作（automation 未設定）です。
+  # 案内メールの案件は自動で拾い、時間単価の高い順に朝報へ並べます。
+  # mail_from は公式サイトのドメインからの推定です。届くメールの送信元と違えば直してください。
+  モッピー:               {category: point_site,  yen_per_point: 1,   mail_from: ["moppy.jp"]}
+  ハピタス:               {category: point_site,  yen_per_point: 1,   mail_from: ["hapitas.jp"]}
+  ポイントインカム:       {category: point_site,  yen_per_point: 0.1, mail_from: ["pointi.jp"]}
+  ECナビ:                 {category: point_site,  yen_per_point: 0.1, mail_from: ["ecnavi.jp"]}
+  げん玉:                 {category: point_site,  yen_per_point: 0.1, mail_from: ["gendama.jp"]}
+  ちょびリッチ:           {category: point_site,  yen_per_point: 0.5, mail_from: ["chobirich.com"]}
+  ワラウ:                 {category: point_site,  yen_per_point: 0.1, mail_from: ["warau.jp"]}
+  ニフティポイントクラブ: {category: point_site,  yen_per_point: 1,   mail_from: ["lifemedia.jp"]}
+  ポイントタウン:         {category: point_site,  yen_per_point: 1,   mail_from: ["pointtown.com"]}
+  マクロミル:             {category: survey_site, yen_per_point: 1,   mail_from: ["macromill.com"]}
+  リサーチパネル:         {category: survey_site, yen_per_point: 0.1, mail_from: ["research-panel.jp"]}
+  infoQ:                  {category: survey_site, yen_per_point: 1,   mail_from: ["infoq.jp"]}
 
 # 毎日の定番タスク（案内メールが来なくても毎朝ルート候補に入る）
 routines:
