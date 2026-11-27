@@ -116,3 +116,37 @@ def test_shinsoku_parser():
     assert [(r["number"], r["name"], r["grade"], r["price"]) for r in rows] == [
         ("096/071", "ナンジャモ SAR", "", 31000), ("223/193", "メガリザードンXex", "PSA10", 8900)]
     assert shinsoku.total_pages(page) == 71
+
+
+# 実際の投稿文の形（2024〜2026年の公開投稿から、形式確認用に抜粋）
+POST_NUMBERED = """📢＃スニダンポケカ買取情報📢
+ただいまポケカサポートPSA10の買取大募集‼
+🔥🔥🔥🔥🔥
+✅メイ（067/049）￥81,000
+✅リーリエの全力（068/049）￥82,000
+✅ブルーの探索 （196/173）￥140,000
+https://t.co/xxxx"""
+POST_NICKNAMES = """📢#スニダン #ポケカ #PSA10 買取情報📢
+✅エクバリーリエ✨ ￥5,900,000
+✅アセロラ👻 ￥880,000
+本日は11時から買取開始"""
+POST_ONEPIECE = """#ワンピ #PSA10 金＆銀ニカの買取金額🆙
+金背景 ニカルフィ ￥2⃣6⃣5⃣,0⃣0⃣0⃣"""
+
+
+def test_x_post_parsing():
+    from pokeca.shops.xposts import parse_post, resolve
+    rows = parse_post(POST_NUMBERED, "スニダン")
+    assert [(r["name"], r["number"], r["grade"], r["price"]) for r in rows] == [
+        ("メイ", "067/049", "PSA10", 81000), ("リーリエの全力", "068/049", "PSA10", 82000),
+        ("ブルーの探索", "196/173", "PSA10", 140000)]
+    nick = parse_post(POST_NICKNAMES, "スニダン")
+    assert [(r["name"], r["price"]) for r in nick] == [("エクバリーリエ", 5900000), ("アセロラ", 880000)]
+    assert parse_post(POST_ONEPIECE, "スニダン") == []          # ポケカ以外は読まない
+
+    aliases = {"エクバリーリエ": {"number": "397/SM-P", "name": "リーリエ"}}
+    ok, unresolved = resolve(nick, aliases, {"アセロラ": {"056/049", "063/SM-P"}})
+    assert [(r["name"], r["number"]) for r in ok] == [("リーリエ", "397/SM-P")]
+    assert unresolved[0]["name"] == "アセロラ" and unresolved[0]["candidates"] == ["056/049", "063/SM-P"]
+    ok2, _ = resolve(nick[1:], {}, {"アセロラ": {"056/049"}})
+    assert ok2[0]["number"] == "056/049"                         # 候補が1つなら確定

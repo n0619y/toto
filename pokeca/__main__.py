@@ -1,5 +1,6 @@
 """使い方:
   python -m pokeca prices fetch [--shop シンソク]     買取表を各店のサイトから取得する
+  python -m pokeca prices fetch-x [--limit 10]       X の投稿から買取情報を取得する（X_BEARER_TOKEN が必要）
   python -m pokeca prices import 買取表.csv          買取表を CSV から取り込む（列: shop,number,name,grade,price）
   python -m pokeca recommend [--out 推奨.csv]        推奨仕入れ上限の一覧
   python -m pokeca stock add 番号 名前 仕入れ値 [--from 店] [--on 日付]
@@ -52,6 +53,9 @@ def main(argv=None) -> int:
     fe = prs.add_parser("fetch")
     fe.add_argument("--shop", action="append", help="店を絞る（省略時は対応している全店）")
     fe.add_argument("--max-pages", type=int, help="動作確認用にページ数を制限する")
+    fx = prs.add_parser("fetch-x")
+    fx.add_argument("--limit", type=int, default=10, help="1店あたり読む投稿数の上限（課金は読んだ件数ぶん）")
+    fx.add_argument("--unresolved", help="照合できなかった行を書き出す CSV")
 
     rec = sub.add_parser("recommend")
     rec.add_argument("--out")
@@ -87,6 +91,16 @@ def main(argv=None) -> int:
         from .shops import fetch_all
         failed = fetch_all(db, today, args.shop, args.max_pages)
         return 1 if failed else 0
+    elif args.cmd == "prices" and args.sub == "fetch-x":
+        from .shops import fetch_x
+        try:
+            unresolved = fetch_x(db, cfg, today, args.limit)
+        except RuntimeError as exc:
+            print(exc)
+            return 1
+        if unresolved:
+            write_csv(args.unresolved, [{"店": u["shop"], "投稿のカード名": u["name"], "グレード": u["grade"],
+                                         "価格": u["price"], "候補の番号": " ".join(u["candidates"])} for u in unresolved])
     elif args.cmd == "prices":
         print(f"{db.import_prices(args.csv, args.day or today)}行を取り込みました")
     elif args.cmd == "recommend":

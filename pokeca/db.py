@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS prices (
     day TEXT, shop TEXT, card_key TEXT, name TEXT, grade TEXT, price REAL,
     PRIMARY KEY (day, shop, card_key, grade)
 );
+CREATE TABLE IF NOT EXISTS kv (k TEXT PRIMARY KEY, v TEXT);
 CREATE TABLE IF NOT EXISTS stock (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     card_key TEXT NOT NULL, name TEXT,
@@ -65,6 +66,22 @@ class DB:
                  ON p.shop = m.shop AND p.day = m.d"""
         )
         return [dict(r) for r in rows]
+
+    def known_names(self) -> dict[str, set[str]]:
+        """正規化したカード名 -> 番号の集合（番号の無い投稿を照合するため）。"""
+        out: dict[str, set[str]] = {}
+        for r in self.db.execute("SELECT DISTINCT card_key FROM prices"):
+            number, name = r["card_key"].split("|", 1)
+            out.setdefault(name, set()).add(number)
+        return out
+
+    def get(self, key: str) -> str | None:
+        r = self.db.execute("SELECT v FROM kv WHERE k=?", (key,)).fetchone()
+        return r["v"] if r else None
+
+    def put(self, key: str, value: str) -> None:
+        self.db.execute("INSERT OR REPLACE INTO kv VALUES (?,?)", (key, value))
+        self.db.commit()
 
     # ---- 在庫 -------------------------------------------------------------
     def add_stock(self, number, name, buy_price, bought_on, bought_from="") -> int:

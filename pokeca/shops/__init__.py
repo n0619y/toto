@@ -46,3 +46,29 @@ def fetch_all(db, day: str, only: list[str] | None = None, max_pages: int | None
             failed.append(name)
             print(f"{name}: 取得に失敗しました ({exc})")
     return failed
+
+
+def fetch_x(db, cfg: dict, day: str, limit: int = 10) -> list[dict]:
+    """X の公式 API で各店の新着投稿を読み、買取行を保存する。照合できなかった行を返す。"""
+    import os
+
+    from . import xposts
+
+    if not os.getenv("X_BEARER_TOKEN"):
+        raise RuntimeError("X_BEARER_TOKEN が未設定です（X の開発者アカウントで発行したトークンが必要）")
+    aliases = cfg.get("aliases") or {}
+    unresolved_all = []
+    for shop, username in (cfg.get("x_accounts") or {}).items():
+        try:
+            rows, newest = xposts.fetch_account(username, shop, db.get(f"x_since:{username}"), limit)
+        except Exception as exc:
+            print(f"{shop} (@{username}): 取得に失敗しました ({exc})")
+            continue
+        ok, unresolved = xposts.resolve(rows, aliases, db.known_names())
+        n = db.save_prices(ok, day)
+        if newest:
+            db.put(f"x_since:{username}", newest)
+        unresolved_all += unresolved
+        print(f"{shop} (@{username}): 買取行 {len(rows)}件、保存 {n}件、未照合 {len(unresolved)}件")
+        time.sleep(DELAY_SECONDS)
+    return unresolved_all
