@@ -1,0 +1,36 @@
+/* 商品画像(1200×900)の共通スタイル。色は xlsx(build.py)の塗り色と同じ。 */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1200px; height: 900px; overflow: hidden; }
+body {
+  font-family: "IPAPGothic", "IPA Pゴシック", "IPAGothic", "Noto Sans CJK JP", "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+  color: #1f2733; background: #f6f7f9; position: relative;
+  -webkit-font-smoothing: antialiased;
+}
+.page { position: absolute; inset: 0; padding: 36px 40px 0; }
+.kicker { font-size: 17px; color: #305496; font-weight: bold; letter-spacing: .06em; }
+h1 { font-size: 38px; line-height: 1.25; margin-top: 6px; }
+.lead { font-size: 19px; color: #48525f; margin-top: 8px; line-height: 1.5; }
+.footer {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 44px; padding: 0 40px;
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 14px; color: #5b6470; background: #e9ecf1; border-top: 1px solid #d5dae2;
+}
+.legend { display: flex; gap: 22px; align-items: center; font-size: 17px; margin-top: 16px; }
+.chip { display: inline-flex; align-items: center; gap: 8px; }
+.sw { width: 30px; height: 20px; border: 1px solid #bfbfbf; display: inline-block; }
+.sw.in { background: #fff2cc; } .sw.f { background: #ededed; }
+
+table { border-collapse: collapse; background: #fff; table-layout: fixed; }
+th, td { border: 1px solid #bfbfbf; height: 38px; padding: 0 8px; font-size: 16px; white-space: nowrap; overflow: hidden; }
+th { background: #305496; color: #fff; font-weight: bold; text-align: center; }
+th.f { background: #595959; }
+td.in { background: #fff2cc; } td.f { background: #ededed; }
+td.n { text-align: right; } td.c { text-align: center; }
+td.neg { color: #d00000; } td.b { font-weight: bold; }
+td.plain { background: #fff; }
+.tlabel { font-size: 16px; font-weight: bold; color: #305496; margin: 18px 0 6px; }
+.note { font-size: 16px; color: #48525f; line-height: 1.6; }
+.callout { background: #fff; border: 1px solid #d5dae2; border-left: 6px solid #305496; padding: 12px 16px; font-size: 16px; line-height: 1.6; }
+.tabs { display: flex; gap: 4px; }
+.tab { font-size: 15px; padding: 7px 14px; background: #dfe3ea; border: 1px solid #c3c9d3; border-bottom: none; border-radius: 6px 6px 0 0; color: #48525f; }
+.tab.on { background: #fff; color: #1f2733; font-weight: bold; }
