@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Space+Grotesk:wght@700&display=swap">
 <style>
-/* 1カラム。上から「在庫の一覧(集計・検索・選ぶ・編集) → PSA用リスト → 状態の更新 → 鑑定結果の入力 → カードの追加」 */
+/* 1カラム。上から「在庫の一覧(集計・検索・選ぶ・編集) → PSA用リスト → 状態の更新 → 発送書類の下書き → 鑑定結果の入力 → カードの追加」 */
 :root{--bg:#f6f7f9;--card:#ffffff;--fg:#16202b;--mut:#5a6878;--line:#d6dce4;--accent:#c8102e;--ok:#0f7a4f;--code:#eef1f5;--sel:#fdeef0;
   --body:"Inter",system-ui,"Hiragino Sans","Noto Sans JP",sans-serif;--head:"Space Grotesk","Inter",system-ui,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#11161c;--card:#1a2129;--fg:#e8edf2;--mut:#9aa8b8;--line:#2e3945;--accent:#ff5a73;--ok:#4fd19c;--code:#232c36;--sel:#3a2229;color-scheme:dark}}
@@ -53,6 +53,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .msg{color:var(--ok);font-weight:700;min-height:1.4em}.err{color:var(--accent)}
 #gRows{display:flex;flex-direction:column}
 .grow{display:flex;flex-direction:column;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);min-width:0}
+.stack{display:flex;flex-direction:column;gap:12px;min-width:0}
+.note{border-left:3px solid var(--accent);padding-left:10px;font-size:.9rem}
+pre.doc{white-space:pre-wrap;overflow-wrap:anywhere;max-height:none;font-size:.8rem;line-height:1.5}
 </style>
 <main>
 <header><h1>ポケカ在庫とPSA提出</h1>
@@ -114,6 +117,36 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
     <button class="sec" id="del" type="button" disabled>選んだカードを削除</button>
     <button id="delYes" type="button" hidden>本当に削除する</button></div>
   <div class="msg" id="updMsg" role="status"></div>
+</section>
+
+<section aria-labelledby="hShip">
+  <h2 id="hShip">発送書類の下書き</h2>
+  <p class="note" id="shipCaution">これは下書きです。申告価額・HSコード・関税の扱いは、必ず自分で確認してください。運送会社や税関の公式な書式ではありません。</p>
+  <div class="grid">
+    <label class="wide">対象のカード<select id="shipSrc"><option value="sel">いま選んでいるカード</option><option value="order">PSA注文番号で選ぶ</option></select></label>
+    <label class="wide" id="shipOrderWrap" hidden>PSA注文番号<select id="shipOrder"><option value="">注文番号を選ぶ</option></select></label>
+    <label class="wide">為替(1ドルあたりの円)<input id="shipRate" type="number" min="0" step="0.01" inputmode="decimal" placeholder="例 155" autocomplete="off"></label>
+    <label class="wide">1枚あたりの申告価額の決め方<select id="shipMode"><option value="cost">仕入値をドル換算</option><option value="flat">一律の金額(ドル)</option></select></label>
+    <label class="wide" id="shipFlatWrap" hidden>一律の申告価額(ドル・1枚)<input id="shipFlat" type="number" min="0" step="0.01" inputmode="decimal" autocomplete="off"></label>
+    <label class="wide">荷送人(名前と住所)<textarea id="shipFrom" rows="3" autocomplete="off"></textarea></label>
+    <label class="wide">荷受人(名前と住所)<textarea id="shipTo" rows="3" autocomplete="off"></textarea></label>
+    <label class="wide">品目の説明<input id="shipDesc" type="text" autocomplete="off" value="Trading cards for grading (temporary export, to be returned)"></label>
+    <label>原産国<input id="shipOrigin" type="text" autocomplete="off" value="Japan"></label>
+    <label>HSコード<input id="shipHs" type="text" autocomplete="off"></label>
+  </div>
+  <p class="mut">HSコードは初期値を入れていません。自分で確認して入れてください。この欄に入れた内容は、この端末に覚えさせます。</p>
+  <p class="mut" id="shipState"></p>
+  <div class="stack" id="shipDocs" hidden>
+    <h3 id="hPack">内容物リスト(パッキングリスト)</h3>
+    <pre class="out doc" id="packOut" tabindex="0" aria-labelledby="hPack"></pre>
+    <button class="sec" id="packCopy" type="button" disabled>内容物リストをコピー</button>
+    <div class="msg" id="packMsg" role="status"></div>
+    <h3 id="hInv">インボイスの下書き</h3>
+    <p class="msg err" id="shipWarn" hidden></p>
+    <pre class="out doc" id="invOut" tabindex="0" aria-labelledby="hInv"></pre>
+    <button class="sec" id="invCopy" type="button" disabled>インボイスの下書きをコピー</button>
+    <div class="msg" id="invMsg" role="status"></div>
+  </div>
 </section>
 
 <section aria-labelledby="hGrade">
@@ -248,7 +281,7 @@ function render() {
   if (!placed) { form.hidden = true; $("editHome").append(form); }
   else if (keep) keep.focus();
   $("exportBtn").disabled = !rows.length;
-  renderLine(); renderGrade();
+  renderLine(); renderGrade(); renderShip();
 }
 function renderLine() {
   const picked = cards.filter((c) => selected.has(c.id));
@@ -387,6 +420,83 @@ $("gSave").addEventListener("click", async () => {
   gradeSig = ""; renderGrade();
 });
 
+// ---- 発送書類の下書き ----
+// 入力欄はこの端末(localStorage)に覚えさせる。使えない環境では覚えないだけで、ほかは同じに動く
+const SHIP_KEY = "pokeca-ship-draft";
+const SHIP_FIELDS = ["shipRate", "shipMode", "shipFlat", "shipFrom", "shipTo", "shipDesc", "shipOrigin", "shipHs"];
+let shipOrderSig = null;
+function loadShip() {
+  try { const s = JSON.parse(localStorage.getItem(SHIP_KEY) || "{}"); for (const id of SHIP_FIELDS) if (typeof s[id] === "string") $(id).value = s[id]; } catch (e) {}
+  if (!$("shipMode").value) $("shipMode").value = "cost";
+}
+function saveShip() { try { localStorage.setItem(SHIP_KEY, JSON.stringify(Object.fromEntries(SHIP_FIELDS.map((id) => [id, $(id).value])))); } catch (e) {} }
+const usd = (cents) => (cents / 100).toFixed(2);
+const oneLine = (v) => str(v).replace(/\s+/g, " ").trim();
+const codeOf = (c) => [oneLine(c.set), oneLine(c.number)].filter(Boolean).join(" ");
+function renderShip() {
+  const sel = $("shipOrder"), count = new Map();
+  for (const c of cards) { const o = str(c.psaOrder).trim(); if (o) count.set(o, (count.get(o) || 0) + qtyOf(c)); }
+  const orders = [...count.keys()].sort(), sig = JSON.stringify(orders.map((o) => [o, count.get(o)]));
+  if (sig !== shipOrderSig) { // 注文番号の一覧が変わったときだけ選択肢を作り直す
+    shipOrderSig = sig;
+    const cur = orders.includes(sel.value) ? sel.value : "";
+    sel.replaceChildren();
+    const first = el("option", "", "注文番号を選ぶ"); first.value = ""; sel.append(first);
+    for (const o of orders) { const op = el("option", "", `${o}(${count.get(o)}枚)`); op.value = o; sel.append(op); }
+    sel.value = cur;
+  }
+  const byOrder = $("shipSrc").value === "order", flat = $("shipMode").value === "flat";
+  $("shipOrderWrap").hidden = !byOrder; $("shipFlatWrap").hidden = !flat;
+  const pool = byOrder ? (sel.value ? cards.filter((c) => str(c.psaOrder).trim() === sel.value) : []) : cards.filter((c) => selected.has(c.id));
+  const rows = pool.filter((c) => statusOf(c) !== "売却済"), sold = pool.length - rows.length;
+  const totalQty = rows.reduce((a, c) => a + qtyOf(c), 0);
+  let hint = rows.length ? `${rows.length}行・${totalQty}枚の下書きです。` :
+    !byOrder ? "上の在庫の一覧で、送るカードにチェックを入れてください。" :
+    !orders.length ? "注文番号の付いたカードがまだありません。対象を「いま選んでいるカード」に変えてください。" :
+    !sel.value ? "PSA注文番号を選んでください。" : "この注文番号に、送れるカードがありません。";
+  if (sold) hint += `(売却済の${sold}件は入れていません)`;
+  $("shipState").textContent = hint;
+  $("shipDocs").hidden = !rows.length; $("packCopy").disabled = !rows.length;
+  if (!rows.length) { $("packOut").textContent = $("invOut").textContent = ""; $("invCopy").disabled = true; return; }
+
+  const pack = ["PACKING LIST (DRAFT)", "No. | Card | Set / No. | Qty"];
+  rows.forEach((c, i) => pack.push(`${i + 1}. ${oneLine(c.name) || "(no name)"} | ${codeOf(c) || "-"} | ${qtyOf(c)}`));
+  pack.push(`Total quantity: ${totalQty}`);
+  $("packOut").textContent = pack.join("\n");
+
+  const rate = Number($("shipRate").value), flatUsd = Number($("shipFlat").value), warn = $("shipWarn");
+  const need = flat ? (flatUsd > 0 ? "" : "一律の申告価額(ドル)を入れると、インボイスの下書きが出ます。") : (rate > 0 ? "" : "為替(1ドルあたりの円)を入れると、インボイスの下書きが出ます。");
+  $("invOut").hidden = !!need; $("invCopy").disabled = !!need;
+  if (need) { $("invOut").textContent = ""; warn.textContent = need; warn.hidden = false; return; }
+  const block = (v) => { const t = str(v).split(/\r?\n/).map((l) => l.trim()).filter(Boolean); return t.length ? t : ["(not entered)"]; };
+  const inv = ["INVOICE (DRAFT)", "Shipper:", ...block($("shipFrom").value), "Consignee:", ...block($("shipTo").value),
+    "Description of goods: " + (oneLine($("shipDesc").value) || "(not entered)"),
+    "Country of origin: " + (oneLine($("shipOrigin").value) || "(not entered)"),
+    "HS code: " + (oneLine($("shipHs").value) || "(not entered)"),
+    "Currency: USD", "", "No. | Description | Qty | Unit price (USD) | Amount (USD)"];
+  let total = 0; const missing = [];
+  rows.forEach((c, i) => {
+    // 単価はセント単位に丸めてから枚数を掛ける(表示の単価×枚数=金額、金額の合計=合計 になる)
+    const price = Number(c.buyPrice) || 0, unit = flat ? Math.round(flatUsd * 100) : price > 0 ? Math.round(price / rate * 100) : 0;
+    if (!flat && !(price > 0)) missing.push(i + 1);
+    const amount = unit * qtyOf(c); total += amount;
+    const code = codeOf(c);
+    inv.push(`${i + 1}. ${oneLine(c.name) || "(no name)"}${code ? ` (${code})` : ""} | ${qtyOf(c)} | ${usd(unit)} | ${usd(amount)}`);
+  });
+  inv.push(`Total quantity: ${totalQty}`, `Total value: ${usd(total)} USD`, "", "--- Notes for the drafter (delete before use) ---",
+    flat ? `Unit price: flat ${usd(Math.round(flatUsd * 100))} USD per card.` : `Unit price: purchase price converted at 1 USD = ${rate} JPY.`);
+  if (missing.length) inv.push(`No purchase price recorded for line ${missing.join(", ")}; unit price shown as 0.00. Confirm the value.`);
+  inv.push("Draft only. Not an official carrier or customs form. Confirm declared value, HS code and duty treatment yourself.");
+  $("invOut").textContent = inv.join("\n");
+  warn.hidden = !missing.length;
+  warn.textContent = missing.length ? `仕入値が空のカードが${missing.length}行あります(行 ${missing.join(", ")})。単価を 0 として出しています。申告価額を自分で確認してください。` : "";
+}
+for (const id of SHIP_FIELDS) $(id).addEventListener("input", () => { saveShip(); renderShip(); });
+$("shipSrc").addEventListener("change", renderShip);
+$("shipOrder").addEventListener("change", renderShip);
+$("packCopy").addEventListener("click", () => copyText($("packOut").textContent, $("packOut"), "packMsg"));
+$("invCopy").addEventListener("click", () => copyText($("invOut").textContent, $("invOut"), "invMsg"));
+
 // ---- 書き出し ----
 const TSV_COLS = [["カード名", "name"], ["セット記号", "set"], ["番号", "number"], ["枚数", "qty"], ["仕入値", "buyPrice"], ["仕入先", "boughtFrom"], ["仕入日", "boughtOn"],
   ["状態", "status"], ["PSA注文番号", "psaOrder"], ["認定番号", "cert"], ["グレード", "grade"], ["売却先", "soldTo"], ["売却額", "soldPrice"], ["売却日", "soldOn"], ["メモ", "note"]];
@@ -436,6 +546,7 @@ $("add").addEventListener("submit", async (e) => {
   $("addBtn").disabled = false;
 });
 
+loadShip();
 render();
 (async () => {
   const timer = setTimeout(() => { if (!db) $("state").textContent = "在庫を読み込めませんでした。Claudeにサインインした状態で開き直してください。"; }, 10000);

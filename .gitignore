@@ -31,3 +31,7 @@ Thumbs.db
 # ポイ活カンパニーの台帳・朝報（個人の利用状況が入るためコミットしない）
 data/
 output/poikatsu/
+
+# 事業の実数（売上・粗利など）を含む試算は、リポジトリに入れない
+products/kaitori-kit/shisan.py
+products/kaitori-kit/買取率の試算.md
