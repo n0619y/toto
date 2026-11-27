@@ -38,6 +38,7 @@ def test_normalization():
     assert card_key("201/165", "サンプルカード甲 SAR") == card_key("２０１/１６５", "サンプルカード甲") == A
     assert card_key("096/071", "ナンジャモ SAR（SV2D）") == card_key("096/071", "ナンジャモ SAR 096/071") == "096/071|ナンジャモ"
     assert card_key("096/071", "ナンジャモ") != card_key("096/071", "別のカード")   # 番号が同じ別弾は区別する
+    assert card_key("003/SV-P", "ミュウex(SAR仕様/中国語版)") != card_key("003/SV-P", "ミュウex(SAR仕様)")
     assert normalize_grade("PSA 10") == normalize_grade("psa１０") == "PSA10"
     assert normalize_grade("") == normalize_grade("美品") == "RAW"
 

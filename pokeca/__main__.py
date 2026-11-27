@@ -92,8 +92,20 @@ def main(argv=None) -> int:
     elif args.cmd == "recommend":
         best = best_offers(db.latest_prices())
         rows = [r for r in (recommend(c, best, cfg) for c in sorted({k[0] for k in best})) if r]
-        rows.sort(key=lambda r: -r["max_buy"])
-        write_csv(args.out, [{k: (round(v) if isinstance(v, float) else v) for k, v in r.items()} for r in rows])
+        # 「推奨上限 − 未鑑定の買取価格」が大きい順（未鑑定の買取が無いカードは後ろ）。
+        # 買取店が未鑑定で買う値段より推奨上限が高いカードほど、仕入れて鑑定に出す余地がある。
+        gap = lambda r: r["max_buy"] - r["raw_price"] if r["raw_price"] else None
+        rows.sort(key=lambda r: (gap(r) is None, -(gap(r) or 0), -r["max_buy"]))
+        yen = lambda v: round(v) if v else ""
+        write_csv(args.out, [{
+            "カード名": r["name"], "番号": r["card_key"].split("|")[0],
+            "PSA10買取": yen(r["psa10_price"]), "PSA10最高値の店": r["psa10_shop"],
+            "PSA9の見込み": yen(r["psa9_value"]), "未鑑定買取": yen(r["raw_price"]),
+            "期待売値": yen(r["expected_sale"]), "1枚の費用": yen(r["costs"]),
+            "推奨仕入れ上限": yen(r["max_buy"]), "上限−未鑑定買取": yen(gap(r)) if gap(r) is not None else "",
+            "PSA10なら利益(仕入れ前)": yen(r["profit_if_psa10"]),
+            "鑑定する価値": {True: "あり", False: "なし", None: "未鑑定価格なし"}[r["worth_grading"]],
+        } for r in rows])
     elif args.cmd == "stock" and args.sub == "add":
         i = db.add_stock(args.number, args.name, args.buy_price, args.on or today, args.bought_from)
         print(f"在庫ID {i} で登録しました")

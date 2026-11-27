@@ -18,7 +18,10 @@ def card_key(number: str, name: str) -> str:
     """
     norm = lambda s: unicodedata.normalize("NFKC", str(s or "")).upper()
     num = re.sub(r"\s+", "", norm(number))
-    nm = re.sub(r"[(\[【].*?[)\]】]", "", norm(name))          # 括弧書き（弾の記号など）を除く
+    # 括弧書き（弾の記号・仕様の注記）は除く。ただし言語違いは別のカードなので残す
+    nm = re.sub(r"[(\[【](.*?)[)\]】]",
+                lambda m: m.group(1) if re.search(r"語|海外|ENGLISH|CHINESE|KOREAN", m.group(1)) else "",
+                norm(name))
     nm = nm.replace(num, "") if num else nm
     nm = re.sub(rf"(?<![A-Z0-9]){RARITIES}(?![A-Z0-9])", "", nm)  # 単独のレアリティ表記を除く
     nm = re.sub(r"PSA\s*\d{1,2}", "", nm)
