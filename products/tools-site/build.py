@@ -13,9 +13,12 @@ import subprocess
 import sys
 from datetime import date
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 ROOT = Path(__file__).parent
+sys.path.insert(0, str(ROOT))
+import kaitori  # noqa: E402  （同じディレクトリの kaitori.py。買取価格の比較ページのデータと選別）
+
 SITE = json.loads((ROOT / "site.json").read_text(encoding="utf-8"))
 OUT = ROOT / "public"
 BASE = str(SITE["url"]).strip().rstrip("/")   # 公開URL。canonical・og:url・sitemap・構造化データはすべてここから作る
@@ -837,6 +840,125 @@ def build_hayami():
     return paths, len(d["born"]), len(d["era"]), ty
 
 
+# ---- PSA10 買取価格の比較（/kaitori-price/ と /kaitori-price/<番号-カード名>/）---------------
+# 各店が公開している買取価格の引用。データは kaitori.py が書き出した kaitori-data/prices.json、載せるカードの条件は kaitori.select。
+# site.json の kaitori_price.publish が true で、データがあり、古すぎないときだけ生成する（それ以外は何も出さず、既存ページも変えない）。
+# 書かないと決めていること: 店のロゴ・画像・カード画像、買取の勧誘、特定の店を勧める文、「必ず」「最高値」などの断定。
+KP_TITLE = "PSA10 買取価格の比較"
+KP_CRUMB = (KP_TITLE, "kaitori-price/")
+KP_LI = (f'<li><a href="/kaitori-price/"><b>{KP_TITLE}（ポケモンカード）</b>'
+         '<span>各店が公開している PSA10 の買取価格を、カードごとに引用して並べた表です。</span></a></li>')
+
+
+def _dt(t):
+    """取得日時の表示（日本時間）。"""
+    t = t.astimezone(kaitori.JST)
+    return f"{t.year}年{t.month}月{t.day}日 {t.hour}:{t.minute:02d}"
+
+
+def _kp_notice(kp):
+    """各ページの上部に出す注意書き。取得から時間がたったら「古い可能性」を出す（ビルド時に判定し、開いたときにも app.js が判定し直す）。"""
+    at = kp["fetched_at"]
+    return (f'<div class="card note"><p>取得日時: <b>{_dt(at)}</b>（日本時間）</p>'
+            f'<p class="err" data-stale-after="{e(at.isoformat())}" data-stale-hours="{kaitori.STALE_HOURS}"{"" if kp["stale"] else " hidden"}>'
+            f'取得から{kaitori.STALE_HOURS}時間以上たっています。価格が古い可能性があります。</p>'
+            '<p>各店が自分のサイトで公開している買取価格を、取得した時点のまま引用して並べたものです。'
+            '実際の買取価格は、各店の最新の表示と査定で決まります。売る前に、各店のページでご確認ください。</p></div>')
+
+
+def _kp_sources(kp):
+    """店ごとの出典（公開されている買取価格表のページ）と取得日時。取得できなかった店はそう書く。"""
+    rows = "<tr><th>店</th><th>出典（各店の買取価格表）</th><th>取得</th></tr>"
+    for s in kp["shops"]:
+        links = "<br>".join(f'<a href="{e(info["list_url"])}" rel="noopener nofollow">{e(name)}の買取価格表（{info["channel"]}）</a>' for name, info in s["sources"])
+        state = f'{s["count"]:,}件<small>{_dt(kaitori.parse_time(s["fetched_at"]))}</small>' if s["ok"] else "取得できませんでした"
+        rows += f'<tr><td>{e(s["shop"])}</td><td>{links}</td><td>{state}</td></tr>'
+    return (f'<h2>出典と取得日時</h2><table class="grid">{rows}</table>'
+            '<p class="lead">当サイトは各店と提携・協力関係にはなく、各店の公式の情報でもありません。店のロゴや画像は使っていません。'
+            '掲載について各店からお申し出があれば、その店の掲載を外します。</p>')
+
+
+def _kp_list(cards):
+    rows = "<tr><th>カード</th><th>掲載価格の幅</th><th>店</th></tr>" + "".join(
+        f'<tr><td><a href="/kaitori-price/{quote(c["slug"])}/">{e(c["name"])}</a><small>{e(c["number"])}{" ・ " + e(c["rarity"]) if c["rarity"] else ""}</small></td>'
+        f'<td>{yen(c["min"])}〜{yen(c["max"])}</td><td>{len(c["offers"])}店</td></tr>' for c in cards)
+    return f'<table class="grid">{rows}</table>'
+
+
+def _kp_card(kp, c):
+    name, number = c["name"], c["number"]
+    title = f"{name}（{number}）{KP_TITLE}"
+    shops = "・".join(o["shop"] for o in sorted(c["offers"], key=lambda o: o["shop"]))
+    desc = (f"{name}（{number}{'・' + c['rarity'] if c['rarity'] else ''}）の PSA10 鑑定品について、{shops}が公開している買取価格を引用して並べた表です。"
+            "店ごとの価格、店頭・郵送の別、出典ページ、取得日時を載せています。")
+    have = {o["shop"] for o in c["offers"]}
+    rows = "<tr><th>店（受付）</th><th>公開されていた買取価格</th><th>出典</th></tr>"
+    for o in c["offers"]:
+        rows += (f'<tr><td>{e(o["shop"])}<small>{o["channel"]}{"・" + e(o["note"]) if o["note"] else ""}</small></td>'
+                 f'<td>{yen(o["price"])}<small>取得 {_dt(kaitori.parse_time(o["fetched_at"]))}</small></td>'
+                 f'<td><a href="{e(o["source_url"])}" rel="noopener nofollow">{e(o["shop"])}の掲載ページ</a></td></tr>')
+    for s in kp["shops"]:
+        for shop, info in s["sources"]:
+            if shop not in have:
+                state = "取得した時点では掲載が見つかりませんでした" if s["ok"] else "取得できませんでした"
+                rows += f'<tr><td>{e(shop)}<small>{info["channel"]}</small></td><td>{state}</td><td>—</td></tr>'
+    spread = _table([("高いほうの掲載価格", yen(c["max"])), ("低いほうの掲載価格", yen(c["min"])), ("差", yen(c["diff"]))])
+    info = _table([("カード名", e(name)), ("カード番号", e(number)), ("レアリティ", e(c["rarity"]) if c["rarity"] else "店の表示に記載なし"), ("グレード", "PSA10")])
+    body = (f'<h1>{e(name)}（{e(number)}）PSA10 の買取価格の比較</h1>{_kp_notice(kp)}'
+            f'<h2>店ごとの買取価格</h2><table class="grid">{rows}</table>'
+            f'<h2>掲載価格の幅</h2><div class="card note">{spread}</div>'
+            '<p class="lead">上の表にある店の、取得した時点の掲載価格どうしの差です。ここに無い店の価格や、その後の変動は含みません。</p>'
+            f'<h2>このカード</h2>{info}'
+            '<h2>表の見方</h2><ul><li>店頭と郵送では、同じ店でも価格が違うことがあります。表の「受付」で確かめてください。</li>'
+            '<li>掲載価格は、状態に問題が無い場合の目安です。査定の結果、減額や買取不可になることがあります。</li>'
+            '<li>送料・振込手数料・会員ランクによる上乗せなどは含んでいません。条件は各店のページでご確認ください。</li></ul>'
+            f'{AD_SLOT}{_kp_sources(kp)}'
+            f'<h2>関連するツール</h2><ul class="tools">{tool_items(["furima-vs-kaitori", "card-roi"])}</ul>'
+            f'<p><a href="/kaitori-price/">{KP_TITLE}の一覧へ</a></p>')
+    return title, desc, body
+
+
+def build_kaitori(kp):
+    """比較ページを書き出し、sitemap に入れるパスの一覧を返す。kp は kaitori.select の結果（None や 0 件なら何も生成しない）。"""
+    if not kp or not kp["cards"]:
+        return []
+    cards, titles = [], set()
+    for c in kp["cards"]:   # title が重なるカードは載せない（title の重複はビルドを止めるため、ここで落とす）
+        if (c["name"], c["number"]) not in titles:
+            titles.add((c["name"], c["number"]))
+            cards.append(c)
+    n, at = len(cards), _dt(kp["fetched_at"])
+    ok_shops = "・".join(s["shop"] for s in kp["shops"] if s["ok"])
+    by_price = sorted(cards, key=lambda c: (-c["max"], c["number"], c["name"]))
+    by_kana = sorted(cards, key=lambda c: (kaitori.kana_key(c["name"]), c["number"]))
+    common = (f'{_kp_notice(kp)}<p>2店以上が価格を公開していて、カード番号とカード名（仕様の注記を含む）が店どうしで一致したカードだけを載せています（{n}枚）。'
+              '一致を確かめられないカードは載せていません。</p>')
+    index_desc = (f"ポケモンカードの PSA10 鑑定品 {n}枚について、{ok_shops}が公開している買取価格をカードごとに引用して並べた一覧です（価格の高い順）。"
+                  "出典ページと取得日時つき。")
+    write_page("kaitori-price", page(
+        "kaitori-price/", f"{KP_TITLE}（ポケモンカード・価格の高い順）", index_desc,
+        f'<h1>{KP_TITLE}（ポケモンカード）</h1><p class="lead">{e(index_desc)}</p>{common}'
+        f'<p>並べ替え: <b>価格の高い順</b> ／ <a href="/kaitori-price/aiueo/">五十音順</a></p>{_kp_list(by_price)}{AD_SLOT}{_kp_sources(kp)}'
+        f'<h2>関連するツール</h2><ul class="tools">{tool_items(["furima-vs-kaitori", "card-roi"])}</ul>', crumbs=[KP_CRUMB]))
+    kana_desc = (f"ポケモンカードの PSA10 鑑定品 {n}枚の買取価格の比較を、カード名の五十音順に並べた一覧です。"
+                 f"{ok_shops}が公開している価格の引用で、出典ページと取得日時つき。")
+    write_page("kaitori-price/aiueo", page(
+        "kaitori-price/aiueo/", f"{KP_TITLE}（ポケモンカード・五十音順）", kana_desc,
+        f'<h1>{KP_TITLE}（五十音順）</h1><p class="lead">{e(kana_desc)}</p>{common}'
+        f'<p>並べ替え: <a href="/kaitori-price/">価格の高い順</a> ／ <b>五十音順</b>（かな・カナの順。漢字で始まる名前は後ろにまとまります）</p>'
+        f'{_kp_list(by_kana)}{AD_SLOT}{_kp_sources(kp)}', crumbs=[KP_CRUMB, ("五十音順", "kaitori-price/aiueo/")]))
+    paths = ["kaitori-price/", "kaitori-price/aiueo/"]
+    for c in cards:
+        title, desc, body = _kp_card(kp, c)
+        path = f'kaitori-price/{quote(c["slug"])}/'   # 日本語を含むので、URL としては % で符号化した形を使う（ディレクトリ名は元の文字のまま）
+        write_page(f'kaitori-price/{c["slug"]}', page(path, title, desc, body, crumbs=[KP_CRUMB, (f"{c['name']}（{c['number']}）", path)]))
+        paths.append(path)
+    print(f"買取価格の比較: カード {n} + 一覧 2 ページ（取得 {at}。店: "
+          + "、".join(f'{s["shop"]} {"%d件" % s["count"] if s["ok"] else "取得できず"}' for s in kp["shops"])
+          + f"。載せなかった数: {kp['dropped']}）")
+    return paths
+
+
 def favicon_svg():
     """角丸の四角に「＝」。外部ファイルを使わず、ここで生成する。"""
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="{ACCENT}"/>'
@@ -868,6 +990,18 @@ def check():
         must.append("public/ がいまの site.json の url で生成されていません。python build.py を実行し直してください。")
     if built.is_file() and not (OUT / "born" / str(date.today().year) / "index.html").is_file():
         must.append(f"public/ の早見ページが{date.today().year}年のぶんまで生成されていません（年が変わったあと再ビルドしていません）。python build.py を実行し直してください。")
+    kp_cfg = kaitori.settings(SITE)
+    if kp_cfg["publish"]:
+        if not str(SITE.get("contact", "")).strip():
+            must.append("買取価格の比較ページを公開する設定（kaitori_price.publish）ですが、contact が空です。店が掲載の取り下げを申し出る連絡先がありません。")
+        kp_at = kaitori.parse_time((kaitori.load() or {}).get("fetched_at"))
+        if not kp_at:
+            must.append("kaitori_price.publish が true ですが、kaitori-data/prices.json がありません。比較ページは生成されません（python kaitori.py で取得）。")
+        elif (kaitori.now_jst() - kp_at).total_seconds() > kaitori.STALE_HOURS * 3600:
+            must.append(f"買取価格のデータが {kaitori.STALE_HOURS} 時間以上前のものです（取得 {_dt(kp_at)}）。ページには「古い可能性があります」と表示され、"
+                        f"{kaitori.MAX_AGE_DAYS} 日を過ぎると比較ページは生成されなくなります。毎日更新のワークフローが動いているか確かめてください。")
+    else:
+        opt.append("kaitori_price.publish が false です。買取価格の比較ページ（/kaitori-price/）は生成されません（公開するかどうかはオーナーの判断。README を参照）。")
     if not ads:
         opt.append("adsense_client が空です。広告枠は出ません（審査に通ってから入れます）。")
     if not OG_IMAGE:
@@ -904,10 +1038,14 @@ def main():
     if OG_IMAGE and OG_IMAGE_URL != OG_IMAGE and (ROOT / "src" / OG_IMAGE.lstrip("/")).is_file():
         shutil.copy(ROOT / "src" / OG_IMAGE.lstrip("/"), OUT / OG_IMAGE.lstrip("/"))
 
+    # 買取価格の比較ページ。トップからのリンクを出すかどうかが決まるので、先に生成する（データが無い・公開が切なら何も出ない）
+    kaitori_paths = build_kaitori(kaitori.select(kaitori.load(), SITE))
+
     links = "".join(
         f'<h2>{e(g)}</h2><ul class="tools">'
         + "".join(f'<li><a href="/{s}/"><b>{e(t)}</b><span>{e(d)}</span></a></li>' for s, t, d, *_ in tools) + "</ul>"
         + (f'<p class="lead">計算の考え方の解説（<a href="/guide/">{GUIDE_INDEX_TITLE}</a>）と、記録用のシート</p>{card_pillar([s for s, *_ in GUIDES])}'
+           + (f'<p class="lead">各店が公開している買取価格の引用</p><ul class="tools">{KP_LI}</ul>' if kaitori_paths else "")
            if tools is CARD_TOOLS else "")
         for g, tools in GROUPS)
     links += f'<h2>早見表</h2><ul class="tools">{HAYAMI_LI}</ul>'
@@ -1004,7 +1142,7 @@ def main():
                 raise SystemExit(f"{name} が空か重複しています: /{p[0]}" + (f" と /{seen[p[i]]}" if p[i] in seen else ""))
             seen[p[i]] = p[0]
 
-    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + ["guide/"] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"] + hayami_paths
+    urls = [""] + [f"{s}/" for s, *_ in TOOLS] + ["guide/"] + [f"guide/{s}/" for s, *_ in GUIDES] + ["sheet/", "privacy/"] + hayami_paths + kaitori_paths
     (OUT / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"  <url><loc>{e(BASE)}/{u}</loc></url>\n" for u in urls) + "</urlset>\n", encoding="utf-8")

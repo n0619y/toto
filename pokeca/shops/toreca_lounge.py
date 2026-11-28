@@ -47,6 +47,7 @@ def parse(html: str) -> list[dict]:
             "grade": GRADES[grade],
             "price": int(price.replace(",", "")),
             "item_id": item_id,
+            "rarity": "" if rarity == "-" else rarity,
         })
     return rows
 
@@ -56,11 +57,12 @@ def total_pages(html: str) -> int:
     return -(-int(m.group(1).replace(",", "")) // PER_PAGE) if m else 1
 
 
-def fetch(max_pages: int | None = None):
+def fetch(max_pages: int | None = None, grades=None):
+    """grades にサイトの絞り込み値（GRADES のキー）を渡すと、そのグレードの一覧だけを読む（読むページを減らす）。"""
     from . import get
 
     budget = max_pages or MAX_PAGES
-    for grade in GRADES:
+    for grade in (GRADES if grades is None else [g for g in GRADES if g in grades]):
         page, pages = 1, 1
         while page <= pages and budget > 0:
             html = get(URL, grade=grade, page=page)

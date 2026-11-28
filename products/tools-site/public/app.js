@@ -421,3 +421,7 @@ const TOOLS = {
 
 const tool = document.body.dataset.tool;
 if (TOOLS[tool]) TOOLS[tool]();
+// 買取価格の比較ページ: 取得から時間がたっていたら「古い可能性があります」を出す（ビルド後に日がたっても表示が変わるように、開いたときに判定する）
+document.querySelectorAll("[data-stale-after]").forEach((el) => {
+  if (L.isStale(el.dataset.staleAfter, Date.now(), Number(el.dataset.staleHours))) el.hidden = false;
+});

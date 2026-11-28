@@ -18,6 +18,15 @@ test("計算例 例1: 相場10,000・手数料10%・送料210・買取率93%", (
   assert.equal(h.saiteiRitsu, "87.9");
 });
 
+test("サイトの計算例: 対象の下限 30,000円・買取率93%", () => {
+  const h = hikaku(30000, 10, 210, 93);
+  assert.equal(h.kaitoriGaku, 27900);
+  assert.equal(h.kaitoriTejori, 27900);
+  assert.equal(h.furimaTejori, 26790);
+  assert.equal(h.uriteSagaku, 1110);
+  assert.equal(h.gyakutenRitsu, "89.30");
+});
+
 test("計算例 例3: 売り手が送料520円を負担すると、フリマのほうが10円多い", () => {
   const h = hikaku(10000, 10, 210, 93, 520);
   assert.equal(h.kaitoriTejori, 8780);

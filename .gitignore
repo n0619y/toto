@@ -19,6 +19,7 @@ output/scripts/*
 output/articles/*
 output/slides/*
 output/review/*
+output/shorts/*
 
 # .gitkeep は残す
 !output/**/.gitkeep
@@ -38,3 +39,6 @@ products/kaitori-kit/買取率の試算.md
 
 # オーナー個人の作業一覧（注文番号や私的なリンクを含む）は、リポジトリに入れない
 pokeca/psa/todo.html
+
+# 買取店から取得した価格データは、公開するとオーナーが決めるまでリポジトリに入れない
+products/tools-site/kaitori-data/prices.json

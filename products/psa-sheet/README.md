@@ -9,7 +9,7 @@ BOOTH や note など、決済と配布を代行する場所に置いて売る�
 | `verify.py` | 生成物の検証(静的点検・手計算との突き合わせ・LibreOffice での再計算・無料ツールの計算結果との突き合わせ) |
 | `dist/psa-shushi-kanri.xlsx` | シート本体(生成物)。zip に入れて配る |
 | `listing.md` | 販売ページ用の文章の下書き(画像の並び順と説明文、購入前の確認事項、FAQ の置き方を含む) |
-| `FAQ.md` | 購入者向けのよくある質問(18問)。zip にはテキスト版を入れる |
+| `FAQ.md` | 購入者向けのよくある質問(19問)。zip にはテキスト版を入れる |
 | `make_zip.py` | 配布用の `dist/psa-shushi-kanri-v1.0.zip` を作る |
 | `dist/psa-shushi-kanri-v1.0.zip` | 販売サイトに登録するファイル(生成物)。xlsx・`よくある質問_FAQ.txt`・`はじめにお読みください.txt` |
 | `images_src/` | 商品画像の元になる HTML(`01`〜`05`)・共通の `style.css`・撮影スクリプト `shoot.js` |

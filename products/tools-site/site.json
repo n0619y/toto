@@ -7,5 +7,14 @@
   "product_url": "",
   "product_price": "",
   "product_verified": "",
-  "google_site_verification": "kXR4mjLtOx2bFcD33kQdOkL4uXi5X_6MepuoaiukEuc"
+  "google_site_verification": "kXR4mjLtOx2bFcD33kQdOkL4uXi5X_6MepuoaiukEuc",
+  "kaitori_price": {
+    "publish": false,
+    "shops": {
+      "トレカクラブ": true,
+      "トレカラウンジ": true,
+      "シンソク": false,
+      "トレカバンク": false
+    }
+  }
 }
